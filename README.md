@@ -1,3 +1,6 @@
-# GPyTorch_LF
+# Pyro Latent Function Inference
 
-Some examples of Latent Function inference with GPyTorch
+This example infers a latent function* * **lambda**(X)* *,
+given inputs * *X* * and observations * *Y* * drawn from 
+exponential distribution with* * **lambda** = **lambda**(X)* *.
+
