@@ -51,8 +51,8 @@ class GaussianCopula(TorchDistribution):
         
         thetas = self.theta
         
-        log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # value[..., 0] == value[..., 1]) fails
-        log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") 
+        log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
+        log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
         
         nrvs = normal.Normal(0,1).icdf(value) 
         mask = (thetas < 1.0) & (thetas > -1.0)

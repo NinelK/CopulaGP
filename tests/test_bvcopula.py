@@ -31,6 +31,7 @@ class TestCopulaSampling(unittest.TestCase):
 	"""
 
 	def test_gaussian_sampling(self):
+		# here we compare sampled density vs copula pdf
 
 		bin_size = 20
 		
@@ -44,8 +45,8 @@ class TestCopulaSampling(unittest.TestCase):
 		centre_bins = (np.mgrid[0:bin_size,0:bin_size]/bin_size + 1/2/bin_size).T
 		samples = centre_bins.reshape(-1,2)
 		samples = torch.tensor(samples).float()
-		p_logpdf = np.exp(gaussian_copula.log_prob(samples).numpy())
-		p_den = p_logpdf.reshape(bin_size,bin_size)
+		p_pdf = np.exp(gaussian_copula.log_prob(samples).numpy())
+		p_den = p_pdf.reshape(bin_size,bin_size)
 
-		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)
-		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=1e-3)
+		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)				# test each element
+		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=1e-3)	# test diff between means

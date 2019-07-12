@@ -13,7 +13,7 @@ class GaussianCopula_Likelihood(Likelihood):
             kwargs, "batch_size", "batch_shape", batch_shape, lambda n: torch.Size([n])
         )
         super(Likelihood, self).__init__()
-        self._max_plate_nesting = 2
+        self._max_plate_nesting = 1
     
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
