@@ -40,6 +40,8 @@ class GaussianCopula(TorchDistribution):
             shape = torch.Size([1]) + shape
             
         samples = torch.empty(size=shape).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
+        if self.theta.is_cuda:
+            samples = samples.cuda()
         samples[...,0] = self.ppcf(samples, self.theta)
         return samples
 
@@ -48,13 +50,15 @@ class GaussianCopula(TorchDistribution):
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         log_prob = torch.zeros(self.theta.shape) # by default
+        if self.theta.is_cuda:
+            log_prob = log_prob.cuda()
         
         thetas = self.theta
         
         log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
         log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
         
-        nrvs = normal.Normal(0,1).icdf(value) 
+        nrvs = normal.Normal(0,1).icdf(value)
         mask = (thetas < 1.0) & (thetas > -1.0)
         log_prob[..., mask] = (2 * thetas * nrvs[..., 0] * nrvs[..., 1] - thetas**2 \
             * (nrvs[..., 0]**2 + nrvs[..., 1]**2))[..., mask]
