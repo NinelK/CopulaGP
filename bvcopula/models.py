@@ -43,7 +43,7 @@ class KISS_GPInferenceModel(gpytorch.models.PyroVariationalGP):
         )
         
         # Standard initializtation
-        super(GPInferenceModel2, self).__init__(variational_strategy, likelihood, num_data=grid_size) #?
+        super(KISS_GPInferenceModel, self).__init__(variational_strategy, likelihood, num_data=grid_size) #?
         self.likelihood = likelihood
         
         # Mean, covar
