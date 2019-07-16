@@ -28,9 +28,15 @@ class GaussianCopula(TorchDistribution):
         return new
     
     def ppcf(self, samples, theta):
-        nrvs = normal.Normal(0,1).icdf(samples)
-        vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                             nrvs[..., 1] * self.theta) # here in nrvs too close to 0 or 1, may go to -inf, resulting in more samples in the corner, then there should be
+        if self.theta.is_cuda:
+            get_cuda_device = self.theta.get_device()
+            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
+            vals = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                                 nrvs[..., 1] * self.theta)
+        else:    
+            nrvs = normal.Normal(0,1).icdf(samples)
+            vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                                 nrvs[..., 1] * self.theta) # here in nrvs too close to 0 or 1, may go to -inf, resulting in more samples in the corner, then there should be
         return vals
 
     def rsample(self, sample_shape=torch.Size([])):
@@ -63,7 +69,6 @@ class GaussianCopula(TorchDistribution):
         
         log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
         log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
-        
         
         mask = (thetas < 1.0) & (thetas > -1.0)
         log_prob[..., mask] = (2 * thetas * nrvs[..., 0] * nrvs[..., 1] - thetas**2 \
