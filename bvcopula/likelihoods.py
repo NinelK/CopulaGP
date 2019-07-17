@@ -22,7 +22,11 @@ class GaussianCopula_Likelihood(Likelihood):
         which parameterizes the distribution in :attr:`forward` method as well as the
         log likelihood of this distribution defined in :attr:`expected_log_prob`.
         """
-        return (2*base_distributions.Normal(0,1).cdf(f) - 1)
+        if f.is_cuda:
+            get_cuda_device = f.get_device()
+            return (2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
+        else:
+            return (2*base_distributions.Normal(0,1).cdf(f) - 1)
     
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> GaussianCopula:
         scale = self.gplink_function(function_samples)
