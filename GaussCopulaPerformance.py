@@ -10,11 +10,11 @@ from pyro import optim
 import time
 import sys
 
-CUDA = 0
+CUDA = 1
 DEVICE = 0
 NSamp = 100
 KISS = 1
-grid_size = 64
+grid_size = 128
 num_particles = 64
 early_stopping_threshold = 0.02
 denser = 2 # make test set 2 times denser then the training set
@@ -35,11 +35,6 @@ scale = lambda x: np.sin(2*np.pi*1*x)*1.+0.0
 
 #setup color scheme for samples
 colors = cm.rainbow(np.linspace(0, 1, NSamp))
-
-if NSamp > 1000:			#outputting more than 1000 points does not look great
-	skip = int(NSamp/1000)
-else:
-	skip = 1
 
 def generate_data():
 
@@ -213,9 +208,15 @@ def yesno(x):
 
 if __name__ == '__main__':
 
-	KISS = float(sys.argv[1])
+	KISS = int(sys.argv[1])
 	grid_size = int(sys.argv[2])
 	NSamp = int(sys.argv[3])
+	num_particles = int(sys.argv[4])
+
+	if NSamp > 1000:			#outputting more than 1000 points does not look great
+		skip = int(NSamp/1000)
+	else:
+		skip = 1
 
 	#change colorscheme for new NSamp
 	colors = cm.rainbow(np.linspace(0, 1, NSamp))
@@ -229,7 +230,7 @@ if __name__ == '__main__':
 			return "What?!"
 
 	print("CUDA: {}; KISS: {};".format(detailes_print(CUDA, DEVICE, "DEVICE"),detailes_print(KISS, grid_size, "grid_size")))
-	print("LR: {}; THR: {};".format(base_lr,early_stopping_threshold))
+	print("LR: {}; THR: {}; Particles: {};".format(base_lr,early_stopping_threshold,num_particles))
 	print("N: {}".format(NSamp))
 
 	t1 = time.time()
@@ -238,12 +239,12 @@ if __name__ == '__main__':
 	losses, rbf, t3, t4, steps = setup_training(train_x, train_y, model)
 
 	if KISS == 0:
-		code = "Exact_{}".format(NSamp)
+		code = "Exact_{}_{}".format(NSamp,num_particles)
 	else:
-		code = "Kiss_{}_{}".format(grid_size,NSamp)
+		code = "Kiss_{}_{}_{}".format(grid_size,NSamp,num_particles)
 
-	plot_loss("./logs/loss_{}.pdf".format(code), losses, rbf)
-	plot_results("./logs/results_{}.pdf".format(code), test_x, testX, X, Y)
+	plot_loss("./logs/loss_{}.png".format(code), losses, rbf)
+	plot_results("./logs/results_{}.png".format(code), test_x, testX, X, Y)
 	t5 = time.time()
 
 	# print("Generating data took {} ms".format(int(1e3*(t2-t1))))
@@ -260,5 +261,5 @@ if __name__ == '__main__':
 	if KISS == 0:
 		grid_size_ = 0
 
-	with open("./logs/log.txt","a") as f:
-		f.write("{}, {}, {}, {}, {}, {}, {}, {}\n".format(KISS,NSamp,grid_size_,int(t4-t3),steps,mean_ll,ll_of_mean_f,losses[-1]))
+	with open("./logs/log_cuda.csv","a") as f:
+		f.write("{},{},{},{},{},{},{},{},{}\n".format(KISS,NSamp,grid_size_,num_particles,int(t4-t3),steps,mean_ll,ll_of_mean_f,losses[-1]))
