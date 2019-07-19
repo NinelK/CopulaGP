@@ -4,14 +4,15 @@ import pyro
 import gpytorch
 from matplotlib import pyplot as plt
 import numpy as np
-from bvcopula import GaussianCopula, GaussianCopula_Likelihood, GPInferenceModel, KISS_GPInferenceModel
+from bvcopula import GaussianCopula, GaussianCopula_Likelihood, GaussianCopula_Flow_Likelihood, GPInferenceModel, KISS_GPInferenceModel
 import matplotlib.cm as cm
 from pyro import optim
 import time
 import sys
 
 CUDA = 1
-DEVICE = 0
+DEVICE = 1
+FLOW = 0
 NSamp = 100
 KISS = 1
 grid_size = 128
@@ -29,6 +30,13 @@ else:
 	base_lr = 1e-3
 	kernel_lr = .05*(grid_size/128)
 	mean_lr = .1
+
+if FLOW ==0:
+	likelihood = GaussianCopula_Likelihood()
+	print('Noflow')
+else:
+	likelihood = GaussianCopula_Flow_Likelihood()
+	print('Flow')
 
 #here we specify a 'true' latent function lambda
 scale = lambda x: np.sin(2*np.pi*1*x)*1.+0.0
@@ -54,9 +62,9 @@ def generate_data():
 		test_x = torch.tensor(testX).float()
 		# define the model (optionally on GPU)
 		if KISS == 0:
-			model = GPInferenceModel(train_x, train_y, GaussianCopula_Likelihood())
+			model = GPInferenceModel(train_x, train_y, likelihood)
 		elif KISS == 1:
-			model = KISS_GPInferenceModel(GaussianCopula_Likelihood(), grid_size=grid_size)
+			model = KISS_GPInferenceModel(likelihood, grid_size=grid_size)
 		else:
 			print("Specify correct cuda flag.")
 
@@ -66,9 +74,9 @@ def generate_data():
 		test_x = torch.tensor(testX).float().cuda(device=DEVICE)
 		# define the model (optionally on GPU)
 		if KISS == 0:
-			model = GPInferenceModel(train_x, train_y, GaussianCopula_Likelihood()).cuda(device=DEVICE)
+			model = GPInferenceModel(train_x, train_y, likelihood).cuda(device=DEVICE)
 		elif KISS == 1:
-			model = KISS_GPInferenceModel(GaussianCopula_Likelihood(), grid_size=grid_size).cuda(device=DEVICE)
+			model = KISS_GPInferenceModel(likelihood, grid_size=grid_size).cuda(device=DEVICE)
 		else:
 			print("Specify correct cuda flag.")
 
