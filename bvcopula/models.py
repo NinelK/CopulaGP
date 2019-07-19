@@ -35,7 +35,7 @@ class GPInferenceModel(gpytorch.models.PyroVariationalGP):
         return gpytorch.distributions.MultivariateNormal(mean, covar)
 
 class KISS_GPInferenceModel(gpytorch.models.PyroVariationalGP):
-    def __init__(self, likelihood, grid_size=128, grid_bounds=[(0, 1)], name_prefix="mixture_gp"):
+    def __init__(self, likelihood, prior_rbf_length=0.1, grid_size=128, grid_bounds=[(0, 1)], name_prefix="mixture_gp"):
         # Define all the variational stuff
         variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(grid_size)
         variational_strategy = gpytorch.variational.GridInterpolationVariationalStrategy(
@@ -50,7 +50,6 @@ class KISS_GPInferenceModel(gpytorch.models.PyroVariationalGP):
         self.mean_module = gpytorch.means.ConstantMean()
         
         #we specify prior here
-        prior_rbf_length = 0.5 
         lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
         
         self.covar_module = gpytorch.kernels.ScaleKernel(
