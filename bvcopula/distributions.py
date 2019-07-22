@@ -3,41 +3,31 @@ from pyro.distributions.torch_distribution import TorchDistribution
 from torch.distributions import constraints, normal
 from torch.distributions.utils import _standard_normal
 
-class GaussianCopula(TorchDistribution):
+
+class SingleParamCopulaBase(TorchDistribution):
     
     has_rsample = True
-    arg_constraints = {"theta": constraints.interval(-1,1)}
-    support = constraints.real
     
     def __init__(self, theta, validate_args=None):
         self.theta = theta
         batch_shape, event_shape = self.theta.shape, torch.Size([2])
-        super(GaussianCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
+        super(SingleParamCopulaBase, self).__init__(batch_shape, event_shape, validate_args=validate_args)
     
     def expand(self, batch_shape, _instance=None):
-        new = self._get_checked_instance(GaussianCopula, _instance)
+        new = self._get_checked_instance(SingleParamCopulaBase, _instance)
         batch_shape = torch.Size(batch_shape)
         if batch_shape == torch.Size([]):
             batch_shape = torch.Size([1])
         theta_shape = batch_shape + torch.Size(self.event_shape[:-1])
-        new.theta = self.theta.expand(theta_shape) # not sure if expand only batch dimension
-        super(GaussianCopula, new).__init__(batch_shape,
+        new.theta = self.theta.expand(theta_shape) 
+        super(SingleParamCopulaBase, new).__init__(batch_shape,
                                                 self.event_shape,
                                                 validate_args=False)
         new._validate_args = self._validate_args
         return new
     
     def ppcf(self, samples, theta):
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
-            vals = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                                 nrvs[..., 1] * self.theta)
-        else:    
-            nrvs = normal.Normal(0,1).icdf(samples)
-            vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                                 nrvs[..., 1] * self.theta) # here in nrvs too close to 0 or 1, may go to -inf, resulting in more samples in the corner, then there should be
-        return vals
+        raise NotImplementedError
 
     def rsample(self, sample_shape=torch.Size([])):
         shape = self._extended_shape(sample_shape) # now it is theta_size (batch) x sample_size x 2 (event)
@@ -53,6 +43,29 @@ class GaussianCopula(TorchDistribution):
         return samples
 
     def log_prob(self, value):
+        raise NotImplementedError
+
+    def entropy(self):
+        raise NotImplementedError
+
+class GaussianCopula(SingleParamCopulaBase):
+    
+    arg_constraints = {"theta": constraints.interval(-1,1)}
+    support = constraints.real
+    
+    def ppcf(self, samples, theta):
+        if self.theta.is_cuda:
+            get_cuda_device = self.theta.get_device()
+            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
+            vals = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                                 nrvs[..., 1] * self.theta)
+        else:    
+            nrvs = normal.Normal(0,1).icdf(samples)
+            vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                                 nrvs[..., 1] * self.theta) 
+        return vals
+
+    def log_prob(self, value):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
@@ -60,7 +73,7 @@ class GaussianCopula(TorchDistribution):
         
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
-            log_prob = log_prob.cuda(device=get_cuda_device)
+            log_prob = log_prob.cuda(device=get_cuda_device) #TODO try removing this, do not want unnecessary copying
             nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(value)
         else:
             nrvs = normal.Normal(0,1).icdf(value)
@@ -82,6 +95,42 @@ class GaussianCopula(TorchDistribution):
         
         return log_prob
 
+class FrankCopula(SingleParamCopulaBase):
+    
+    arg_constraints = {"theta": constraints.real}
+    support = constraints.real
+    
+    def ppcf(self, samples, theta):
+        vals = samples[..., 0] #will stay this for self.theta == 0
+        vals[..., self.theta != 0] = (-torch.log1p(samples[..., 0] * torch.expm1(-self.theta) \
+                / (torch.exp(-self.theta * samples[..., 1]) \
+                - samples[..., 0] * torch.expm1(-self.theta * samples[..., 1]))) \
+                / self.theta)[..., self.theta != 0]
+        return vals
 
-    def entropy(self):
-        raise NotImplementedError
+    def log_prob(self, value):
+
+        self.theta_thr = 15.
+
+        if self._validate_args:
+            self._validate_sample(value)
+        assert value.shape[-1] == 2 #check that the samples are pairs of variables
+        log_prob = torch.zeros(self.theta.shape) # by default
+
+        #TODO check infinite theta
+        log_prob[(self.theta > self.theta_thr)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
+        log_prob[(self.theta < -self.theta_thr) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
+        
+        mask = (self.theta != 0) & (self.theta.abs() < self.theta_thr) & (value[..., 0] != float("Inf")) & (value[..., 1] != float("Inf"))
+        log_prob[..., mask] = torch.log(-self.theta * torch.expm1(-self.theta)
+                          * torch.exp(-self.theta
+                                   * (value[..., 0] + value[..., 1]))
+                          / (torch.expm1(-self.theta)
+                             + torch.expm1(-self.theta * value[..., 0])
+                             * torch.expm1(-self.theta * value[..., 1])) ** 2)[..., mask]
+
+        # now put everything out of range to -inf (which was most likely Nan otherwise)
+        log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
+        
+        return log_prob
