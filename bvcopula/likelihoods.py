@@ -6,7 +6,7 @@ from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
 
-from .distributions import GaussianCopula, FrankCopula
+from .distributions import GaussianCopula, FrankCopula, ClaytonCopula
 from .dist_transform import NormTransform
 
 class GaussianCopula_Likelihood(Likelihood):
@@ -54,6 +54,27 @@ class FrankCopula_Likelihood(Likelihood):
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> FrankCopula:
         scale = self.gplink_function(function_samples)
         return FrankCopula(scale)
+
+class ClaytonCopula_Likelihood(Likelihood):
+    def __init__(self, noise_prior=None, noise_constraint=None, batch_shape=torch.Size(), **kwargs: Any):
+        batch_shape = _deprecate_kwarg_with_transform(
+            kwargs, "batch_size", "batch_shape", batch_shape, lambda n: torch.Size([n])
+        )
+        super(Likelihood, self).__init__()
+        self._max_plate_nesting = 1
+    
+    @staticmethod
+    def gplink_function(f: Tensor) -> Tensor:
+        """
+        GP link function transforms the GP latent variable `f` into :math:`\theta`,
+        which parameterizes the distribution in :attr:`forward` method as well as the
+        log likelihood of this distribution defined in :attr:`expected_log_prob`.
+        """
+        return torch.clamp(f.exp(),0.,17.)
+    
+    def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> FrankCopula:
+        scale = self.gplink_function(function_samples)
+        return ClaytonCopula(scale)
 
 
 class GaussianCopula_Flow_Likelihood(Likelihood):

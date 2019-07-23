@@ -130,3 +130,50 @@ class FrankCopula(SingleParamCopulaBase):
                 (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
         
         return log_prob
+
+class ClaytonCopula(SingleParamCopulaBase):
+    
+    arg_constraints = {"theta": constraints.positive}
+    support = constraints.real
+    
+    def ppcf(self, samples):
+        vals = torch.zeros(samples.shape[:-1])
+        thetas_ = self.theta.expand_as(vals)
+        vals[thetas_==0] = samples[thetas_==0][..., 0] #for self.theta == 0
+        gtz = torch.all(samples > 0.0, dim=-1) & (self.theta != 0)
+        nonzero_theta = self.theta[self.theta != 0]
+        vals[gtz] = (1 - samples[gtz][..., 1]**(-nonzero_theta) \
+                + (samples[gtz][..., 0] * (samples[gtz][..., 1]**(1 + nonzero_theta))) \
+                ** (-nonzero_theta / (1 + nonzero_theta))) \
+                ** (-1 / nonzero_theta)
+        return vals
+
+    def log_prob(self, value):
+
+        self.exp_thr = torch.tensor(torch.finfo(torch.float32).max).log()
+
+        if self._validate_args:
+            self._validate_sample(value)
+        assert value.shape[-1] == 2 #check that the samples are pairs of variables
+        log_prob = torch.zeros(self.theta.shape) # by default
+
+        value_ = value.expand(self.theta.shape + torch.Size([2]))
+
+        log_prob[value_[...,0] == value_[...,1]] = 1.
+
+        log_prob[value_[...,0] == 1.] = (value_[...,1]**(1+self.theta))[value_[...,0] == 1.]
+        log_prob[value_[...,1] == 1.] = (value_[...,0]**(1+self.theta))[value_[...,1] == 1.]
+        
+        log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
+        mask = (self.theta > 0) & (self.theta < self.exp_thr/log_base) \
+                & (value[...,0] != value[...,1]) & torch.all(value < 1.0, dim=-1)
+        log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
+                       * torch.log(value).sum(dim=-1) \
+                       + (-1 / self.theta - 2) \
+                       * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
+
+        # now put everything out of range to -inf (which was most likely Nan otherwise)
+        log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] > 1) | (value[..., 1] > 1))] = -float("Inf") 
+        
+        return log_prob
