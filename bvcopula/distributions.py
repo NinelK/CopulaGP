@@ -39,7 +39,7 @@ class SingleParamCopulaBase(TorchDistribution):
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
             samples = samples.cuda(device=get_cuda_device)
-        samples[...,0] = self.ppcf(samples, self.theta)
+        samples[...,0] = self.ppcf(samples)
         return samples
 
     def log_prob(self, value):
@@ -53,7 +53,7 @@ class GaussianCopula(SingleParamCopulaBase):
     arg_constraints = {"theta": constraints.interval(-1,1)}
     support = constraints.real
     
-    def ppcf(self, samples, theta):
+    def ppcf(self, samples):
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
             nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
@@ -100,7 +100,7 @@ class FrankCopula(SingleParamCopulaBase):
     arg_constraints = {"theta": constraints.real}
     support = constraints.real
     
-    def ppcf(self, samples, theta):
+    def ppcf(self, samples):
         vals = samples[..., 0] #will stay this for self.theta == 0
         vals[..., self.theta != 0] = (-torch.log1p(samples[..., 0] * torch.expm1(-self.theta) \
                 / (torch.exp(-self.theta * samples[..., 1]) \
@@ -110,18 +110,14 @@ class FrankCopula(SingleParamCopulaBase):
 
     def log_prob(self, value):
 
-        self.theta_thr = 15.
+        self.theta_thr = 17. #gplink ensures that it never exceeds this value
 
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         log_prob = torch.zeros(self.theta.shape) # by default
-
-        #TODO check infinite theta
-        log_prob[(self.theta > self.theta_thr)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
-        log_prob[(self.theta < -self.theta_thr) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
         
-        mask = (self.theta != 0) & (self.theta.abs() < self.theta_thr) & (value[..., 0] != float("Inf")) & (value[..., 1] != float("Inf"))
+        mask = (self.theta != 0) & (self.theta.abs() < self.theta_thr)
         log_prob[..., mask] = torch.log(-self.theta * torch.expm1(-self.theta)
                           * torch.exp(-self.theta
                                    * (value[..., 0] + value[..., 1]))

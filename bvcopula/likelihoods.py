@@ -15,7 +15,7 @@ class GaussianCopula_Likelihood(Likelihood):
             kwargs, "batch_size", "batch_shape", batch_shape, lambda n: torch.Size([n])
         )
         super(Likelihood, self).__init__()
-        self._max_plate_nesting = 1
+        self._max_plate_nesting = 2
     
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -49,7 +49,7 @@ class FrankCopula_Likelihood(Likelihood):
         which parameterizes the distribution in :attr:`forward` method as well as the
         log likelihood of this distribution defined in :attr:`expected_log_prob`.
         """
-        return 5.*f #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
+        return (torch.sigmoid(2.*f)-0.5)*34.0 #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
     
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> FrankCopula:
         scale = self.gplink_function(function_samples)
