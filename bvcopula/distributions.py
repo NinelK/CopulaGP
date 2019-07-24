@@ -51,7 +51,7 @@ class SingleParamCopulaBase(TorchDistribution):
 class GaussianCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.interval(-1,1)}
-    support = constraints.real
+    support = constraints.interval(-1,1)
     
     def ppcf(self, samples):
         if self.theta.is_cuda:
@@ -98,7 +98,7 @@ class GaussianCopula(SingleParamCopulaBase):
 class FrankCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.real}
-    support = constraints.real
+    support = constraints.interval(-1,1)
     
     def ppcf(self, samples):
         vals = samples[..., 0] #will stay this for self.theta == 0
@@ -134,7 +134,7 @@ class FrankCopula(SingleParamCopulaBase):
 class ClaytonCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.positive}
-    support = constraints.real
+    support = constraints.interval(-1,1)
     
     def ppcf(self, samples):
         vals = torch.zeros(samples.shape[:-1])

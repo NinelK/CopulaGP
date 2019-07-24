@@ -70,7 +70,7 @@ class ClaytonCopula_Likelihood(Likelihood):
         which parameterizes the distribution in :attr:`forward` method as well as the
         log likelihood of this distribution defined in :attr:`expected_log_prob`.
         """
-        return torch.clamp(f.exp(),0.,17.)
+        return torch.clamp(f.exp(),1e-2,17.)
     
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> FrankCopula:
         scale = self.gplink_function(function_samples)
