@@ -8,6 +8,7 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 - [x] Add Frank Copula
 	- [x] GPU support
 	- [ ] Figure out why for very high theta -> inf log marginal likelihood
+	- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
 - [x] Add Clayton Copula
 	- [ ] Tests
 	- [ ] GPU support
