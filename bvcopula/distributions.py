@@ -51,7 +51,7 @@ class SingleParamCopulaBase(TorchDistribution):
 class GaussianCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.interval(-1,1)}
-    support = constraints.interval(-1,1)
+    support = constraints.interval(0,1)
     
     def ppcf(self, samples):
         if self.theta.is_cuda:
@@ -69,11 +69,11 @@ class GaussianCopula(SingleParamCopulaBase):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        log_prob = torch.zeros(self.theta.shape) # by default
-        
+        log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
+
+        # Check CUDA and make a Normal distribution
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
-            log_prob = log_prob.cuda(device=get_cuda_device) #TODO try removing this, do not want unnecessary copying
             nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(value)
         else:
             nrvs = normal.Normal(0,1).icdf(value)
@@ -98,7 +98,7 @@ class GaussianCopula(SingleParamCopulaBase):
 class FrankCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.real}
-    support = constraints.interval(-1,1)
+    support = constraints.interval(0,1)
     
     def ppcf(self, samples):
         vals = samples[..., 0] #will stay this for self.theta == 0
@@ -106,44 +106,49 @@ class FrankCopula(SingleParamCopulaBase):
                 / (torch.exp(-self.theta * samples[..., 1]) \
                 - samples[..., 0] * torch.expm1(-self.theta * samples[..., 1]))) \
                 / self.theta)[..., self.theta != 0]
-        return vals
+        return torch.clamp(vals,0.,1.) # could be slightly higher than 1 due to numerical errors
 
     def log_prob(self, value):
 
-        self.theta_thr = 17. #gplink ensures that it never exceeds this value
+        self.theta_thr = 17.
+
+        value[torch.isnan(value)] = 0 # log_prob = -inf
 
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        log_prob = torch.zeros(self.theta.shape) # by default
+        log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
         
-        mask = (self.theta != 0) & (self.theta.abs() < self.theta_thr)
-        log_prob[..., mask] = torch.log(-self.theta * torch.expm1(-self.theta)
-                          * torch.exp(-self.theta
-                                   * (value[..., 0] + value[..., 1]))
-                          / (torch.expm1(-self.theta)
-                             + torch.expm1(-self.theta * value[..., 0])
-                             * torch.expm1(-self.theta * value[..., 1])) ** 2)[..., mask]
+        mask = (self.theta.abs() > 1e-2) & (self.theta.abs() < self.theta_thr)
+        theta_ = self.theta[mask]
+        value_ = value.expand(self.theta.shape + torch.Size([2]))[mask]
+        log_prob[..., mask] = torch.log(-theta_ * torch.expm1(-theta_)) \
+                            - (theta_ * (value_[..., 0] + value_[..., 1])) \
+                            - 2*torch.log(torch.abs(torch.expm1(-theta_)
+                             + torch.expm1(-theta_ * value_[..., 0])
+                             * torch.expm1(-theta_ * value_[..., 1])))
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
+
+        assert torch.nonzero(torch.isnan(log_prob)).size(0) == 0 
+        assert torch.nonzero(log_prob == +float("Inf")).size(0) == 0
         
         return log_prob
 
 class ClaytonCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.positive}
-    support = constraints.interval(-1,1)
+    support = constraints.interval(0,1)
     
     def ppcf(self, samples):
         vals = torch.zeros(samples.shape[:-1])
         thetas_ = self.theta.expand_as(vals)
         vals[thetas_==0] = samples[thetas_==0][..., 0] #for self.theta == 0
-        gtz = torch.all(samples > 0.0, dim=-1) & (self.theta != 0)
-        nonzero_theta = self.theta[self.theta != 0]
-        vals[gtz] = (1 - samples[gtz][..., 1]**(-nonzero_theta) \
-                + (samples[gtz][..., 0] * (samples[gtz][..., 1]**(1 + nonzero_theta))) \
+        nonzero_theta = thetas_[thetas_!=0]
+        vals[thetas_!=0] = (1 - samples[thetas_!=0][..., 1]**(-nonzero_theta) \
+                + (samples[thetas_!=0][..., 0] * (samples[thetas_!=0][..., 1]**(1 + nonzero_theta))) \
                 ** (-nonzero_theta / (1 + nonzero_theta))) \
                 ** (-1 / nonzero_theta)
         return vals
@@ -183,7 +188,7 @@ class StudentTCopula(SingleParamCopulaBase):
     arg_constraints = {"theta": constraints.interval(-1,1)} 
     # here theta is actually Kendall's tau
     # it does not make sence to transform it through pi/2 * sin(tau) to get traditional theta
-    support = constraints.interval(-1,1)
+    support = constraints.interval(0,1)
 
     def __init__(self, theta, df = 2.0, validate_args=None):
         self.df = df #number of degrees of freedom (fixed here)
