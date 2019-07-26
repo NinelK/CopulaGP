@@ -143,8 +143,8 @@ class ClaytonCopula(SingleParamCopulaBase):
     support = constraints.interval(0,1)
     
     def ppcf(self, samples):
-        vals = torch.zeros(samples.shape[:-1])
-        thetas_ = self.theta.expand_as(vals)
+        thetas_ = self.theta.expand(samples.shape[:-1])
+        vals = torch.zeros_like(thetas_)
         vals[thetas_==0] = samples[thetas_==0][..., 0] #for self.theta == 0
         nonzero_theta = thetas_[thetas_!=0]
         vals[thetas_!=0] = (1 - samples[thetas_!=0][..., 1]**(-nonzero_theta) \
@@ -160,7 +160,7 @@ class ClaytonCopula(SingleParamCopulaBase):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        log_prob = torch.zeros(self.theta.shape) # by default
+        log_prob = torch.zeros_like(self.theta) # by default
 
         value_ = value.expand(self.theta.shape + torch.Size([2]))
 

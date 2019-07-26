@@ -11,7 +11,7 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 	- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
 - [x] Add Clayton Copula
 	- [x] Tests
-	- [ ] GPU support
+	- [x] GPU support
 	- [ ] Add Clayton rotation
 - [ ] Add Gumbel Copula
 	- [ ] Tests
