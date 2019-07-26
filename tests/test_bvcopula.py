@@ -50,14 +50,12 @@ class TestCopulaSampling(unittest.TestCase):
 	Checks that the Sampling is consistent with log_prob.
 	"""
 
-	def test_gaussian_sampling(self):
+	@staticmethod
+	def sampling_general(copula, bin_size):
 		# here we compare sampled density vs copula pdf
-
-		bin_size = 20
 		
 		# generate some samples and make a binarized density array
-		gaussian_copula = GaussianCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
-		S = gaussian_copula.sample(torch.Size([10000])).numpy().squeeze() # generates 100 x 100 (theta dim) samples
+		S = copula.sample(torch.Size([10000])).numpy().squeeze() # generates 100 x 100 (theta dim) samples
 		S = S.reshape(-1,2)
 		r_den = np.histogram2d(*S.T,bins=[bin_size,bin_size],density=True)[0]
 
@@ -65,53 +63,26 @@ class TestCopulaSampling(unittest.TestCase):
 		centre_bins = (np.mgrid[0:bin_size,0:bin_size]/bin_size + 1/2/bin_size).T
 		samples = centre_bins.reshape(-1,2)
 		samples = torch.tensor(samples).float()
-		p_pdf = np.exp(gaussian_copula.log_prob(samples).numpy())
+		p_pdf = np.exp(copula.log_prob(samples).numpy())
 		p_den = p_pdf.reshape(bin_size,bin_size)
 
 		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)				# test each element
 		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=0.002)	# test diff between means
+
+	def test_gaussian_sampling(self):
+		bin_size = 20
+		gaussian_copula = GaussianCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
+		self.sampling_general(gaussian_copula, bin_size)
 
 	def test_frank_sampling(self):
-		# here we compare sampled density vs copula pdf
-
 		bin_size = 20
-		
-		# generate some samples and make a binarized density array
 		frank_copula = FrankCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
-		S = frank_copula.sample(torch.Size([10000])).numpy().squeeze() # generates 100 x 100 (theta dim) samples
-		S = S.reshape(-1,2)
-		r_den = np.histogram2d(*S.T,bins=[bin_size,bin_size],density=True)[0]
-
-		# fetch log_pdf for the same bins
-		centre_bins = (np.mgrid[0:bin_size,0:bin_size]/bin_size + 1/2/bin_size).T
-		samples = centre_bins.reshape(-1,2)
-		samples = torch.tensor(samples).float()
-		p_pdf = np.exp(frank_copula.log_prob(samples).numpy())
-		p_den = p_pdf.reshape(bin_size,bin_size)
-
-		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)				# test each element
-		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=0.002)	# test diff between means
+		self.sampling_general(frank_copula, bin_size)
 
 	def test_clayton_sampling(self):
-		# here we compare sampled density vs copula pdf
-
 		bin_size = 20
-		
-		# generate some samples and make a binarized density array
 		clayton_copula = ClaytonCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
-		S = clayton_copula.sample(torch.Size([10000])).numpy().squeeze() # generates 100 x 100 (theta dim) samples
-		S = S.reshape(-1,2)
-		r_den = np.histogram2d(*S.T,bins=[bin_size,bin_size],density=True)[0]
-
-		# fetch log_pdf for the same bins
-		centre_bins = (np.mgrid[0:bin_size,0:bin_size]/bin_size + 1/2/bin_size).T
-		samples = centre_bins.reshape(-1,2)
-		samples = torch.tensor(samples).float()
-		p_pdf = np.exp(clayton_copula.log_prob(samples).numpy())
-		p_den = p_pdf.reshape(bin_size,bin_size)
-
-		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)				# test each element
-		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=0.01)	# test diff between means
+		self.sampling_general(clayton_copula, bin_size)
 
 # #TODO skip these tests if no GPU is available
 # class TestCopulaLogPDF_CUDA(unittest.TestCase):
