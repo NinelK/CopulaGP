@@ -3,7 +3,7 @@ import unittest
 import torch
 import numpy as np
 from numpy.testing import assert_allclose
-from bvcopula.distributions import GaussianCopula, FrankCopula
+from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula
 
 class TestCopulaLogPDF(unittest.TestCase):
 
@@ -17,7 +17,6 @@ class TestCopulaLogPDF(unittest.TestCase):
 	def test_gaussian_pdf(self):
 		#test theta=0.5 values from mixedvines
 		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
-		# Gaussian copula family
 		gaussian_copula = GaussianCopula(torch.tensor(np.full(5,0.5)).float())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.2165361255, 0.1438410362,
@@ -28,12 +27,21 @@ class TestCopulaLogPDF(unittest.TestCase):
 	def test_frank_pdf(self):
 		#test theta=5 values from mixedvines
 		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
-		# Frank copula family
 		frank_copula = FrankCopula(torch.tensor(np.full(5,5)).float())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.4165775202, 0.3876837693, 0.4165775202,
 		                     -np.inf])
 		p_logpdf = frank_copula.log_prob(samples.squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+	def test_clayton_pdf(self):
+		#test theta=5 values from mixedvines
+		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
+		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float())
+		# Comparison values
+		r_logpdf = np.array([1.0, 0.7858645247, 0.9946292379,
+                         0.6666753203, 0.8**6])
+		p_logpdf = clayton_copula.log_prob(samples.squeeze()).numpy()
 		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
 
 
@@ -83,6 +91,27 @@ class TestCopulaSampling(unittest.TestCase):
 
 		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)				# test each element
 		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=0.002)	# test diff between means
+
+	def test_clayton_sampling(self):
+		# here we compare sampled density vs copula pdf
+
+		bin_size = 20
+		
+		# generate some samples and make a binarized density array
+		clayton_copula = ClaytonCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
+		S = clayton_copula.sample(torch.Size([10000])).numpy().squeeze() # generates 100 x 100 (theta dim) samples
+		S = S.reshape(-1,2)
+		r_den = np.histogram2d(*S.T,bins=[bin_size,bin_size],density=True)[0]
+
+		# fetch log_pdf for the same bins
+		centre_bins = (np.mgrid[0:bin_size,0:bin_size]/bin_size + 1/2/bin_size).T
+		samples = centre_bins.reshape(-1,2)
+		samples = torch.tensor(samples).float()
+		p_pdf = np.exp(clayton_copula.log_prob(samples).numpy())
+		p_den = p_pdf.reshape(bin_size,bin_size)
+
+		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],atol=0.05)				# test each element
+		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=0.01)	# test diff between means
 
 # #TODO skip these tests if no GPU is available
 # class TestCopulaLogPDF_CUDA(unittest.TestCase):

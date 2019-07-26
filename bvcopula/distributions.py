@@ -164,14 +164,14 @@ class ClaytonCopula(SingleParamCopulaBase):
 
         value_ = value.expand(self.theta.shape + torch.Size([2]))
 
-        log_prob[value_[...,0] == value_[...,1]] = 1.
+        log_prob[torch.any(value == 0.0, dim=-1)] = 1.
 
         log_prob[value_[...,0] == 1.] = (value_[...,1]**(1+self.theta))[value_[...,0] == 1.]
         log_prob[value_[...,1] == 1.] = (value_[...,0]**(1+self.theta))[value_[...,1] == 1.]
         
         log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
         mask = (self.theta > 0) & (self.theta < self.exp_thr/log_base) \
-                & (value[...,0] != value[...,1]) & torch.all(value < 1.0, dim=-1)
+                & torch.all(value < 1.0, dim=-1)
         log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
                        * torch.log(value).sum(dim=-1) \
                        + (-1 / self.theta - 2) \

@@ -1,4 +1,4 @@
-]# Parametric Copulas (GPyTorch version)
+# Parametric Copulas (GPyTorch version)
 
 This is the GPyTorch version of the code, that inferes copula parameters using GP-SVI.
 
@@ -10,7 +10,7 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 	- [ ] Figure out why for very high theta -> inf log marginal likelihood
 	- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
 - [x] Add Clayton Copula
-	- [ ] Tests
+	- [x] Tests
 	- [ ] GPU support
 	- [ ] Add Clayton rotation
 - [ ] Add Gumbel Copula
