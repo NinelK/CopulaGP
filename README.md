@@ -8,14 +8,15 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 - [x] Add Frank Copula
 	- [x] GPU support
 	- [ ] Figure out why for very high theta -> inf log marginal likelihood
-	- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
 - [x] Add Clayton Copula
 	- [x] Tests
 	- [x] GPU support
 	- [ ] Add Clayton rotation
-- [ ] Add Gumbel Copula
+- [x] Add Gumbel Copula
 	- [ ] Tests
 	- [ ] GPU support
+- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
+- [ ] Add tests on copula symmetries
 - [ ] Make model selection
 - [ ] Implement 1-param Student-T copula
 	- [x] Sampling with icdf

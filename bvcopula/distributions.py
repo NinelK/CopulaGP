@@ -183,6 +183,63 @@ class ClaytonCopula(SingleParamCopulaBase):
         
         return log_prob
 
+class GumbelCopula(SingleParamCopulaBase):
+    
+    arg_constraints = {"theta": constraints.positive}
+    support = constraints.interval(0,1)
+    
+    def ppcf(self, samples):
+
+        self.theta_thr = 17.
+
+        def h(z,samples):
+            return z+(self.theta-1)*z.log() - (samples[...,1] + (self.theta-1)*samples[...,1].log()-samples[...,0].log())
+
+        def hd(z):
+            return 1+(self.theta-1)*z.pow(-1)
+
+        thetas = torch.clamp(self.theta,1.0,self.theta_thr)
+
+        z = samples[...,1]
+        thetas_ = thetas.expand_as(z)
+        y = z.pow(thetas) - samples[...,1].pow(thetas)
+        for _ in range(20):             #increase number of Newton-Raphson iteration if sampling fails
+            z = z - h(z,samples)/hd(z)
+            #if diverges, start again
+            y = (z.pow(thetas) - samples[...,1].pow(thetas)).pow(1/thetas)
+            z[y>1] = samples[...,1][y>1] + (1-samples[...,1][y>1]) * z[y>1].uniform_(1e-4, 1. - 1e-4) 
+            z[y!=y] = samples[...,1][y!=y] + (1-samples[...,1][y!=y]) * z[y!=y].uniform_(1e-4, 1. - 1e-4)
+            #TODO: think about better initial conditions (to avoid divergence)
+
+        y = (z.pow(thetas) - samples[...,1].pow(thetas)).pow(1/thetas)
+        assert torch.all(y>=0)
+        assert torch.all(y<=1)
+        return y
+
+    def log_prob(self, value):
+
+        if self._validate_args:
+            self._validate_sample(value)
+        assert value.shape[-1] == 2 #check that the samples are pairs of variables
+        log_prob = torch.zeros_like(self.theta) # by default
+
+        h1 = self.theta - 1.0
+        h2 = (1.0 - 2.0 * self.theta) / self.theta
+        h3 = 1.0 / self.theta
+
+        h4 = -value[...,0].log()
+        h5 = -value[...,1].log()
+        h6 = torch.pow(h4, self.theta) + torch.pow(h5, self.theta)
+        h7 = torch.pow(h6, h3)
+
+        log_prob = -h7+h4+h5 + h1*h4.log() + h1 * h5.log() + h2 * h6.log() + (h1+h7).log()
+
+        # # now put everything out of range to -inf (which was most likely Nan otherwise)
+        # log_prob[(value[..., 0] <= 0) | (value[..., 1] <= 0) |
+        #         (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+        
+        return log_prob
+
 class StudentTCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.interval(-1,1)} 
