@@ -51,7 +51,7 @@ class SingleParamCopulaBase(TorchDistribution):
 class GaussianCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.interval(-1,1)}
-    support = constraints.interval(0,1)
+    support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
         if self.theta.is_cuda:
@@ -98,7 +98,7 @@ class GaussianCopula(SingleParamCopulaBase):
 class FrankCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.real}
-    support = constraints.interval(0,1)
+    support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
         vals = samples[..., 0] #will stay this for self.theta == 0
@@ -140,7 +140,7 @@ class FrankCopula(SingleParamCopulaBase):
 class ClaytonCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.positive}
-    support = constraints.interval(0,1)
+    support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
         thetas_ = self.theta.expand(samples.shape[:-1])
@@ -163,58 +163,65 @@ class ClaytonCopula(SingleParamCopulaBase):
         log_prob = torch.zeros_like(self.theta) # by default
 
         value_ = value.expand(self.theta.shape + torch.Size([2]))
-
-        log_prob[torch.any(value == 0.0, dim=-1)] = 1.
-
-        log_prob[value_[...,0] == 1.] = (value_[...,1]**(1+self.theta))[value_[...,0] == 1.]
-        log_prob[value_[...,1] == 1.] = (value_[...,0]**(1+self.theta))[value_[...,1] == 1.]
         
         log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
-        mask = (self.theta > 0) & (self.theta < self.exp_thr/log_base) \
-                & torch.all(value < 1.0, dim=-1)
+        mask = (self.theta > 0) & (self.theta < self.exp_thr/log_base) 
         log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
                        * torch.log(value).sum(dim=-1) \
                        + (-1 / self.theta - 2) \
                        * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
-        log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
-                (value[..., 0] > 1) | (value[..., 1] > 1))] = -float("Inf") 
+        log_prob[(value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
         
         return log_prob
 
 class GumbelCopula(SingleParamCopulaBase):
     
     arg_constraints = {"theta": constraints.positive}
-    support = constraints.interval(0,1)
+    support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
 
         self.theta_thr = 17.
 
         def h(z,samples):
-            return z+(self.theta-1)*z.log() - (samples[...,1] + (self.theta-1)*samples[...,1].log()-samples[...,0].log())
+            x = -samples[...,1].log()
+            return z+(thetas-1)*z.log() - (x + (thetas-1)*x.log()-samples[...,0].log())
 
         def hd(z):
             return 1+(self.theta-1)*z.pow(-1)
 
         thetas = torch.clamp(self.theta,1.0,self.theta_thr)
 
-        z = samples[...,1]
+        x = -samples[...,1].log()
+        z = x
         thetas_ = thetas.expand_as(z)
-        y = z.pow(thetas) - samples[...,1].pow(thetas)
-        for _ in range(20):             #increase number of Newton-Raphson iteration if sampling fails
+        for _ in range(3):             #increase number of Newton-Raphson iteration if sampling fails
             z = z - h(z,samples)/hd(z)
-            #if diverges, start again
-            y = (z.pow(thetas) - samples[...,1].pow(thetas)).pow(1/thetas)
-            z[y>1] = samples[...,1][y>1] + (1-samples[...,1][y>1]) * z[y>1].uniform_(1e-4, 1. - 1e-4) 
-            z[y!=y] = samples[...,1][y!=y] + (1-samples[...,1][y!=y]) * z[y!=y].uniform_(1e-4, 1. - 1e-4)
-            #TODO: think about better initial conditions (to avoid divergence)
+            y = (z.pow(thetas) - x.pow(thetas)).pow(1/thetas)
 
-        y = (z.pow(thetas) - samples[...,1].pow(thetas)).pow(1/thetas)
-        assert torch.all(y>=0)
-        assert torch.all(y<=1)
-        return y
+        # # samples[...,0] and samples[...,1] have to be dependent to result in y<1
+        # min_z = samples[...,1]
+        # max_z = (1 + samples[...,1].pow(thetas)).pow(1/thetas)
+        # min_p = (samples[...,1] - max_z + (thetas-1)*(samples[...,1].log() - max_z.log())).exp()
+        # samples[...,0] = min_p + (1-min_p)*samples[...,0]
+
+        # #bisection
+        # sec = (max_z-min_z)/2.
+        # z = min_z + torch.ones_like(samples[...,1])*sec #start in the middle of [0,2]
+        # for _ in range(200):
+        #     sec /= 2.
+        #     h_ = h(z,samples)
+        #     z[h_>0] -= sec[h_>0]
+        #     z[h_<0] += sec[h_<0]
+
+        #y = (z.pow(thetas) - samples[...,1].pow(thetas)).pow(1/thetas)
+        v = torch.exp(-y)
+        assert torch.all(v>0)
+        assert torch.all(v<1)
+        return v
 
     def log_prob(self, value):
 
@@ -235,8 +242,8 @@ class GumbelCopula(SingleParamCopulaBase):
         log_prob = -h7+h4+h5 + h1*h4.log() + h1 * h5.log() + h2 * h6.log() + (h1+h7).log()
 
         # # now put everything out of range to -inf (which was most likely Nan otherwise)
-        # log_prob[(value[..., 0] <= 0) | (value[..., 1] <= 0) |
-        #         (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+        log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
         
         return log_prob
 
