@@ -9,23 +9,19 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 	- [x] GPU support
 	- [ ] Figure out why for very high theta -> inf log marginal likelihood
 - [x] Add Clayton Copula
-	- [x] Tests
 	- [x] GPU support
 	- [ ] Add Clayton rotation
 - [x] Add Gumbel Copula
-	- [ ] Tests
-	- [ ] GPU support
-- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
-- [ ] Add tests on copula symmetries
-- [ ] Make model selection
+	- [ ] GPU support 
 - [ ] Implement 1-param Student-T copula
 	- [x] Sampling with icdf
 	- [ ] Implement Bailey's sampling method
 	- [ ] LogPDF
 	- [ ] Tests
 	- [ ] GPU support
-	- [x] Maybe here transformed distribution will be faster?
-		No, it won't. There is nothing to transform. There is no cdf/icdf for student distribution in Pytorch
+- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
+- [x] Add tests on copula symmetries
+- [ ] Make model selection
 - [ ] (!) Implement cdf/icdf for student distribution with 2-param
 	- [ ] Extend the code to infer both parameters with 2 independent GPs
 - [ ] Test on the real data

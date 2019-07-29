@@ -5,6 +5,7 @@ import numpy as np
 from numpy.testing import assert_allclose
 from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula
 
+torch.manual_seed(0) 
 
 class TestCopulaLogPDF(unittest.TestCase):
 
@@ -77,6 +78,12 @@ class TestCopulaSampling(unittest.TestCase):
 
 		assert_allclose(r_den[1:-1,1:-1],p_den[1:-1,1:-1],rtol=0.05, atol=0.1)		# test each element
 		assert_allclose(np.mean(r_den[1:-1,1:-1]-p_den[1:-1,1:-1]),0.,atol=0.005)	# test diff between means
+
+		#test symmetries
+		assert_allclose(r_den[1:-1,1:-1],r_den[1:-1,1:-1].T, atol=0.1)		# test each element
+		assert_allclose(p_den[1:-1,1:-1],p_den[1:-1,1:-1].T, atol=0.1)		# test each element
+		assert_allclose(np.mean(r_den[1:-1,1:-1]-r_den[1:-1,1:-1].T),0.,atol=0.005)	# test diff between means		
+		assert_allclose(np.mean(p_den[1:-1,1:-1]-p_den[1:-1,1:-1].T),0.,atol=0.005)	# test diff between means		
 
 	def test_gaussian_sampling(self):
 		bin_size = 20
