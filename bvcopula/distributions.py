@@ -254,13 +254,6 @@ class StudentTCopula(SingleParamCopulaBase):
     # it does not make sence to transform it through pi/2 * sin(tau) to get traditional theta
     support = constraints.interval(0,1)
 
-    def __init__(self, theta, df = 2.0, validate_args=None):
-        self.df = df #number of degrees of freedom (fixed here)
-        assert(df == 2.0) #now only this one
-        self.theta = theta
-        batch_shape, event_shape = self.theta.shape, torch.Size([2])
-        super(SingleParamCopulaBase, self).__init__(batch_shape, event_shape, validate_args=validate_args)
-
     @staticmethod
     def cdf_approx_2(x):
         return 0.5 + 0.5 * x / torch.sqrt(x**2 + 2.)
@@ -274,8 +267,8 @@ class StudentTCopula(SingleParamCopulaBase):
         x = torch.sign(y-0.5) * torch.sqrt(2/(1/(2*y-1)**2 - 1)) #icdf_approx_2
         ar = torch.atan(x/torch.sqrt(torch.tensor([3.])))/2 # initial seed in form trigonometric
         PI=torch.acos(torch.Tensor([-1]))
-        for _ in range(10):
-            ar = PI * (y-0.5) - 0.5*torch.sin(2*ar)
+        for _ in range(3):
+            ar = ar - (ar+ 0.5*torch.sin(2*ar) - PI * (y-0.5))/(1+torch.cos(2*ar))
         return torch.sqrt(torch.tensor([3.]))*torch.tan(ar)
     
     def ppcf(self, samples):
@@ -297,8 +290,9 @@ class StudentTCopula(SingleParamCopulaBase):
         kTM = torch.zeros_like(self.theta)
         kTM[self.theta<0] = 1
         h1 = 1.0 - torch.pow(self.theta, 2.0)
-        nu1 = self.df + 1.0 # nu1 = theta[1] + 1.0
-        dist1 = studentT.StudentT(df=self.df, scale=1.0, loc=0.0)
+        df = 2.0
+        nu1 = df + 1.0 # nu1 = theta[1] + 1.0
+        dist1 = studentT.StudentT(df=df, scale=1.0, loc=0.0)
         #dist2 = studentT.StudentT(df=nu1, scale=1.0, loc=0.0)
 
         samples[...,0] = kTM + torch.sign(self.theta) * samples[...,0]  # TODO: check input bounds
@@ -308,7 +302,7 @@ class StudentTCopula(SingleParamCopulaBase):
         y = self.icdf_approx_2(samples[...,1])   #dist1
 
         # eval H function
-        vals = self.cdf_approx_2(x * torch.sqrt((self.df + torch.pow(y, 2.0)) * h1 / nu1) + self.theta * y)
+        vals = self.cdf_approx_2(x * torch.sqrt((df + torch.pow(y, 2.0)) * h1 / nu1) + self.theta * y)
         return vals
 
     def log_prob(self, value):
@@ -322,21 +316,31 @@ class StudentTCopula(SingleParamCopulaBase):
 
         value_ = value.expand(self.theta.shape + torch.Size([2]))
 
-        log_prob[value_[...,0] == value_[...,1]] = 1.
+        rho2 = torch.pow(self.theta, 2.0)
+        df = 2.0
+        h1 = 1.0 - rho2
+        h2 = df / 2.0
+        h3 = h2 + 0.5
+        h4 = h2 + 1.0
+        h5 = 1.0 / df
+        h6 = h5 / h1
 
-        log_prob[value_[...,0] == 1.] = (value_[...,1]**(1+self.theta))[value_[...,0] == 1.]
-        log_prob[value_[...,1] == 1.] = (value_[...,0]**(1+self.theta))[value_[...,1] == 1.]
+        PI=torch.acos(torch.Tensor([-1]))
         
-        log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
-        mask = (self.theta > 0) & (self.theta < self.exp_thr/log_base) \
-                & (value[...,0] != value[...,1]) & torch.all(value < 1.0, dim=-1)
-        log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
-                       * torch.log(value).sum(dim=-1) \
-                       + (-1 / self.theta - 2) \
-                       * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
+        y = self.icdf_approx_2(value)
+        
+        log_prob = torch.lgamma(torch.tensor(h4))+torch.lgamma(torch.tensor(h2)) \
+            - 0.5*h1 - 2.*torch.lgamma(torch.tensor(h3)) \
+            + h3*torch.log(1+h5*y[...,0]**2) + h3*torch.log(1+h5*y[...,1]**2) \
+            - h4*torch.log(1+h6*(y[...,0]**2+y[...,1]**2 - 2*self.theta*y[...,0]*y[...,1]))
+
+        # log_prob = -0.5*(1-self.theta**2).log() + torch.lgamma(torch.tensor((self.df + 2.)/2.)) \
+        #         - torch.lgamma(torch.tensor(self.df/2.)) - torch.log(PI*self.df) \
+        #         - (self.df + 2.)/2. * torch.log(1. + (torch.sum(value**2,dim=-1)
+        #             - 2*self.theta*value[...,0]*value[...,1])/self.df/(1.-self.theta**2))
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
-        log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
-                (value[..., 0] > 1) | (value[..., 1] > 1))] = -float("Inf") 
+        log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
         
         return log_prob
