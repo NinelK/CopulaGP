@@ -3,7 +3,7 @@ import unittest
 import torch
 import numpy as np
 from numpy.testing import assert_allclose
-from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula
+from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
 
 torch.manual_seed(0) 
 
@@ -105,6 +105,11 @@ class TestCopulaSampling(unittest.TestCase):
 		gumbel_copula = GumbelCopula(torch.tensor(np.full(bin_size**2,2.0)).float())#torch.ones(100)*0.7)
 		self.sampling_general(gumbel_copula, bin_size)
 
+	def test_studentT_sampling(self):
+		bin_size = 20
+		student_copula = StudentTCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
+		self.sampling_general(student_copula, bin_size)
+
 @unittest.skipUnless(torch.cuda.device_count()>0, "requires GPU")
 class TestCopulaLogPDF_CUDA(unittest.TestCase):
 
@@ -152,7 +157,7 @@ class TestCopulaLogPDF_CUDA(unittest.TestCase):
 		#test theta=0.5 values from mixedvines
 		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float().cuda()
 		# Gaussian copula family
-		gumbel_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float().cuda())
+		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float().cuda())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.84327586, 1.27675282, 0.7705065, -np.inf]).astype("float32")
 		p_logpdf = gumbel_copula.log_prob(samples.squeeze()).cpu().numpy()

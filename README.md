@@ -6,13 +6,10 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 
 - [x] Make Gaussian copula work
 - [x] Add Frank Copula
-	- [x] GPU support
-	- [ ] Figure out why for very high theta -> inf log marginal likelihood
+	- [ ] Figure out why for very high theta -> inf log marginal likelihood, but model still trains
 - [x] Add Clayton Copula
-	- [x] GPU support
 	- [ ] Add Clayton rotation
 - [x] Add Gumbel Copula
-	- [ ] GPU support 
 - [ ] Implement 1-param Student-T copula
 	- [x] Sampling with icdf
 	- [ ] Implement Bailey's sampling method
