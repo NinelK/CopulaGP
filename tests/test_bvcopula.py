@@ -16,9 +16,10 @@ class TestCopulaLogPDF(unittest.TestCase):
 		res = gaussian_copula.log_prob(gaussian_copula.sample().squeeze()).numpy()
 		assert_allclose(res, (0, float("Inf"), float("Inf")))
 
-	def test_gaussian_pdf(self):
+	def test_pdf(self):
 		#test theta=0.5 values from mixedvines
 		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
+
 		gaussian_copula = GaussianCopula(torch.tensor(np.full(5,0.5)).float())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.2165361255, 0.1438410362,
@@ -26,9 +27,6 @@ class TestCopulaLogPDF(unittest.TestCase):
 		p_logpdf = gaussian_copula.log_prob(samples.squeeze()).numpy()
 		assert_allclose(p_logpdf, r_logpdf)
 
-	def test_frank_pdf(self):
-		#test theta=5 values from mixedvines
-		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
 		frank_copula = FrankCopula(torch.tensor(np.full(5,5)).float())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.4165775202, 0.3876837693, 0.4165775202,
@@ -36,9 +34,6 @@ class TestCopulaLogPDF(unittest.TestCase):
 		p_logpdf = frank_copula.log_prob(samples.squeeze()).numpy()
 		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
 
-	def test_clayton_pdf(self):
-		#test theta=5 values from mixedvines
-		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
 		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.7858645247, 0.9946292379,
@@ -46,14 +41,63 @@ class TestCopulaLogPDF(unittest.TestCase):
 		p_logpdf = clayton_copula.log_prob(samples.squeeze()).numpy()
 		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
 
-	def test_gumbel_pdf(self):
-		#test theta=5 values from mixedvines
-		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
 		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.84327586, 1.27675282, 0.7705065, -np.inf])
 		p_logpdf = gumbel_copula.log_prob(samples.squeeze()).numpy()
 		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+	def test_rotation_90_deg(self):
+		#test theta=0.5 values from mixedvines
+		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
+
+		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float(), rotation='90°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, -2.571322188, 0.9946292379,
+                         -1.7680858282, -np.inf])
+		p_logpdf = clayton_copula.log_prob(samples.clone().squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float(), rotation='90°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, -2.89299601,  1.27675282, -3.32270517, -np.inf])
+		p_logpdf = gumbel_copula.log_prob(samples.clone().squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+	def test_rotation_180_deg(self):
+		#test theta=0.5 values from mixedvines
+		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
+
+		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float(), rotation='180°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, 0.6666753203, 0.9946292379,
+                         0.7858645247, -np.inf])
+		p_logpdf = clayton_copula.log_prob(samples.clone().squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float(), rotation='180°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, 0.7705065, 1.27675282, 0.84327586, -np.inf])
+		p_logpdf = gumbel_copula.log_prob(samples.clone().squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+	def test_rotation_270_deg(self):
+		#test theta=0.5 values from mixedvines
+		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float()
+
+		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float(), rotation='270°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, -1.7680858282, 0.9946292379,
+                         -2.571322188, -np.inf])
+		p_logpdf = clayton_copula.log_prob(samples.clone().squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float(), rotation='270°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, -3.32270517,  1.27675282, -2.89299601, -np.inf])
+		p_logpdf = gumbel_copula.log_prob(samples.clone().squeeze()).numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
 
 class TestCopulaSampling(unittest.TestCase):
 	"""
@@ -120,7 +164,7 @@ class TestCopulaLogPDF_CUDA(unittest.TestCase):
 		res = gaussian_copula.log_prob(gaussian_copula.sample().squeeze()).cpu().numpy()
 		assert_allclose(res, (0, float("Inf"), float("Inf")))
 
-	def test_gaussian_pdf_cuda(self):
+	def test_pdf_cuda(self):
 		#test theta=0.5 values from mixedvines
 		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float().cuda()
 		# Gaussian copula family
@@ -131,10 +175,6 @@ class TestCopulaLogPDF_CUDA(unittest.TestCase):
 		p_logpdf = gaussian_copula.log_prob(samples.squeeze()).cpu().numpy()
 		assert_allclose(p_logpdf, r_logpdf, atol=1e-6)
 
-	def test_frank_pdf_cuda(self):
-		#test theta=0.5 values from mixedvines
-		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float().cuda()
-		# Gaussian copula family
 		frank_copula = FrankCopula(torch.tensor(np.full(5,5)).float().cuda())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.4165775202, 0.3876837693, 0.4165775202,
@@ -142,10 +182,6 @@ class TestCopulaLogPDF_CUDA(unittest.TestCase):
 		p_logpdf = frank_copula.log_prob(samples.squeeze()).cpu().numpy()
 		assert_allclose(p_logpdf, r_logpdf, atol=1e-5)
 
-	def test_clayton_pdf_cuda(self):
-		#test theta=0.5 values from mixedvines
-		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float().cuda()
-		# Gaussian copula family
 		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float().cuda())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.7858645247, 0.9946292379,
@@ -153,15 +189,28 @@ class TestCopulaLogPDF_CUDA(unittest.TestCase):
 		p_logpdf = clayton_copula.log_prob(samples.squeeze()).cpu().numpy()
 		assert_allclose(p_logpdf, r_logpdf, atol=1e-5)
 
-	def test_gumbel_pdf_cuda(self):
-		#test theta=0.5 values from mixedvines
-		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float().cuda()
-		# Gaussian copula family
 		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float().cuda())
 		# Comparison values
 		r_logpdf = np.array([-np.inf, 0.84327586, 1.27675282, 0.7705065, -np.inf]).astype("float32")
 		p_logpdf = gumbel_copula.log_prob(samples.squeeze()).cpu().numpy()
 		assert_allclose(p_logpdf, r_logpdf, atol=1e-5)
+
+	def test_rotation_90_deg(self):
+		#test theta=0.5 values from mixedvines
+		samples = torch.tensor([np.linspace(0, 1, 5), np.linspace(0.2, 0.8, 5)]).t().float().cuda()
+
+		clayton_copula = ClaytonCopula(torch.tensor(np.full(5,5)).float().cuda(), rotation='90°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, -2.571322188, 0.9946292379,
+                         -1.7680858282, -np.inf])
+		p_logpdf = clayton_copula.log_prob(samples.clone().squeeze()).cpu().numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
+
+		gumbel_copula = GumbelCopula(torch.tensor(np.full(5,5)).float().cuda(), rotation='90°')
+		# Comparison values
+		r_logpdf = np.array([-np.inf, -2.89299601,  1.27675282, -3.32270517, -np.inf])
+		p_logpdf = gumbel_copula.log_prob(samples.clone().squeeze()).cpu().numpy()
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-5)
 
 
 @unittest.skipUnless(torch.cuda.device_count()>0, "requires GPU")

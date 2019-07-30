@@ -6,13 +6,15 @@ from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
 
-from .distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
+from .distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
 from .dist_transform import NormTransform
 
 class Copula_Likelihood_Base(Likelihood):
     def __init__(self, **kwargs: Any):
         super(Likelihood, self).__init__()
         self._max_plate_nesting = 1
+        self.rotation = None
+        self.isrotatable = False
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -25,12 +27,14 @@ class Copula_Likelihood_Base(Likelihood):
 
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> GaussianCopula:
         scale = self.gplink_function(function_samples)
-        return self.copula(scale)
+        return self.copula(scale, rotation=self.rotation)
 
 class GaussianCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
         self.copula = GaussianCopula
+        self.rotation = None
+        self.isrotatable = False
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -44,6 +48,8 @@ class StudentTCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
         self.copula = StudentTCopula
+        self.rotation = None
+        self.isrotatable = False
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -57,35 +63,44 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
         self.copula = FrankCopula
+        self.rotation = None
+        self.isrotatable = False
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
         return (torch.sigmoid(2.*f)-0.5)*34.0 #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
 
 class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
-    def __init__(self, **kwargs: Any):
+    def __init__(self, rotation=None, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
         self.copula = ClaytonCopula
+        self.isrotatable = True
+        self.rotation = rotation
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.clamp(f.exp(),1e-2,17.)
+        return torch.clamp(f.mul(3.).exp(),1e-2,17.) #if less then x 3 then crashes often (invalid loc)
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
-    def __init__(self, **kwargs: Any):
+    def __init__(self, rotation=None, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
         self.copula = GumbelCopula
+        self.isrotatable = True
+        self.rotation = rotation
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
         return torch.clamp(1.+f.exp(),1.,17.)
 
-# class MixtureCopula_Likelihood(Likelihood):
+class MixtureCopula_Likelihood(Likelihood):
     
-#     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
-
-#         scale = self.gplink_function(function_samples)
-#         return GumbelCopula(scale)
+    def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
+        mixing_vec, likelihoods = params
+        likelihood = 0
+        for a, lik in zip(mixing_vec, likelihoods):
+            f = lik.gplink_function(function_samples)
+            likelihood += lik.copula(f)*a
+        return likelihood
 
 class GaussianCopula_Flow_Likelihood(Likelihood):
     def __init__(self, noise_prior=None, noise_constraint=None, batch_shape=torch.Size(), **kwargs: Any):

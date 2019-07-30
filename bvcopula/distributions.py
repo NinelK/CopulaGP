@@ -5,13 +5,78 @@ from torch.distributions.utils import _standard_normal
 
 
 class SingleParamCopulaBase(TorchDistribution):
-    
+    '''
+    This abstract class represents a copula with a single parameter.
+    Parameters
+    ----------
+    theta : float
+        Parameter of the copula.
+    rotation : string, optional
+        Clockwise rotation of the copula.  Can be one of the elements of
+        `Copula.rotation_options` or `None`.  (Default: `None`)
+    Attributes
+    ----------
+    theta : float
+        Parameter of the copula.
+    rotation : string
+        Clockwise rotation of the copula.
+    Methods
+    -------
+    log_prob(samples)
+        Log of the probability density function.
+    rsample(size=1)
+        Generate random variates.
+    ppcf(samples)
+        Inverse conditional cdf on the copula. 
+        Required for sample generation using Rosenblatt transform.
+    expand(batch_shape)
+        Expends the batch space: adds extra dimension for MCMC sampling
+        corresponding to sampling particles.
+    '''
     has_rsample = True
+    rotation_options = ['0°', '90°', '180°', '270°']
     
-    def __init__(self, theta, validate_args=None):
+    def __init__(self, theta, rotation=None, validate_args=None):
         self.theta = theta
+        #TODO Check theta when there will be more than 1 param. Now it is checked by gpytorch
+        self.__check_rotation(rotation)
+        self.rotation = rotation
         batch_shape, event_shape = self.theta.shape, torch.Size([2])
         super(SingleParamCopulaBase, self).__init__(batch_shape, event_shape, validate_args=validate_args)
+
+    @classmethod
+    def __check_rotation(cls, rotation):
+        '''
+        Checks the `rotation` parameter.
+        Parameters
+        ----------
+        rotation : string
+            Rotation of the copula.  Can be one of the elements of
+            `Copula.rotation_options` or `None`.
+        '''
+        if rotation is not None and rotation not in cls.rotation_options:
+            raise ValueError("rotation '" + rotation + "' not supported")
+
+    def __rotate_input(self, samples):
+        '''
+        Preprocesses the input to account for the copula rotation.  The input
+        is changed and a reference to the input is returned.
+        Parameters
+        ----------
+        samples : array_like
+            [batch_dims, 2] tensor of samples.
+        Returns
+        -------
+        samples : array_like
+            [batch_dims, 2] tensor of rotated samples.
+        '''
+        if self.rotation == '90°':
+            samples[..., 1] = 1 - samples[..., 1]
+        elif self.rotation == '180°':
+            samples[...] = 1 - samples[...]
+        elif self.rotation == '270°':
+            samples[..., 0] = 1 - samples[..., 0]
+        return samples
     
     def expand(self, batch_shape, _instance=None):
         new = self._get_checked_instance(SingleParamCopulaBase, _instance)
@@ -23,10 +88,11 @@ class SingleParamCopulaBase(TorchDistribution):
         super(SingleParamCopulaBase, new).__init__(batch_shape,
                                                 self.event_shape,
                                                 validate_args=False)
+        new.rotation = self.rotation
         new._validate_args = self._validate_args
         return new
     
-    def ppcf(self, samples, theta):
+    def ppcf(self, samples):
         raise NotImplementedError
 
     def rsample(self, sample_shape=torch.Size([])):
@@ -40,16 +106,16 @@ class SingleParamCopulaBase(TorchDistribution):
             get_cuda_device = self.theta.get_device()
             samples = samples.cuda(device=get_cuda_device)
         samples[...,0] = self.ppcf(samples)
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         return samples
 
     def log_prob(self, value):
         raise NotImplementedError
 
-    def entropy(self):
-        raise NotImplementedError
-
 class GaussianCopula(SingleParamCopulaBase):
-    
+    '''
+    This class represents a copula from the Gaussian family.
+    '''
     arg_constraints = {"theta": constraints.interval(-1,1)}
     support = constraints.interval(0,1) # [0,1]
     
@@ -96,7 +162,9 @@ class GaussianCopula(SingleParamCopulaBase):
         return log_prob
 
 class FrankCopula(SingleParamCopulaBase):
-    
+    '''
+    This class represents a copula from the Frank family.
+    '''
     arg_constraints = {"theta": constraints.real}
     support = constraints.interval(0,1) # [0,1]
     
@@ -138,7 +206,9 @@ class FrankCopula(SingleParamCopulaBase):
         return log_prob
 
 class ClaytonCopula(SingleParamCopulaBase):
-    
+    '''
+    This class represents a copula from the Clayton family.
+    '''
     arg_constraints = {"theta": constraints.positive}
     support = constraints.interval(0,1) # [0,1]
     
@@ -160,6 +230,7 @@ class ClaytonCopula(SingleParamCopulaBase):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
+        value = self._SingleParamCopulaBase__rotate_input(value.clone())
         log_prob = torch.zeros_like(self.theta) # by default
 
         value_ = value.expand(self.theta.shape + torch.Size([2]))
@@ -172,13 +243,15 @@ class ClaytonCopula(SingleParamCopulaBase):
                        * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
-        log_prob[(value[..., 0] <= 0) | (value[..., 1] <= 0) |
+        log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
         
         return log_prob
 
 class GumbelCopula(SingleParamCopulaBase):
-    
+    '''
+    This class represents a copula from the Gumbel family.
+    '''
     arg_constraints = {"theta": constraints.positive}
     support = constraints.interval(0,1) # [0,1]
     
@@ -228,6 +301,7 @@ class GumbelCopula(SingleParamCopulaBase):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
+        value = self._SingleParamCopulaBase__rotate_input(value.clone())
         log_prob = torch.zeros_like(self.theta) # by default
 
         h1 = self.theta - 1.0
@@ -248,7 +322,9 @@ class GumbelCopula(SingleParamCopulaBase):
         return log_prob
 
 class StudentTCopula(SingleParamCopulaBase):
-    
+    '''
+    This class represents a copula from the Student T family.
+    '''    
     arg_constraints = {"theta": constraints.interval(-1,1)} 
     # here theta is actually Kendall's tau
     # it does not make sence to transform it through pi/2 * sin(tau) to get traditional theta
@@ -342,5 +418,52 @@ class StudentTCopula(SingleParamCopulaBase):
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+        
+        return log_prob
+
+class MixtureCopula(SingleParamCopulaBase):
+    
+    arg_constraints = {"theta": constraints.interval(-1,1), "mix": constraints.interval(-1,1)}
+    support = constraints.interval(0,1) # [0,1]
+    
+    def ppcf(self, samples):
+        if self.theta.is_cuda:
+            get_cuda_device = self.theta.get_device()
+            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
+            vals = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                                 nrvs[..., 1] * self.theta)
+        else:    
+            nrvs = normal.Normal(0,1).icdf(samples)
+            vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                                 nrvs[..., 1] * self.theta) 
+        return vals
+
+    def log_prob(self, value):
+        if self._validate_args:
+            self._validate_sample(value)
+        assert value.shape[-1] == 2 #check that the samples are pairs of variables
+        log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
+
+        # Check CUDA and make a Normal distribution
+        if self.theta.is_cuda:
+            get_cuda_device = self.theta.get_device()
+            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(value)
+        else:
+            nrvs = normal.Normal(0,1).icdf(value)
+        
+        thetas = self.theta
+        
+        log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
+        log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
+        
+        mask = (thetas < 1.0) & (thetas > -1.0)
+        log_prob[..., mask] = (2 * thetas * nrvs[..., 0] * nrvs[..., 1] - thetas**2 \
+            * (nrvs[..., 0]**2 + nrvs[..., 1]**2))[..., mask]
+        log_prob[..., mask] /= 2 * (1 - thetas**2)[..., mask]
+        log_prob[..., mask] -= torch.log(1 - thetas**2)[..., mask] / 2
+
+        # now put everything out of range to -inf (which was most likely Nan otherwise)
+        log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
         
         return log_prob
