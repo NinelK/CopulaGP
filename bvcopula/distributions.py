@@ -209,7 +209,7 @@ class ClaytonCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Clayton family.
     '''
-    arg_constraints = {"theta": constraints.positive}
+    arg_constraints = {"theta": constraints.interval(1e-2,16.)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
@@ -245,6 +245,8 @@ class ClaytonCopula(SingleParamCopulaBase):
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+
+        #log_prob[(self.theta<1e-2) | (self.theta>16.)] = -float("Inf") 
         
         return log_prob
 

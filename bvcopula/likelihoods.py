@@ -79,7 +79,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.clamp(f.mul(3.).exp(),1e-2,17.) #if less then x 3 then crashes often (invalid loc)
+        return torch.clamp(torch.exp(f*0.8),1e-2,16.)
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):

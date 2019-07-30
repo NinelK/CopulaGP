@@ -11,14 +11,15 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 - [x] Add Gumbel Copula
 - [x] Add rotation
 - [x] Add tests on copula symmetries
+- [x] Make model selection
+- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
+- [ ] Add Mixture Model
 - [ ] Implement 1-param Student-T copula
 	- [x] Sampling with icdf
 	- [ ] Implement Bailey's sampling method
 	- [ ] LogPDF
 	- [ ] Tests
 	- [ ] GPU support
-- [ ] Fix mean_prior (it overwrites somewhere around pyro SVI) 
-- [ ] Make model selection
 - [ ] (!) Implement cdf/icdf for student distribution with 2-param
 	- [ ] Extend the code to infer both parameters with 2 independent GPs
 - [ ] Test on the real data
