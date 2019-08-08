@@ -1,7 +1,7 @@
 import gpytorch
 
-class GPInferenceModel(gpytorch.models.PyroVariationalGP):
-    def __init__(self, train_x, train_y, likelihood, name_prefix="mixture_gp"):
+class GPInferenceModel(gpytorch.models.AbstractVariationalGP):
+    def __init__(self, train_x, likelihood):
         # Define all the variational stuff
         variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(
             num_inducing_points=train_x.numel()
@@ -11,7 +11,7 @@ class GPInferenceModel(gpytorch.models.PyroVariationalGP):
         )
         
         # Standard initializtation
-        super(GPInferenceModel, self).__init__(variational_strategy, likelihood, num_data=train_x.numel())
+        super(GPInferenceModel, self).__init__(variational_strategy)
         self.likelihood = likelihood
         
         # Mean, covar
@@ -34,8 +34,8 @@ class GPInferenceModel(gpytorch.models.PyroVariationalGP):
         covar = self.covar_module(x)
         return gpytorch.distributions.MultivariateNormal(mean, covar)
 
-class KISS_GPInferenceModel(gpytorch.models.PyroVariationalGP):
-    def __init__(self, likelihood, prior_rbf_length=0.1, grid_size=128, grid_bounds=[(0, 1)], name_prefix="mixture_gp"):
+class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
+    def __init__(self, likelihood, prior_rbf_length=0.1, grid_size=128, grid_bounds=[(0, 1)]):
         # Define all the variational stuff
         variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(grid_size)
         variational_strategy = gpytorch.variational.GridInterpolationVariationalStrategy(
@@ -43,7 +43,7 @@ class KISS_GPInferenceModel(gpytorch.models.PyroVariationalGP):
         )
         
         # Standard initializtation
-        super(KISS_GPInferenceModel, self).__init__(variational_strategy, likelihood, num_data=grid_size) #?
+        super(KISS_GPInferenceModel, self).__init__(variational_strategy)
         self.likelihood = likelihood
         
         # Mean, covar

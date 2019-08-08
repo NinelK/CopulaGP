@@ -20,6 +20,9 @@ class Copula_Likelihood_Base(Likelihood):
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
         thetas = self.gplink_function(input.rsample(self.particles))
         res = self.copula(thetas, rotation=self.rotation).log_prob(target)
+        # res = res.mean(0)
+        # assert res.dim()==1
+        # res = res[torch.randperm(res.shape[-1])].contiguous()
         return res.mean(0).sum()
 
     @staticmethod
