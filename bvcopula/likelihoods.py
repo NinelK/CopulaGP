@@ -15,6 +15,12 @@ class Copula_Likelihood_Base(Likelihood):
         self._max_plate_nesting = 1
         self.rotation = None
         self.isrotatable = False
+        self.particles = torch.Size([100])
+
+    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
+        thetas = self.gplink_function(input.rsample(self.particles))
+        res = self.copula(thetas, rotation=self.rotation).log_prob(target)
+        return res.mean(0).sum()
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -35,6 +41,7 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = GaussianCopula
         self.rotation = None
         self.isrotatable = False
+        self.particles = torch.Size([100])
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
