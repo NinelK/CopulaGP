@@ -18,12 +18,18 @@ class Copula_Likelihood_Base(Likelihood):
         self.particles = torch.Size([100])
 
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
-        thetas = self.gplink_function(input.rsample(self.particles))
-        res = self.copula(thetas, rotation=self.rotation).log_prob(target)
-        # res = res.mean(0)
+        # samples = input.rsample(self.particles)
+        # thetas = self.gplink_function(samples)
+        # assert torch.all(thetas!=thetas)
+        # res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
         # assert res.dim()==1
-        # res = res[torch.randperm(res.shape[-1])].contiguous()
-        return res.mean(0).sum()
+        # return res.sum()
+        assert torch.all(input.mean==input.mean)
+        thetas = self.gplink_function(input.rsample(self.particles))
+        assert torch.all(thetas==thetas)
+        res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
+        assert res.dim()==1
+        return res.sum()
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -75,6 +81,7 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = FrankCopula
         self.rotation = None
         self.isrotatable = False
+        self.particles = torch.Size([100])
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -86,10 +93,11 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = ClaytonCopula
         self.isrotatable = True
         self.rotation = rotation
+        self.particles = torch.Size([1000])
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.clamp(torch.exp(f*0.8),1e-2,16.)
+        return torch.clamp(torch.exp(f),0.,17.)
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
@@ -97,6 +105,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = GumbelCopula
         self.isrotatable = True
         self.rotation = rotation
+        self.particles = torch.Size([1000])
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:

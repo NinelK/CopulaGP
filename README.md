@@ -8,6 +8,7 @@ This is the GPyTorch version of the code, that inferes copula parameters using G
 - [x] Add Frank Copula
 	- [ ] Figure out why for very high theta -> inf log marginal likelihood, but model still trains
 - [x] Add Clayton Copula
+	- [ ] Figure out what produces Nans!!!!
 - [x] Add Gumbel Copula
 - [x] Add rotation
 - [x] Add tests on copula symmetries

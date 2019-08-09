@@ -209,22 +209,26 @@ class ClaytonCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Clayton family.
     '''
-    arg_constraints = {"theta": constraints.interval(1e-2,16.)}
+    arg_constraints = {"theta": constraints.interval(0.,17.)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
+        print('Sample')
+        min_lim = 0 #min value for accurate calculation of logpdf. Below -- independence copula
         thetas_ = self.theta.expand(samples.shape[:-1])
         vals = torch.zeros_like(thetas_)
-        vals[thetas_==0] = samples[thetas_==0][..., 0] #for self.theta == 0
-        nonzero_theta = thetas_[thetas_!=0]
-        vals[thetas_!=0] = (1 - samples[thetas_!=0][..., 1]**(-nonzero_theta) \
-                + (samples[thetas_!=0][..., 0] * (samples[thetas_!=0][..., 1]**(1 + nonzero_theta))) \
-                ** (-nonzero_theta / (1 + nonzero_theta))) \
-                ** (-1 / nonzero_theta)
+        vals[thetas_<=min_lim] = samples[thetas_<=min_lim][..., 0] #for self.theta == 0
+        nonzero_theta = thetas_[thetas_>min_lim]
+        unstable_part = (samples[thetas_>min_lim][..., 0] * (samples[thetas_>min_lim][..., 1]**(1 + nonzero_theta))) \
+                ** (-nonzero_theta / (1 + nonzero_theta)).expand(samples.shape[:-1])
+        mask = (thetas_>min_lim) & (unstable_part != float("Inf"))
+        vals[mask] = (1 - samples[mask][..., 1]**(-thetas_[mask]) + unstable_part[mask])** (-1 / thetas_[mask])
+        mask = (thetas_>min_lim) & (unstable_part == float("Inf"))
+        vals[mask] = 0. # (inf)^(-1/nonzero_theta) is still something very small
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value):
-
         self.exp_thr = torch.tensor(torch.finfo(torch.float32).max).log()
 
         if self._validate_args:
@@ -235,8 +239,8 @@ class ClaytonCopula(SingleParamCopulaBase):
 
         value_ = value.expand(self.theta.shape + torch.Size([2]))
         
-        log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
-        mask = (self.theta > 0) & (self.theta < self.exp_thr/log_base) 
+        #log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
+        mask = (self.theta > 0) #& (self.theta < self.exp_thr/log_base) 
         log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
                        * torch.log(value).sum(dim=-1) \
                        + (-1 / self.theta - 2) \
@@ -245,6 +249,9 @@ class ClaytonCopula(SingleParamCopulaBase):
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+
+        assert torch.all(log_prob==log_prob)
+        assert torch.all(log_prob!=float("Inf"))
 
         #log_prob[(self.theta<1e-2) | (self.theta>16.)] = -float("Inf") 
         
