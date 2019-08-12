@@ -1,10 +1,10 @@
 import torch
-from pyro.distributions.torch_distribution import TorchDistribution
+from torch.distributions.distribution import Distribution
 from torch.distributions import constraints, normal, studentT
 from torch.distributions.utils import _standard_normal
 
 
-class SingleParamCopulaBase(TorchDistribution):
+class SingleParamCopulaBase(Distribution):
     '''
     This abstract class represents a copula with a single parameter.
     Parameters
