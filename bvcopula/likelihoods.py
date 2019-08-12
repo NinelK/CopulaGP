@@ -86,7 +86,7 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (torch.sigmoid(2.*f)-0.5)*34.0 #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
+        return (torch.sigmoid(f)-0.5)*29.8 #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
 
 class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
