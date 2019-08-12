@@ -94,7 +94,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = ClaytonCopula
         self.isrotatable = True
         self.rotation = rotation
-        self.particles = torch.Size([1000])
+        self.particles = torch.Size([100])
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -107,11 +107,11 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = GumbelCopula
         self.isrotatable = True
         self.rotation = rotation
-        self.particles = torch.Size([1000])
+        self.particles = torch.Size([100])
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f).exp()*11./torch.exp(torch.tensor(1.)) 
+        return torch.sigmoid(f).exp()*10.8/torch.exp(torch.tensor(1.)) 
         #11. is maximum that does not crash on fully dependent samples
 
 class MixtureCopula_Likelihood(Likelihood):
