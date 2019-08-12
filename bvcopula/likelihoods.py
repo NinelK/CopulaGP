@@ -98,7 +98,8 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.clamp(torch.exp(f),0.,12.6)
+        return torch.sigmoid(f)*9.9#/torch.exp(torch.tensor(1.)) 
+        #maps (-inf, +inf) to [0,9.9]
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
