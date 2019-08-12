@@ -110,7 +110,8 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.clamp(1.+f.exp(),1.,17.)
+        return torch.sigmoid(f).exp()*11./torch.exp(torch.tensor(1.)) 
+        #11. is maximum that does not crash on fully dependent samples
 
 class MixtureCopula_Likelihood(Likelihood):
     

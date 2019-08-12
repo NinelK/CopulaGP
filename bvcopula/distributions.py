@@ -230,9 +230,6 @@ class ClaytonCopula(SingleParamCopulaBase):
 
     def log_prob(self, value):
 
-        self.max_float = torch.finfo(torch.float32).max
-        self.exp_thr = torch.tensor(self.max_float).log()
-
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
@@ -242,18 +239,11 @@ class ClaytonCopula(SingleParamCopulaBase):
         value_ = value.expand(self.theta.shape + torch.Size([2]))
         
         #log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
-        mask = (self.theta > 0) #& ((value[...,0] > 1e-2) | (value[...,1] > 1e-2))#& (self.theta < self.exp_thr/log_base) 
+        mask = (self.theta > 0) 
         log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
                        * torch.log(value).sum(dim=-1) \
                        + (-1 / self.theta - 2) \
                        * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
-        
-        # print(torch.min(log_prob[..., mask]),
-        #     torch.max(log_prob[..., mask]))
-        # mask2 = log_prob < -1e6
-        # print(value[mask2])
-        # log_prob[..., mask] = torch.clamp(log_prob[...,mask],-1e6,1e2)
-        #print(torch.mean(log_prob[...,mask]))
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
@@ -270,12 +260,12 @@ class GumbelCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Gumbel family.
     '''
-    arg_constraints = {"theta": constraints.positive}
+    arg_constraints = {"theta": constraints.interval(1.,11.)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
 
-        self.theta_thr = 17.
+        self.theta_thr = 11. #sample generation is tricky above 16.
 
         def h(z,samples):
             x = -samples[...,1].log()
@@ -289,26 +279,10 @@ class GumbelCopula(SingleParamCopulaBase):
         x = -samples[...,1].log()
         z = x
         thetas_ = thetas.expand_as(z)
-        for _ in range(3):             #increase number of Newton-Raphson iteration if sampling fails
+        for _ in range(10):             #increase number of Newton-Raphson iteration if sampling fails
             z = z - h(z,samples)/hd(z)
             y = (z.pow(thetas) - x.pow(thetas)).pow(1/thetas)
 
-        # # samples[...,0] and samples[...,1] have to be dependent to result in y<1
-        # min_z = samples[...,1]
-        # max_z = (1 + samples[...,1].pow(thetas)).pow(1/thetas)
-        # min_p = (samples[...,1] - max_z + (thetas-1)*(samples[...,1].log() - max_z.log())).exp()
-        # samples[...,0] = min_p + (1-min_p)*samples[...,0]
-
-        # #bisection
-        # sec = (max_z-min_z)/2.
-        # z = min_z + torch.ones_like(samples[...,1])*sec #start in the middle of [0,2]
-        # for _ in range(200):
-        #     sec /= 2.
-        #     h_ = h(z,samples)
-        #     z[h_>0] -= sec[h_>0]
-        #     z[h_<0] += sec[h_<0]
-
-        #y = (z.pow(thetas) - samples[...,1].pow(thetas)).pow(1/thetas)
         v = torch.exp(-y)
         assert torch.all(v>0)
         assert torch.all(v<1)
@@ -334,8 +308,8 @@ class GumbelCopula(SingleParamCopulaBase):
         log_prob = -h7+h4+h5 + h1*h4.log() + h1 * h5.log() + h2 * h6.log() + (h1+h7).log()
 
         # # now put everything out of range to -inf (which was most likely Nan otherwise)
-        log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
-                (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+        log_prob[..., (value[..., 0] < 0) | (value[..., 1] < 0) |
+                (value[..., 0] > 1) | (value[..., 1] > 1)] = -float("Inf") 
         
         return log_prob
 
