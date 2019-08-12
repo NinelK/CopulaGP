@@ -29,6 +29,7 @@ class Copula_Likelihood_Base(Likelihood):
         assert torch.all(thetas==thetas)
         res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
         assert res.dim()==1
+        assert torch.all(res==res)
         return res.sum()
 
     @staticmethod
@@ -97,7 +98,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.clamp(torch.exp(f),0.,17.)
+        return torch.clamp(torch.exp(f),0.,12.6)
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):

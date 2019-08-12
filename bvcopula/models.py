@@ -1,4 +1,5 @@
 import gpytorch
+from torch import all
 
 class GPInferenceModel(gpytorch.models.AbstractVariationalGP):
     def __init__(self, train_x, likelihood):
@@ -63,4 +64,5 @@ class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
     def forward(self, x):
         mean = self.mean_module(x)  # Returns an n_data vec
         covar = self.covar_module(x)
+        assert all(mean==mean)
         return gpytorch.distributions.MultivariateNormal(mean, covar)

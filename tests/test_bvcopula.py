@@ -149,10 +149,10 @@ class TestCopulaSampling(unittest.TestCase):
 		gumbel_copula = GumbelCopula(torch.tensor(np.full(bin_size**2,2.0)).float())#torch.ones(100)*0.7)
 		self.sampling_general(gumbel_copula, bin_size)
 
-	def test_studentT_sampling(self):
-		bin_size = 20
-		student_copula = StudentTCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
-		self.sampling_general(student_copula, bin_size)
+	# def test_studentT_sampling(self):
+	# 	bin_size = 20
+	# 	student_copula = StudentTCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
+	# 	self.sampling_general(student_copula, bin_size)
 
 @unittest.skipUnless(torch.cuda.device_count()>0, "requires GPU")
 class TestCopulaLogPDF_CUDA(unittest.TestCase):
