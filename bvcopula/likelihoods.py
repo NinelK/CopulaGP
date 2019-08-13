@@ -95,6 +95,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
         self.isrotatable = True
         self.rotation = rotation
         self.particles = torch.Size([100])
+        self.name = 'Clayton'
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -188,16 +189,41 @@ class MixtureCopula_Likelihood(Likelihood):
         """
         num_copulas = len(self.likelihoods)
         assert 2*num_copulas-1==f.shape[-2] #likelihoods + mixing concentrations - 1 (dependent)
+
+        lr_ratio = 0.5 # lr_mix / lr_thetas
         
         thetas, mix = [], []
-        last_con = torch.ones_like(f[...,0,:])
+        prob_rem = torch.ones_like(f[...,0,:]) #1-x1, x1(1-x2), x1x2(1-x3)...
         for i, lik in enumerate(self.likelihoods):
             thetas.append(lik.gplink_function(f[...,i,:]))
+            prob = torch.ones_like(f[...,0,:])
+            # for j in range(i):
+            #     prob = prob*base_distributions.Normal(0,1).cdf(1e-1*f[...,j+num_copulas,:])
+            # if i!=(num_copulas-1):
+            #     prob = prob*(1.0-base_distributions.Normal(0,1).cdf(1e-1*f[...,i+num_copulas,:]))
+
+            #shift zero of GP so that all probabilities for f=0 give 1/num_copulas mixing parameters
+
+            for j in range(i):
+                p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                f0 = base_distributions.Normal(0,1).icdf(p0) 
+                prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+num_copulas,:]+f0)
             if i!=(num_copulas-1):
-                prob = base_distributions.Normal(0,1).cdf(f[...,i+num_copulas,:])
-                last_con -= prob
-                mix.append(prob)
-        mix.append(last_con)
+                p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                f0 = base_distributions.Normal(0,1).icdf(p0) 
+                prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+num_copulas,:]+f0))
+
+            mix.append(prob)
+            # if i!=(num_copulas-1):
+            #     prob = base_distributions.Normal(0,1).cdf(f[...,i+num_copulas,:])
+            #     mix.append((1.-prob)*prob_rem)
+            #     prob_rem *= prob
+            # else:
+            #     mix.append(prob_rem)
+
+        # print(torch.stack(mix).shape)
+        # print(torch.stack(mix).sum(dim=0))
+
         assert torch.all(torch.stack(thetas)==torch.stack(thetas))
         assert torch.all(torch.stack(mix)==torch.stack(mix))
         return torch.stack(thetas), torch.stack(mix)
