@@ -111,7 +111,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f).exp()*10.8/torch.exp(torch.tensor(1.)) 
+        return torch.sigmoid(f)*11.2 + 1.0
         #11. is maximum that does not crash on fully dependent samples
 
 class MixtureCopula_Likelihood(Likelihood):
@@ -161,3 +161,50 @@ class GaussianCopula_Flow_Likelihood(Likelihood):
         base_dist = base_distributions.MultivariateNormal(torch.zeros(scale.shape + torch.Size([2])),
                                                           self.corr_mat(scale))
         return TransformedDistribution(base_dist, NormTransform())
+    
+class MixtureCopula_Likelihood(Likelihood):
+    def __init__(self, likelihoods, **kwargs: Any):
+        super(Likelihood, self).__init__()
+        self._max_plate_nesting = 1
+        self.likelihoods = likelihoods
+        self.particles = torch.Size([100])
+        
+    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
+        function_samples = input.rsample(self.particles)
+        thetas, mix = self.gplink_function(function_samples)
+        copula = MixtureCopula(thetas, 
+                               mix, 
+                               [lik.copula for lik in self.likelihoods], 
+                               [lik.rotation for lik in self.likelihoods])
+        res = copula.log_prob(target).mean(0)
+        assert res.dim()==1
+        return res.sum()
+
+    def gplink_function(self, f: Tensor) -> Tensor:
+        """
+        GP link function transforms the GP latent variable `f` into :math:`\theta`,
+        which parameterizes the distribution in :attr:`forward` method as well as the
+        log likelihood of this distribution defined in :attr:`expected_log_prob`.
+        """
+        num_copulas = len(self.likelihoods)
+        assert 2*num_copulas-1==f.shape[-2] #likelihoods + mixing concentrations - 1 (dependent)
+        
+        thetas, mix = [], []
+        last_con = torch.ones_like(f[...,0,:])
+        for i, lik in enumerate(self.likelihoods):
+            thetas.append(lik.gplink_function(f[...,i,:]))
+            if i!=(num_copulas-1):
+                prob = base_distributions.Normal(0,1).cdf(f[...,i+num_copulas,:])
+                last_con -= prob
+                mix.append(prob)
+        mix.append(last_con)
+        assert torch.all(torch.stack(thetas)==torch.stack(thetas))
+        assert torch.all(torch.stack(mix)==torch.stack(mix))
+        return torch.stack(thetas), torch.stack(mix)
+
+    def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
+        thetas, mix = self.gplink_function(function_samples)
+        return MixtureCopula(thetas, 
+                             mix, 
+                             [lik.copula for lik in self.likelihoods], 
+                             [lik.rotation for lik in self.likelihoods])

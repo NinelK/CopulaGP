@@ -3,7 +3,6 @@ from torch.distributions.distribution import Distribution
 from torch.distributions import constraints, normal, studentT
 from torch.distributions.utils import _standard_normal
 
-
 class SingleParamCopulaBase(Distribution):
     '''
     This abstract class represents a copula with a single parameter.
@@ -260,12 +259,12 @@ class GumbelCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Gumbel family.
     '''
-    arg_constraints = {"theta": constraints.interval(1.,10.8)}
+    arg_constraints = {"theta": constraints.interval(1.,12.2)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
 
-        self.theta_thr = 10.8 #sample generation is tricky above 16.
+        self.theta_thr = 12.2 #sample generation is tricky above 16.
 
         def h(z,samples):
             x = -samples[...,1].log()
@@ -279,13 +278,14 @@ class GumbelCopula(SingleParamCopulaBase):
         x = -samples[...,1].log()
         z = x
         thetas_ = thetas.expand_as(z)
-        for _ in range(10):             #increase number of Newton-Raphson iteration if sampling fails
+        for _ in range(3):             #increase number of Newton-Raphson iteration if sampling fails
             z = z - h(z,samples)/hd(z)
             y = (z.pow(thetas) - x.pow(thetas)).pow(1/thetas)
 
         v = torch.exp(-y)
-        assert torch.all(v>0)
-        assert torch.all(v<1)
+        # assert torch.all(v>0)
+        # assert torch.all(v<1)
+        v = torch.clamp(v,0,1) # for theta>10 v is sometimes >1
         return v
 
     def log_prob(self, value):
@@ -308,8 +308,8 @@ class GumbelCopula(SingleParamCopulaBase):
         log_prob = -h7+h4+h5 + h1*h4.log() + h1 * h5.log() + h2 * h6.log() + (h1+h7).log()
 
         # # now put everything out of range to -inf (which was most likely Nan otherwise)
-        log_prob[..., (value[..., 0] < 0) | (value[..., 1] < 0) |
-                (value[..., 0] > 1) | (value[..., 1] > 1)] = -float("Inf") 
+        log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
+                (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
         
         return log_prob
 
@@ -413,49 +413,91 @@ class StudentTCopula(SingleParamCopulaBase):
         
         return log_prob
 
-class MixtureCopula(SingleParamCopulaBase):
-    
-    arg_constraints = {"theta": constraints.interval(-1,1), "mix": constraints.interval(-1,1)}
+class MixtureCopula(Distribution):
+    '''
+    This class represents Mixture copula
+    '''
+    has_rsample = True
+    arg_constraints = {"theta": constraints.real, 
+                       "mix": constraints.interval(0,1)} #TODO:write simplex constraint for leftmost dimention
     support = constraints.interval(0,1) # [0,1]
     
-    def ppcf(self, samples):
+    def __init__(self, theta, mix, copulas, rotations=None, validate_args=None):
+        self.theta = theta
+        self.mix = mix
+        self.copulas = copulas
+        if rotations:
+            self.rotations = rotations
+        else:
+            self.rotations = [None for _ in copulas]
+        #TODO Check theta when there will be more than 1 param. Now it is checked by gpytorch
+        batch_shape, event_shape = self.theta.shape, torch.Size([2])
+        super(MixtureCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
+    
+    def expand(self, batch_shape, _instance=None):
+        new = self._get_checked_instance(MixtureCopula, _instance)
+        batch_shape = torch.Size(batch_shape)
+        if batch_shape == torch.Size([]):
+            batch_shape = torch.Size([1])
+        theta_shape = batch_shape + torch.Size(self.event_shape[:-1])
+        new.theta = self.theta.expand(theta_shape) 
+        new.mix = self.mix.expand(theta_shape)
+        super(MixtureCopula, new).__init__(batch_shape,
+                                                self.event_shape,
+                                                validate_args=False)
+        new.copulas = self.copulas
+        new.rotations = self.rotations
+        new._validate_args = self._validate_args
+        return new
+    
+    def rsample(self, sample_shape=torch.Size([])):
+        shape = self._extended_shape(sample_shape) # now it is copulas x sample_size x 2 (event)
+        
+#         if sample_shape == torch.Size([]):   # not sure what to do with 1 sample
+#             shape = torch.Size([1]) + shape
+    
+        samples = torch.zeros(size=shape[1:])
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
-            vals = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                                 nrvs[..., 1] * self.theta)
-        else:    
-            nrvs = normal.Normal(0,1).icdf(samples)
-            vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                                 nrvs[..., 1] * self.theta) 
-        return vals
+            samples = samples.cuda(device=get_cuda_device)
+        num_thetas = self.theta.shape[0]
+        
+        assert num_thetas==len(self.copulas)
+        assert num_thetas==self.mix.shape[0]
+        
+        onehot = torch.distributions.one_hot_categorical.OneHotCategorical(
+            probs=torch.einsum('i...->...i', self.mix)).sample()
+        onehot = torch.einsum('...i->i...', onehot)
+        onehot = onehot.type(torch.ByteTensor)
+        for i,c in enumerate(self.copulas):
+            samples[onehot[i],...] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).sample()
+        
+        return samples
 
     def log_prob(self, value):
-        if self._validate_args:
-            self._validate_sample(value)
+
+#         if self._validate_args:
+#             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
-
-        # Check CUDA and make a Normal distribution
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(value)
-        else:
-            nrvs = normal.Normal(0,1).icdf(value)
+        log_prob = torch.zeros_like(self.theta[0]) # by default
         
-        thetas = self.theta
+        assert self.theta.shape[0]==len(self.copulas)
+        assert self.mix.shape[0]==len(self.copulas)
+        sum_mixes = self.mix.sum(dim=0)
+        assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
         
-        log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
-        log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
+        for i, c in enumerate(self.copulas):
+            add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
+#             if torch.any(add>5.0):
+#                 print(torch.max(add))
+            log_prob += torch.exp(add) #torch.clamp(add,-float("Inf"),10.0))
+            #TODO is it possible to vectorize this part?
+        log_prob = log_prob.log()
         
-        mask = (thetas < 1.0) & (thetas > -1.0)
-        log_prob[..., mask] = (2 * thetas * nrvs[..., 0] * nrvs[..., 1] - thetas**2 \
-            * (nrvs[..., 0]**2 + nrvs[..., 1]**2))[..., mask]
-        log_prob[..., mask] /= 2 * (1 - thetas**2)[..., mask]
-        log_prob[..., mask] -= torch.log(1 - thetas**2)[..., mask] / 2
-
-        # now put everything out of range to -inf (which was most likely Nan otherwise)
-        log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
-                (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
-        
+#         log_prob[self.mix[0] < 0.01] = c(self.theta[1], rotation=self.rotations[1]).log_prob(value)[self.mix[0] < 0.01]
+#         log_prob[self.mix[1] < 0.01] = c(self.theta[0], rotation=self.rotations[0]).log_prob(value)[self.mix[1] < 0.01]
+    
+        if torch.any(log_prob!=log_prob):
+            print('Nan')
+    
         return log_prob

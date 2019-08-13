@@ -2,7 +2,7 @@ import unittest
 
 import torch
 import numpy as np
-from numpy.testing import assert_allclose
+from numpy.testing import assert_allclose, assert_array_equal
 from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
 
 torch.manual_seed(0) 
@@ -112,6 +112,9 @@ class TestCopulaSampling(unittest.TestCase):
 		S = copula.sample(torch.Size([10000])).numpy().squeeze() # generates 100 x 100 (theta dim) samples
 		S = S.reshape(-1,2)
 		r_den = np.histogram2d(*S.T,bins=[bin_size,bin_size],density=True)[0]
+
+		#check NaNs
+		assert_array_equal(S,S)
 
 		# fetch log_pdf for the same bins
 		centre_bins = (np.mgrid[0:bin_size,0:bin_size]/bin_size + 1/2/bin_size).T
