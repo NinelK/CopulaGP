@@ -52,6 +52,7 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
         self.rotation = None
         self.isrotatable = False
         self.particles = torch.Size([100])
+        self.name = 'Gaussian'
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -67,6 +68,7 @@ class StudentTCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = StudentTCopula
         self.rotation = None
         self.isrotatable = False
+        self.name = 'Student T'
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -83,6 +85,7 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
         self.rotation = None
         self.isrotatable = False
         self.particles = torch.Size([100])
+        self.name = 'Frank'
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -109,6 +112,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         self.isrotatable = True
         self.rotation = rotation
         self.particles = torch.Size([100])
+        self.name = 'Gumbel'
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -169,6 +173,7 @@ class MixtureCopula_Likelihood(Likelihood):
         self._max_plate_nesting = 1
         self.likelihoods = likelihoods
         self.particles = torch.Size([100])
+        self.copula = MixtureCopula
         
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
         function_samples = input.rsample(self.particles)
