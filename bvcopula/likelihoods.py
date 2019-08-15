@@ -168,12 +168,16 @@ class GaussianCopula_Flow_Likelihood(Likelihood):
         return TransformedDistribution(base_dist, NormTransform())
     
 class MixtureCopula_Likelihood(Likelihood):
-    def __init__(self, likelihoods, **kwargs: Any):
+    def __init__(self, likelihoods, theta_sharing=None, **kwargs: Any):
         super(Likelihood, self).__init__()
         self._max_plate_nesting = 1
         self.likelihoods = likelihoods
         self.particles = torch.Size([100])
         self.copula = MixtureCopula
+        if theta_sharing is not None:
+            self.theta_sharing = theta_sharing
+        else:
+            self.theta_sharing = torch.arange(0,len(likelihoods)).long()
         
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
         function_samples = input.rsample(self.particles)
@@ -181,7 +185,8 @@ class MixtureCopula_Likelihood(Likelihood):
         copula = MixtureCopula(thetas, 
                                mix, 
                                [lik.copula for lik in self.likelihoods], 
-                               [lik.rotation for lik in self.likelihoods])
+                               rotations=[lik.rotation for lik in self.likelihoods],
+                               theta_sharing = self.theta_sharing)
         res = copula.log_prob(target).mean(0)
         assert res.dim()==1
         return res.sum()
@@ -193,41 +198,27 @@ class MixtureCopula_Likelihood(Likelihood):
         log likelihood of this distribution defined in :attr:`expected_log_prob`.
         """
         num_copulas = len(self.likelihoods)
-        assert 2*num_copulas-1==f.shape[-2] #likelihoods + mixing concentrations - 1 (dependent)
+        num_indep_thetas = self.theta_sharing.max() + 1
+        assert num_copulas + num_indep_thetas - 1==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
 
         lr_ratio = 0.5 # lr_mix / lr_thetas
         
         thetas, mix = [], []
         prob_rem = torch.ones_like(f[...,0,:]) #1-x1, x1(1-x2), x1x2(1-x3)...
         for i, lik in enumerate(self.likelihoods):
-            thetas.append(lik.gplink_function(f[...,i,:]))
+            thetas.append(lik.gplink_function(f[...,self.theta_sharing[i],:]))
             prob = torch.ones_like(f[...,0,:])
-            # for j in range(i):
-            #     prob = prob*base_distributions.Normal(0,1).cdf(1e-1*f[...,j+num_copulas,:])
-            # if i!=(num_copulas-1):
-            #     prob = prob*(1.0-base_distributions.Normal(0,1).cdf(1e-1*f[...,i+num_copulas,:]))
-
-            #shift zero of GP so that all probabilities for f=0 give 1/num_copulas mixing parameters
 
             for j in range(i):
                 p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
                 f0 = base_distributions.Normal(0,1).icdf(p0) 
-                prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+num_copulas,:]+f0)
+                prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+num_indep_thetas,:]+f0)
             if i!=(num_copulas-1):
                 p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
                 f0 = base_distributions.Normal(0,1).icdf(p0) 
-                prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+num_copulas,:]+f0))
+                prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+num_indep_thetas,:]+f0))
 
             mix.append(prob)
-            # if i!=(num_copulas-1):
-            #     prob = base_distributions.Normal(0,1).cdf(f[...,i+num_copulas,:])
-            #     mix.append((1.-prob)*prob_rem)
-            #     prob_rem *= prob
-            # else:
-            #     mix.append(prob_rem)
-
-        # print(torch.stack(mix).shape)
-        # print(torch.stack(mix).sum(dim=0))
 
         assert torch.all(torch.stack(thetas)==torch.stack(thetas))
         assert torch.all(torch.stack(mix)==torch.stack(mix))
@@ -238,4 +229,5 @@ class MixtureCopula_Likelihood(Likelihood):
         return MixtureCopula(thetas, 
                              mix, 
                              [lik.copula for lik in self.likelihoods], 
-                             [lik.rotation for lik in self.likelihoods])
+                             rotations=[lik.rotation for lik in self.likelihoods],
+                             theta_sharing = self.theta_sharing)

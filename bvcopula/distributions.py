@@ -422,8 +422,12 @@ class MixtureCopula(Distribution):
                        "mix": constraints.interval(0,1)} #TODO:write simplex constraint for leftmost dimention
     support = constraints.interval(0,1) # [0,1]
     
-    def __init__(self, theta, mix, copulas, rotations=None, validate_args=None):
+    def __init__(self, theta, mix, copulas, rotations=None, theta_sharing = None, validate_args=None):
         self.theta = theta
+        if theta_sharing is not None:
+            self.theta_sharing = theta_sharing
+        else:
+            self.theta_sharing = torch.arange(0,len(copulas)).long()
         self.mix = mix
         self.copulas = copulas
         if rotations:
@@ -447,6 +451,7 @@ class MixtureCopula(Distribution):
                                                 validate_args=False)
         new.copulas = self.copulas
         new.rotations = self.rotations
+        new.theta_sharing = self.theta_sharing
         new._validate_args = self._validate_args
         return new
     
@@ -462,40 +467,36 @@ class MixtureCopula(Distribution):
             samples = samples.cuda(device=get_cuda_device)
         num_thetas = self.theta.shape[0]
         
-        assert num_thetas==len(self.copulas)
-        assert num_thetas==self.mix.shape[0]
+        assert self.mix.shape[0]==len(self.copulas)
+        assert self.theta_sharing.shape[0]==len(self.copulas)
         
         onehot = torch.distributions.one_hot_categorical.OneHotCategorical(
             probs=torch.einsum('i...->...i', self.mix)).sample()
         onehot = torch.einsum('...i->i...', onehot)
         onehot = onehot.type(torch.ByteTensor)
         for i,c in enumerate(self.copulas):
-            samples[onehot[i],...] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).sample()
+            samples[onehot[i],...] = c(self.theta[self.theta_sharing[i],onehot[i]], rotation=self.rotations[i]).sample()
         
         return samples
 
     def log_prob(self, value):
 
-#         if self._validate_args:
-#             self._validate_sample(value)
+        if self._validate_args:
+            self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         log_prob = torch.zeros_like(self.theta[0]) # by default
         
-        assert self.theta.shape[0]==len(self.copulas)
         assert self.mix.shape[0]==len(self.copulas)
+        assert self.theta_sharing.shape[0]==len(self.copulas)
+
         sum_mixes = self.mix.sum(dim=0)
         assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
         
         for i, c in enumerate(self.copulas):
-            add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
-#             if torch.any(add>5.0):
-#                 print(torch.max(add))
-            log_prob += torch.exp(add) #torch.clamp(add,-float("Inf"),10.0))
+            add = c(self.theta[self.theta_sharing[i]], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
+            log_prob += torch.exp(add) 
             #TODO is it possible to vectorize this part?
         log_prob = log_prob.log()
-        
-#         log_prob[self.mix[0] < 0.01] = c(self.theta[1], rotation=self.rotations[1]).log_prob(value)[self.mix[0] < 0.01]
-#         log_prob[self.mix[1] < 0.01] = c(self.theta[0], rotation=self.rotations[0]).log_prob(value)[self.mix[1] < 0.01]
     
         if torch.any(log_prob!=log_prob):
             print('Nan')
