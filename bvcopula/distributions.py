@@ -144,11 +144,16 @@ class GaussianCopula(SingleParamCopulaBase):
             nrvs = normal.Normal(0,1).icdf(value)
         
         thetas = self.theta
+
+        #gaussian copula alone works without this limitation
+        #however in a mixture of copulas we have to deal with sum of exp(log_prob)
+        #so the log_prob should be clipped here and 2 lines below (max=5.0)
+        dep_thr = 0.9
         
-        log_prob[(thetas >= 1.0)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
-        log_prob[(thetas <= -1.0) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
+        log_prob[(thetas >= dep_thr)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = 5.0#float("Inf") # u==v
+        log_prob[(thetas <= -dep_thr) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = 5.0#float("Inf") # u==1-v
         
-        mask = (thetas < 1.0) & (thetas > -1.0)
+        mask = (thetas < dep_thr) & (thetas > -dep_thr)
         log_prob[..., mask] = (2 * thetas * nrvs[..., 0] * nrvs[..., 1] - thetas**2 \
             * (nrvs[..., 0]**2 + nrvs[..., 1]**2))[..., mask]
         log_prob[..., mask] /= 2 * (1 - thetas**2)[..., mask]
@@ -492,13 +497,15 @@ class MixtureCopula(Distribution):
         sum_mixes = self.mix.sum(dim=0)
         assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
         
-        for i, c in enumerate(self.copulas):
-            add = c(self.theta[self.theta_sharing[i]], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
-            log_prob += torch.exp(add) 
-            #TODO is it possible to vectorize this part?
-        log_prob = log_prob.log()
+        if len(self.copulas)==1:
+            log_prob = self.copulas[0](self.theta[self.theta_sharing[0]], rotation=self.rotations[0]).log_prob(value)
+        else:
+            for i, c in enumerate(self.copulas):
+                add = c(self.theta[self.theta_sharing[i]], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
+                log_prob += torch.exp(add) 
+                #TODO is it possible to vectorize this part?
+            log_prob = log_prob.log()
     
-        if torch.any(log_prob!=log_prob):
-            print('Nan')
-    
+        assert torch.all(log_prob==log_prob)
+
         return log_prob

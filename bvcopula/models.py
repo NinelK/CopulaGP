@@ -75,11 +75,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         variational_distribution = \
         gpytorch.variational.CholeskyVariationalDistribution(grid_size, 
                                                               batch_shape=Size([num_tasks]))
-#         variational_strategy = gpytorch.variational.VariationalStrategy(
-#             self,
-#             train_x,
-#             variational_distribution
-#         )
+        
         variational_strategy = GridInterpolationVariationalStrategy(
             self,
             num_tasks,
@@ -102,7 +98,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         )
         
         #we specify prior here
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 10.0) #variance does not matter much
+        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
         
         # Initialize lengthscale and outputscale to mean of priors
         self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
