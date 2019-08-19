@@ -27,11 +27,12 @@ path_output = './data_scan/'
 base_lr = 1e-3
 iter_print = 100
 NUM_ITER = 2000
+MAX_MIX = 6
 
 def load_data(animal,day_name,n1,n2):
 
 	def data_from_n(n):
-		if n>0:
+		if n>=0:
 			data = signals[n]
 		elif n==-1:
 			data = behaviour_pkl['transformed_velocity']
@@ -112,9 +113,10 @@ def plot_result_param(filename, model, likelihoods, test_x, testX, NSamp):
 	 
 	for t,l,u,c,r in zip(thetas,thetas_low,thetas_upp,copulas,rotations):
 	    F_mean = t.detach().cpu().numpy()
-	    line, = ax[0].plot(testX, F_mean, label = '{} {}'.format(c,r))
-	    ax[0].fill_between(testX, l.detach().cpu().numpy(),
-	                    u.detach().cpu().numpy(), color=line.get_color(), alpha=0.5)
+	    m = np.max(np.abs(F_mean))
+	    line, = ax[0].plot(testX, F_mean/m, label = '{} {} (max={:.3})'.format(c,r,m))
+	    ax[0].fill_between(testX, l.detach().cpu().numpy()/m,
+	                    u.detach().cpu().numpy()/m, color=line.get_color(), alpha=0.5)
 	    
 	ax[0].scatter(np.linspace(0., 1., NSamp),np.zeros(NSamp),color=colors)
 	ax[0].set_xlabel('x')
@@ -211,8 +213,8 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 		theta_sharing = theta_sharing
 		num_fs = len(likelihoods)+thetas_sharing.max().numpy() # indep_thetas + num_copulas - 1
 	else:
-   		theta_sharing = torch.arange(0,len(likelihoods)).long()
-   		num_fs = 2*len(likelihoods)-1
+		theta_sharing = torch.arange(0,len(likelihoods)).long()
+		num_fs = 2*len(likelihoods)-1
 
 	NSamp = X.shape[0]
 
@@ -282,7 +284,7 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 	            #     np.mean(np.abs(means[-100]-means[-1]))
 	            # ))
 
-	            if (0 < mean_p < 0.001):# & (np.mean(np.abs(1-means[-100]/means[-1])) < 0.05): 
+	            if (0 < mean_p < 0.0002):# & (np.mean(np.abs(1-means[-100]/means[-1])) < 0.05): 
 	                print("Converged in {} steps!".format(i+1))
 	                break
 	            p = 0.
@@ -329,7 +331,13 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 	plot_result_copula('{}result_copula/rc_{}.png'.format(path_output,name), 
 		model, likelihoods, X, Y, train_x)
 
-	return waic(model,likelihoods,train_x,train_y)
+	waics = np.zeros(5)
+	for i in range(5):
+		waics[i] = waic(model,likelihoods,train_x,train_y)
+
+	print('WAIC is {}±{}'.format(np.mean(waics),np.std(waics)))
+
+	return np.mean(waics)
 
 def save_best(best_name,new_name,waics,available,sequence):
 	shutil.copy('{}loss/loss_{}.png'.format(path_output,best_name),
@@ -346,6 +354,16 @@ def save_best(best_name,new_name,waics,available,sequence):
 	with open('{}best/{}.pkl'.format(path_output,new_name),'wb') as f:
 		pkl.dump(to_save,f)
 
+def copy_the_best(best_name,new_name):
+	shutil.copy('{}best/loss_{}.png'.format(path_output,best_name),
+		'{}best/loss_{}.png'.format(path_output,new_name))
+	shutil.copy('{}best/rp_{}.png'.format(path_output,best_name),
+		'{}best/rp_{}.png'.format(path_output,new_name))
+	shutil.copy('{}best/rc_{}.png'.format(path_output,best_name),
+		'{}best/rc_{}.png'.format(path_output,new_name))
+	shutil.copy('{}best/{}.pkl'.format(path_output,best_name),
+		'{}best/{}.pkl'.format(path_output,new_name))
+
 def update_availability(best_ind,available,gauss_count,frank_count):
 	if best_ind>=2:
 		if best_ind<=5:
@@ -356,8 +374,12 @@ def update_availability(best_ind,available,gauss_count,frank_count):
 			available[best_ind-4] = 0
 	elif best_ind==0:
 		gauss_count += 1
+		if gauss_count>=2:
+			available[best_ind]=0
 	elif best_ind==1:
 		frank_count += 1
+		if frank_count>=2:
+			available[best_ind]=0
 	return (available,gauss_count,frank_count)
 
 def main():
@@ -374,6 +396,8 @@ def main():
 	exp_name = '{}_{}_{}-{}'.format(animal,day_name,n1,n2)
 
 	X, Y = load_data(animal,day_name,n1,n2)
+
+	print(X.shape[0])
 
 	t_start = time.time()
 
@@ -425,14 +449,16 @@ def main():
 
 	(available,gauss_count,frank_count) = update_availability(best_ind,available,gauss_count,frank_count)
 
-	simpler_waic = np.max(waics)
+	best_waics_layers = np.ones(MAX_MIX)* (-float("Inf"))
+	best_waics_layers[0] = np.max(waics)
 	sequence = [best]
 
 	best_name = '{}_{}'.format(exp_name,best.name+strrot(best.rotation))
 	new_name = '{}_c{}'.format(exp_name,0)
 	save_best(best_name,new_name,waics,available,sequence)
 
-	for layer in range(5): #6 copulas is more than enough
+	for layer in range(1,MAX_MIX): #6 copulas is more than enough
+		print('Best WAICs so far: ',best_waics_layers)
 		waics = np.ones(len(elements)) * (-float("Inf"))
 		for i in np.arange(len(elements))[available]:
 			element = elements[i]
@@ -450,34 +476,30 @@ def main():
 			finally:
 				waics[i] = waic
 
-		if np.max(waics)>simpler_waic:
-			best_ind = np.argmax(waics)
-			best = elements[best_ind]
-			print("Best added copula: {} {} (WAIC = {:.3})".format(best.name,strrot(best.rotation),np.max(waics)))
+		best_ind = np.argmax(waics)
+		best = elements[best_ind]
+		print("Best added copula: {} {} (WAIC = {:.3})".format(best.name,strrot(best.rotation),np.max(waics)))
 
-			(available,gauss_count,frank_count) = update_availability(best_ind,available,gauss_count,frank_count)
+		(available,gauss_count,frank_count) = update_availability(best_ind,available,gauss_count,frank_count)
 
-			simpler_waic = np.max(waics)
-			sequence = sequence + [best]
+		best_waics_layers[layer] = np.max(waics)
+		sequence = sequence + [best]
 
-			copulas_names=''
-			for lik in sequence:
-				copulas_names += lik.name+strrot(lik.rotation)
-			best_name = '{}_{}'.format(exp_name,copulas_names)
-			new_name = '{}_c{}'.format(exp_name,layer+1)
-			save_best(best_name,new_name,waics,available,sequence)
+		copulas_names=''
+		for lik in sequence:
+			copulas_names += lik.name+strrot(lik.rotation)
+		best_name = '{}_{}'.format(exp_name,copulas_names)
+		new_name = '{}_c{}'.format(exp_name,layer)
+		save_best(best_name,new_name,waics,available,sequence)
 
-			elements_available=[]
-			for i in range(len(available)):
-				if available[i]:
-					elements_available.append(elements[i])
-			print('Availability: ',*[lik.name+strrot(lik.rotation) for lik in elements_available])
-			del(elements_available)
-			if np.all(available==0):
-				print("Search is done, nothing to add.")	
-				break
-		else:
-			print("Search is done, best copula found.")
+		elements_available=[]
+		for i in range(len(available)):
+			if available[i]:
+				elements_available.append(elements[i])
+		print('Availability: ',*[lik.name+strrot(lik.rotation) for lik in elements_available])
+		del(elements_available)
+		if np.all(available==0):
+			print("Search is done, nothing to add.")	
 			break
 
 	t_end = time.time()
@@ -488,6 +510,10 @@ def main():
 	minutes = int(total_time/60)%60
 	seconds = (int(total_time)%(60))
 	print("Took {} h {} min {} s ({})".format(hours,minutes,seconds,int(total_time)))
+
+	best_name = '{}_c{}'.format(exp_name,np.argmax(best_waics_layers))
+	new_name = '{}_best'.format(exp_name)
+	copy_the_best(best_name,new_name)
 	
 if __name__ == "__main__":
 	main()
