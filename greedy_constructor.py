@@ -132,12 +132,12 @@ def plot_result_param(filename, model, likelihoods, test_x, testX, NSamp):
 
 	_, sampled = gplink(output.rsample(torch.Size([100])))
 
-	actual_num_copulas = 0
+	important_copulas = np.zeros(len(likelihoods)).astype("bool")
 
 	for i, (t,c,r) in enumerate(zip(mixes[:],copulas,rotations)):
 	    F_mean = t.detach().cpu().numpy()
 	    if np.any(np.abs(F_mean)>C_THR):
-	    	actual_num_copulas += 1
+	    	important_copulas[i] = True
 	    line, = ax[1].plot(testX, F_mean, label = '{} {}'.format(c,r))
 	    sm = np.mean(sampled[i].cpu().numpy(),axis=0)
 	    std = np.std(sampled[i].cpu().numpy(),axis=0)
@@ -152,11 +152,11 @@ def plot_result_param(filename, model, likelihoods, test_x, testX, NSamp):
 	fig.savefig(filename)
 	plt.close()
 
-	return actual_num_copulas
+	return important_copulas
 
 def plot_indep_copula(filename, X, Y):
 
-	Y_sim = torch.empty(size=Y.shape).uniform_(1e-4, 1. - 1e-4)
+	Y_sim = torch.empty(size=Y.shape).uniform_(1e-4, 1. - 1e-4).cpu().detach().numpy()
 
 	fig, axes = plt.subplots(nrows=2, ncols=4,figsize=(10,5))
 	fig.subplots_adjust(hspace=0.5)
@@ -266,24 +266,29 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 
 	# define the model (optionally on GPU)
 	grid_size = 128
-	if len(likelihoods)>0:
-		model = Mixed_GPInferenceModel(
-				MixtureCopula_Likelihood(likelihoods, 
-									theta_sharing=theta_sharing), 
-	                            num_fs,  
-	                            prior_rbf_length=0.5, 
-	                            grid_size=grid_size).cuda(device=0)
+	# if len(likelihoods)>0:
+	model = Mixed_GPInferenceModel(
+			MixtureCopula_Likelihood(likelihoods, 
+								theta_sharing=theta_sharing), 
+                            num_fs,  
+                            prior_rbf_length=0.5, 
+                            grid_size=grid_size).cuda(device=0)
+	# else:
+	# 	model = KISS_GPInferenceModel(likelihoods[0], 
+	#                                prior_rbf_length=0.5, 
+	#                                grid_size=grid_size).cuda(device=0)
+
+	if len(likelihoods) > 1:
+		mean_lr = .1
 	else:
-		model = KISS_GPInferenceModel(likelihoods[0], 
-	                               prior_rbf_length=0.5, 
-	                               grid_size=grid_size).cuda(device=0)
+		mean_lr = .01
 
 	# We use SGD here, rather than Adam. Emperically, we find that SGD is better for variational regression
 	optimizer = torch.optim.Adam([
 	    {'params': model.mean_module.parameters()},
 	    {'params': model.variational_strategy.variational_distribution.chol_variational_covar},
 	    {'params': model.covar_module.raw_outputscale},
-	    {'params': model.variational_strategy.variational_distribution.variational_mean, 'lr': .1},
+	    {'params': model.variational_strategy.variational_distribution.variational_mean, 'lr': mean_lr},
 	    {'params': model.covar_module.base_kernel.raw_lengthscale, 'lr': .01} #, 'lr': 0.001
 	], lr=base_lr)
 
@@ -366,7 +371,7 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 
 	plot_loss('{}loss/loss_{}.png'.format(path_output,name), 
 		losses, rbf, means)
-	actual_num_copulas = plot_result_param('{}result_param/rp_{}.png'.format(path_output,name), 
+	important_copulas = plot_result_param('{}result_param/rp_{}.png'.format(path_output,name), 
 		model, likelihoods, test_x, testX, NSamp)
 	plot_result_copula('{}result_copula/rc_{}.png'.format(path_output,name), 
 		model, likelihoods, X, Y, train_x)
@@ -377,7 +382,7 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 
 	print('WAIC is {}±{}'.format(np.mean(waics),np.std(waics)))
 
-	return np.mean(waics),actual_num_copulas
+	return np.mean(waics), important_copulas
 
 def save_best(best_name,new_name,waics,available,sequence):
 	shutil.copy('{}loss/loss_{}.png'.format(path_output,best_name),
@@ -464,12 +469,14 @@ def main():
 		name = '{}_{}'.format(exp_name,element.name+strrot(element.rotation))
 		waic = -float("Inf")
 		try:
-			waic, actual_num = infer([element],X,Y,name)
+			waic, important_copulas = infer([element],X,Y,name)
 		except ValueError as error:
 			print(error)
 			print(element.name,' failed')
 		finally:
 			waics[i] = waic
+	# waics = np.ones(len(elements)) * (-float("Inf"))
+	# waics[1] = -3.0
 	best_ind = np.argmax(waics)
 	best = elements[best_ind]
 	print("Best single copula: {} {} (WAIC = {:.3})".format(best.name,strrot(best.rotation),np.max(waics)))
@@ -497,17 +504,23 @@ def main():
 	best_waics_layers = np.ones(MAX_MIX)* (-float("Inf"))
 	actual_num_copulas = np.zeros(MAX_MIX)
 	best_waics_layers[0] = np.max(waics)
-	actual_num_copulas[0] = actual_num
+	actual_num_copulas[0] = 1
 	sequence = [best]
 
 	best_name = '{}_{}'.format(exp_name,best.name+strrot(best.rotation))
 	new_name = '{}_c{}'.format(exp_name,0)
 	save_best(best_name,new_name,waics,available,sequence)
 
-	for layer in range(1,MAX_MIX): #6 copulas is more than enough
+	#for layer in range(1,MAX_MIX): #6 copulas is more than enough
+	layer = 0
+	total_tries = 0
+	while (layer<MAX_MIX) & (total_tries<2*MAX_MIX):
+		layer += 1
+		total_tries += 1
 		print('Best WAICs so far: ',best_waics_layers)
 		waics = np.ones(len(elements)) * (-float("Inf"))
 		actual_nums = np.zeros(len(elements))
+		all_important_copulas = []
 		for i in np.arange(len(elements))[available]:
 			element = elements[i]
 			copulas_names=''
@@ -517,13 +530,15 @@ def main():
 			waic = -float("Inf")
 			try:
 				likelihoods = sequence+[element]
-				waic, actual_num = infer(likelihoods,X,Y,name)
+				waic, important_copulas = infer(likelihoods,X,Y,name)
+				print('Element was essential? ',important_copulas)
 			except ValueError as error:
 				print(error)
 				print(element.name,' failed')
 			finally:
 				waics[i] = waic
-				actual_nums[i] = actual_num
+				all_important_copulas.append(important_copulas)
+				actual_nums[i] = len(important_copulas[important_copulas])
 
 		best_ind = np.argmax(waics)
 		best = elements[best_ind]
@@ -533,6 +548,7 @@ def main():
 
 		best_waics_layers[layer] = np.max(waics)
 		actual_num_copulas[layer] = actual_nums[np.argmax(waics)]
+		important_copulas = all_important_copulas[np.argmax(waics)]
 		sequence = sequence + [best]
 
 		copulas_names=''
@@ -548,10 +564,52 @@ def main():
 				elements_available.append(elements[i])
 		print('Availability: ',*[lik.name+strrot(lik.rotation) for lik in elements_available])
 		del(elements_available)
+
+		#check if we need to stop
 		if (layer >= (MIN_MIX-1)) & (best_waics_layers[layer] < np.max(best_waics_layers[:layer])):
 			print("Stop adding copulas, as {} mixed components already worked best.".format(np.argmax(best_waics_layers)+1))	
 			break
 
+		#check if we need to go back and throw away some copulas
+		current_num_copulas = actual_num_copulas[layer]
+		if current_num_copulas < (layer+1):
+			if (current_num_copulas == layer) & (important_copulas[-1]==False):
+				print("The last added copula was useless")
+				sequence = sequence[:-1]	
+				break				
+			new_sequence = []
+			for s,b in zip(sequence,important_copulas):
+				if b:
+					new_sequence.append(s)
+			sequence = new_sequence
+			del(new_sequence)
+			layer = int(current_num_copulas - 1)
+			print("Go back to ",int(current_num_copulas)," copulas, which are: ",*[lik.name+strrot(lik.rotation) for lik in sequence]) 
+
+			#recompute new sequence
+			print("Recompute new sequence...")
+			try:
+				likelihoods = sequence
+				waic, important_copulas = infer(likelihoods,X,Y,name)
+				print('Element was essential? ',important_copulas)
+			except ValueError as error:
+				print(error)
+				print(element.name,' failed')
+			finally:
+				best_waics_layers[layer] = waic
+				actual_num_copulas[layer] = len(important_copulas[important_copulas])
+			best_waics_layers[layer+1:] = -float("Inf")
+			print("WAICs: ",best_waics_layers)
+
+			#save new best copula on that level
+			copulas_names=''
+			for lik in sequence:
+				copulas_names += lik.name+strrot(lik.rotation)
+			best_name = '{}_{}'.format(exp_name,copulas_names)
+			new_name = '{}_c{}'.format(exp_name,layer)
+			save_best(best_name,new_name,waic,available,sequence)
+
+		#check
 		if np.all(available==0):
 			print("Search is done, nothing to add.")	
 			break
@@ -578,7 +636,16 @@ def main():
 		print("Variables are nearly independent.")
 		best_name = '{}best/rc_{}_best.png'.format(path_output, exp_name)
 		plot_indep_copula(best_name, X, Y)
+		new_name = '{}_best'.format(exp_name)
+		to_save = {}
+		to_save['waics'] = waics
+		to_save['available'] = available
+		to_save['sequence'] = []
+		to_save['copulas'] = []
+		with open('{}best/{}.pkl'.format(path_output,new_name),'wb') as f:
+			pkl.dump(to_save,f)
 			
+	print("EOF")
 	
 if __name__ == "__main__":
 	main()
