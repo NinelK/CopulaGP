@@ -119,16 +119,6 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         return torch.sigmoid(f)*11.2 + 1.0
         #11. is maximum that does not crash on fully dependent samples
 
-class MixtureCopula_Likelihood(Likelihood):
-    
-    def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
-        mixing_vec, likelihoods = params
-        likelihood = 0
-        for a, lik in zip(mixing_vec, likelihoods):
-            f = lik.gplink_function(function_samples)
-            likelihood += lik.copula(f)*a
-        return likelihood
-
 class GaussianCopula_Flow_Likelihood(Likelihood):
     def __init__(self, noise_prior=None, noise_constraint=None, batch_shape=torch.Size(), **kwargs: Any):
         batch_shape = _deprecate_kwarg_with_transform(
@@ -202,27 +192,48 @@ class MixtureCopula_Likelihood(Likelihood):
         assert num_copulas + num_indep_thetas - 1==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
 
         lr_ratio = 0.5 # lr_mix / lr_thetas
-        
+
         thetas, mix = [], []
         prob_rem = torch.ones_like(f[...,0,:]) #1-x1, x1(1-x2), x1x2(1-x3)...
-        for i, lik in enumerate(self.likelihoods):
-            thetas.append(lik.gplink_function(f[...,self.theta_sharing[i],:]))
-            prob = torch.ones_like(f[...,0,:])
 
-            for j in range(i):
-                p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
-                f0 = base_distributions.Normal(0,1).icdf(p0) 
-                prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+num_indep_thetas,:]+f0)
-            if i!=(num_copulas-1):
-                p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
-                f0 = base_distributions.Normal(0,1).icdf(p0) 
-                prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+num_indep_thetas,:]+f0))
+        if f.is_cuda:
+            get_cuda_device = f.get_device()
+        
+            for i, lik in enumerate(self.likelihoods):
+                thetas.append(lik.gplink_function(f[...,self.theta_sharing[i],:]))
+                prob = torch.ones_like(f[...,0,:])
+                for j in range(i):
+                    p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    f0 = base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(p0) 
+                    prob = prob*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,j+num_indep_thetas,:]+f0)
+                if i!=(num_copulas-1):
+                    p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    f0 = base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(p0) 
+                    prob = prob*(1.0-base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,i+num_indep_thetas,:]+f0))
 
-            mix.append(prob)
+                mix.append(prob)
+        else:
+            for i, lik in enumerate(self.likelihoods):
+                thetas.append(lik.gplink_function(f[...,self.theta_sharing[i],:]))
+                prob = torch.ones_like(f[...,0,:])
 
-        assert torch.all(torch.stack(thetas)==torch.stack(thetas))
-        assert torch.all(torch.stack(mix)==torch.stack(mix))
-        return torch.stack(thetas), torch.stack(mix)
+                for j in range(i):
+                    p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    f0 = base_distributions.Normal(0,1).icdf(p0) 
+                    prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+num_indep_thetas,:]+f0)
+                if i!=(num_copulas-1):
+                    p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    f0 = base_distributions.Normal(0,1).icdf(p0) 
+                    prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+num_indep_thetas,:]+f0))
+
+                mix.append(prob)
+
+        stack_thetas = torch.stack(thetas)
+        stack_mix = torch.stack(mix)
+
+        assert torch.all(stack_thetas==stack_thetas)
+        assert torch.all(stack_mix==stack_mix)
+        return stack_thetas, stack_mix
 
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
         thetas, mix = self.gplink_function(function_samples)

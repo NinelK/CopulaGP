@@ -215,7 +215,7 @@ def plot_result_copula(filename, model, likelihoods, X, Y, train_x):
 	plt.close()
 
 def waic(model,likelihoods,train_x,train_y):
-	torch.cuda.empty_cache() 
+	#torch.cuda.empty_cache() 
 
 	gplink = model.likelihood.gplink_function
 	copulas = [lik.copula for lik in likelihoods]
@@ -237,7 +237,7 @@ def waic(model,likelihoods,train_x,train_y):
 	    #print('WAIC: ', lpd - pwaic)
 
 	del(f_samples, log_prob)
-	torch.cuda.empty_cache() 
+	#torch.cuda.empty_cache() 
 
 	return (lpd - pwaic)
 
@@ -247,7 +247,7 @@ def strrot(rotation):
 	else:
 		return ''
 
-def infer(likelihoods,X,Y,name, theta_sharing=None):
+def infer(likelihoods,X,Y,name, theta_sharing=None, DEVICE=0):
 
 	if theta_sharing is not None:
 		theta_sharing = theta_sharing
@@ -261,8 +261,8 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 	print('Trying ',*[lik.name+' '+strrot(lik.rotation) for lik in likelihoods])
 
 	#convert numpy data to tensors (optionally on GPU)
-	train_x = torch.tensor(X).float().cuda(device=0)
-	train_y = torch.tensor(Y).float().cuda(device=0)
+	train_x = torch.tensor(X).float().cuda(device=DEVICE)
+	train_y = torch.tensor(Y).float().cuda(device=DEVICE)
 
 	# define the model (optionally on GPU)
 	grid_size = 128
@@ -272,7 +272,7 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 								theta_sharing=theta_sharing), 
                             num_fs,  
                             prior_rbf_length=0.5, 
-                            grid_size=grid_size).cuda(device=0)
+                            grid_size=grid_size).cuda(device=DEVICE)
 	# else:
 	# 	model = KISS_GPInferenceModel(likelihoods[0], 
 	#                                prior_rbf_length=0.5, 
@@ -294,7 +294,7 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 
 	# train the model
 
-	mll  = gpytorch.mlls.VariationalELBO(model.likelihood, model, num_data=train_y.size(0), combine_terms=True)
+	mll  = gpytorch.mlls.VariationalELBO(model.likelihood.cuda(device=DEVICE), model, num_data=train_y.size(0), combine_terms=True)
 
 	losses, rbf, means = [], [], []
 
@@ -367,7 +367,7 @@ def infer(likelihoods,X,Y,name, theta_sharing=None):
 	# define test set (optionally on GPU)
 	denser = 1 # make test set 2 times denser then the training set
 	testX = np.linspace(0,1,denser*NSamp)
-	test_x = torch.tensor(testX).float().cuda(device=0)
+	test_x = torch.tensor(testX).float().cuda(device=DEVICE)
 
 	plot_loss('{}loss/loss_{}.png'.format(path_output,name), 
 		losses, rbf, means)
@@ -435,11 +435,12 @@ def main():
 	day_number = int(sys.argv[2])
 	n1 = int(sys.argv[3])
 	n2 = int(sys.argv[4])
+	DEVICE = int(sys.argv[5])
 
 	animal = 'ST{:d}'.format(animal_number)
 	day_name = 'Day{:d}'.format(day_number)
 
-	print(animal,' ',day_name)
+	print(animal,' ',day_name,', device ',DEVICE)
 
 	exp_name = '{}_{}_{}-{}'.format(animal,day_name,n1,n2)
 
@@ -469,7 +470,7 @@ def main():
 		name = '{}_{}'.format(exp_name,element.name+strrot(element.rotation))
 		waic = -float("Inf")
 		try:
-			waic, important_copulas = infer([element],X,Y,name)
+			waic, important_copulas = infer([element],X,Y,name,DEVICE=DEVICE)
 		except ValueError as error:
 			print(error)
 			print(element.name,' failed')
@@ -520,7 +521,7 @@ def main():
 		print('Best WAICs so far: ',best_waics_layers)
 		waics = np.ones(len(elements)) * (-float("Inf"))
 		actual_nums = np.zeros(len(elements))
-		all_important_copulas = []
+		all_important_copulas = [[] for i in range(len(elements))]
 		for i in np.arange(len(elements))[available]:
 			element = elements[i]
 			copulas_names=''
@@ -530,14 +531,14 @@ def main():
 			waic = -float("Inf")
 			try:
 				likelihoods = sequence+[element]
-				waic, important_copulas = infer(likelihoods,X,Y,name)
+				waic, important_copulas = infer(likelihoods,X,Y,name,DEVICE=DEVICE)
 				print('Element was essential? ',important_copulas)
 			except ValueError as error:
 				print(error)
 				print(element.name,' failed')
 			finally:
 				waics[i] = waic
-				all_important_copulas.append(important_copulas)
+				all_important_copulas[i] = important_copulas
 				actual_nums[i] = len(important_copulas[important_copulas])
 
 		best_ind = np.argmax(waics)
@@ -588,9 +589,13 @@ def main():
 
 			#recompute new sequence
 			print("Recompute new sequence...")
+			copulas_names=''
+			for lik in sequence:
+				copulas_names += lik.name+strrot(lik.rotation)
+			name = '{}_{}'.format(exp_name,copulas_names)
 			try:
 				likelihoods = sequence
-				waic, important_copulas = infer(likelihoods,X,Y,name)
+				waic, important_copulas = infer(likelihoods,X,Y,name,DEVICE=DEVICE)
 				print('Element was essential? ',important_copulas)
 			except ValueError as error:
 				print(error)
