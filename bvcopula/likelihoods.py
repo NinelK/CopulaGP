@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from typing import Any
 from gpytorch.likelihoods.likelihood import Likelihood
+from gpytorch.likelihoods.noise_models import HomoskedasticNoise, Noise
 from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
@@ -10,22 +11,49 @@ from .distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCop
 from .dist_transform import NormTransform
 
 class Copula_Likelihood_Base(Likelihood):
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any): #noise_covar: Noise,
         super(Likelihood, self).__init__()
         self._max_plate_nesting = 1
         self.rotation = None
         self.isrotatable = False
         self.particles = torch.Size([100])
+        self.noise_covar = HomoskedasticNoise(
+            noise_prior=None,
+            noise_constraint=GreaterThan(1e-4),
+            batch_shape=torch.Size([]),
+        )
+
+    @property
+    def noise(self) -> Tensor:
+        print('noise')
+        return self.noise_covar.noise
+
+    @noise.setter
+    def noise(self, value: Tensor) -> None:
+        print('setter_all')
+        self.noise_covar.initialize(noise=value)
+
+    @property
+    def raw_noise(self) -> Tensor:
+        print('property')
+        return self.noise_covar.raw_noise
+
+    @raw_noise.setter
+    def raw_noise(self, value: Tensor) -> None:
+        print('setter')
+        self.noise_covar.initialize(raw_noise=value)
 
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
-        # samples = input.rsample(self.particles)
-        # thetas = self.gplink_function(samples)
-        # assert torch.all(thetas!=thetas)
-        # res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
-        # assert res.dim()==1
-        # return res.sum()
+        #called during training
         assert torch.all(input.mean==input.mean)
-        thetas = self.gplink_function(input.rsample(self.particles))
+        noise = self.noise_covar.noise
+        if noise.is_cuda:
+            get_cuda_device = noise.get_device()
+            thetas = self.gplink_function(input.rsample(self.particles)+
+                noise*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).sample(self.particles))
+        else:
+            thetas = self.gplink_function(input.rsample(self.particles)+
+                noise*base_distributions.Normal(0,1).sample(self.particles))
         assert torch.all(thetas==thetas)
         res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
         assert res.dim()==1
@@ -42,7 +70,14 @@ class Copula_Likelihood_Base(Likelihood):
         pass
 
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> GaussianCopula:
-        scale = self.gplink_function(function_samples)
+        noise = self.noise_covar.noise
+        if noise.is_cuda:
+            get_cuda_device = noise.get_device()
+            noise_samples = noise*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).sample(function_samples.shape)
+        else:
+            noise_samples = noise*base_distributions.Normal(0,1).sample(function_samples.shape)
+        noise_samples = noise_samples.reshape(function_samples.shape)
+        scale = self.gplink_function(function_samples + noise_samples)
         return self.copula(scale, rotation=self.rotation)
 
 class GaussianCopula_Likelihood(Copula_Likelihood_Base):
@@ -53,6 +88,11 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
         self.isrotatable = False
         self.particles = torch.Size([100])
         self.name = 'Gaussian'
+        self.noise_covar = HomoskedasticNoise(
+            noise_prior=None,
+            noise_constraint=None,
+            batch_shape=torch.Size([]),
+        )
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
