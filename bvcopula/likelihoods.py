@@ -16,7 +16,7 @@ class Copula_Likelihood_Base(Likelihood):
         self._max_plate_nesting = 1
         self.rotation = None
         self.isrotatable = False
-        self.particles = torch.Size([100])
+        self.particles = torch.Size([200])
         self.noise_covar = HomoskedasticNoise(
             noise_prior=None,
             noise_constraint=GreaterThan(1e-4),
@@ -25,7 +25,6 @@ class Copula_Likelihood_Base(Likelihood):
 
     @property
     def noise(self) -> Tensor:
-        print('noise')
         return self.noise_covar.noise
 
     @noise.setter
@@ -43,17 +42,23 @@ class Copula_Likelihood_Base(Likelihood):
         print('setter')
         self.noise_covar.initialize(raw_noise=value)
 
+    def _shaped_noise_covar(self, base_shape: torch.Size, *params: Any, **kwargs: Any):
+        if len(params) > 0:
+            # we can infer the shape from the params
+            shape = None
+        else:
+            # here shape[:-1] is the batch shape requested, and shape[-1] is `n`, the number of points
+            shape = base_shape
+        return self.noise_covar(*params, shape=shape, **kwargs)
+
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
         #called during training
         assert torch.all(input.mean==input.mean)
-        noise = self.noise_covar.noise
-        if noise.is_cuda:
-            get_cuda_device = noise.get_device()
-            thetas = self.gplink_function(input.rsample(self.particles)+
-                noise*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).sample(self.particles))
-        else:
-            thetas = self.gplink_function(input.rsample(self.particles)+
-                noise*base_distributions.Normal(0,1).sample(self.particles))
+        mean, covar = input.mean, input.lazy_covariance_matrix
+        noise_covar = self._shaped_noise_covar(mean.shape, *params, **kwargs)
+        full_covar = covar + noise_covar
+        full_distr = input.__class__(mean, full_covar)
+        thetas = self.gplink_function(full_distr.rsample(self.particles))
         assert torch.all(thetas==thetas)
         res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
         assert res.dim()==1
@@ -70,15 +75,22 @@ class Copula_Likelihood_Base(Likelihood):
         pass
 
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> GaussianCopula:
-        noise = self.noise_covar.noise
+        noise = self.noise_covar.noise #TODO: check that it is sigma^2
         if noise.is_cuda:
             get_cuda_device = noise.get_device()
-            noise_samples = noise*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).sample(function_samples.shape)
+            noise_samples = noise.sqrt()*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).sample(function_samples.shape)
         else:
-            noise_samples = noise*base_distributions.Normal(0,1).sample(function_samples.shape)
+            noise_samples = noise.sqrt()*base_distributions.Normal(0,1).sample(function_samples.shape)
         noise_samples = noise_samples.reshape(function_samples.shape)
         scale = self.gplink_function(function_samples + noise_samples)
         return self.copula(scale, rotation=self.rotation)
+
+    def marginal(self, function_dist: MultivariateNormal, *params: Any, **kwargs: Any) -> MultivariateNormal:
+        print('marginal')
+        mean, covar = function_dist.mean, function_dist.lazy_covariance_matrix
+        noise_covar = self._shaped_noise_covar(mean.shape, *params, **kwargs)
+        full_covar = covar + noise_covar
+        return function_dist.__class__(mean, full_covar)
 
 class GaussianCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):
