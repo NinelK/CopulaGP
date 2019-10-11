@@ -128,7 +128,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*11.2 + 1.0
+        return torch.sigmoid(f)*11.0 + 1.0
         #11. is maximum that does not crash on fully dependent samples
 
 class GaussianCopula_Flow_Likelihood(Likelihood):

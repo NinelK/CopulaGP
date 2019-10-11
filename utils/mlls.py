@@ -24,7 +24,7 @@ class VariationalELBO(MarginalLogLikelihood):
 
         log_likelihood = self.likelihood.expected_log_prob(target, variational_dist_f, 
                                                            weights=self.weights,
-                                                           particles = self.particles,
+                                                           particles=self.particles,
                                                            **kwargs).div(num_batch)
         kl_divergence = self.model.variational_strategy.kl_divergence()
 

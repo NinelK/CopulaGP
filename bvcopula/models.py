@@ -59,7 +59,7 @@ class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         )
         
         # Initialize lengthscale and outputscale to mean of priors
-        self.covar_module.base_kernel.base_kernel.lengthscale = lengthscale_prior.mean
+        self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
         #self.covar_module.outputscale = outputscale_prior.mean
 
     def forward(self, x):

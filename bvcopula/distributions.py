@@ -267,12 +267,12 @@ class GumbelCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Gumbel family.
     '''
-    arg_constraints = {"theta": constraints.interval(1.,12.2)}
+    arg_constraints = {"theta": constraints.interval(1.,12.0)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
 
-        self.theta_thr = 12.2 #sample generation is tricky above 16.
+        self.theta_thr = 12.0 #sample generation is tricky above 16.
 
         def h(z,samples):
             x = -samples[...,1].log()
