@@ -54,10 +54,8 @@ class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         #we specify prior here
         lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
         
-        self.covar_module = gpytorch.kernels.GridInterpolationKernel(
-            gpytorch.kernels.ScaleKernel(
-                gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior),
-            ), grid_size=grid_size, num_dims=1
+        self.covar_module = gpytorch.kernels.ScaleKernel(
+            gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior),
         )
         
         # Initialize lengthscale and outputscale to mean of priors

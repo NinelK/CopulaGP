@@ -2,7 +2,6 @@ import torch
 from torch import Tensor
 from typing import Any
 from gpytorch.likelihoods.likelihood import Likelihood
-from gpytorch.likelihoods.noise_models import HomoskedasticNoise, Noise
 from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
@@ -11,59 +10,43 @@ from .distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCop
 from .dist_transform import NormTransform
 
 class Copula_Likelihood_Base(Likelihood):
-    def __init__(self, **kwargs: Any): #noise_covar: Noise,
+    def __init__(self, **kwargs: Any): 
         super(Likelihood, self).__init__()
         self._max_plate_nesting = 1
         self.rotation = None
         self.isrotatable = False
-        self.particles = torch.Size([200])
-        self.noise_covar = HomoskedasticNoise(
-            noise_prior=None,
-            noise_constraint=GreaterThan(1e-4),
-            batch_shape=torch.Size([]),
-        )
 
-    @property
-    def noise(self) -> Tensor:
-        return self.noise_covar.noise
-
-    @noise.setter
-    def noise(self, value: Tensor) -> None:
-        print('setter_all')
-        self.noise_covar.initialize(noise=value)
-
-    @property
-    def raw_noise(self) -> Tensor:
-        print('property')
-        return self.noise_covar.raw_noise
-
-    @raw_noise.setter
-    def raw_noise(self, value: Tensor) -> None:
-        print('setter')
-        self.noise_covar.initialize(raw_noise=value)
-
-    def _shaped_noise_covar(self, base_shape: torch.Size, *params: Any, **kwargs: Any):
-        if len(params) > 0:
-            # we can infer the shape from the params
-            shape = None
-        else:
-            # here shape[:-1] is the batch shape requested, and shape[-1] is `n`, the number of points
-            shape = base_shape
-        return self.noise_covar(*params, shape=shape, **kwargs)
-
-    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
+    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, particles=torch.Size([0]), *params: Any, **kwargs: Any) -> Tensor:
+        """
+        Computes the expected log likelihood (used for variational inference):
+        .. math::
+            \mathbb{E}_{f(x)} \left[ \log p \left( y \mid f(x) \right) \right]
+        Args:
+            :attr:`function_dist` (:class:`gpytorch.distributions.MultivariateNormal`)
+                Distribution for :math:`f(x)`.
+            :attr:`observations` (:class:`torch.Tensor`)
+                Values of :math:`y`.
+            :attr:`kwargs`
+        Returns
+            `torch.Tensor` (log probability)
+        """
         #called during training
-        assert torch.all(input.mean==input.mean)
-        mean, covar = input.mean, input.lazy_covariance_matrix
-        noise_covar = self._shaped_noise_covar(mean.shape, *params, **kwargs)
-        full_covar = covar + noise_covar
-        full_distr = input.__class__(mean, full_covar)
-        thetas = self.gplink_function(full_distr.rsample(self.particles))
-        assert torch.all(thetas==thetas)
-        res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
-        assert res.dim()==1
-        assert torch.all(res==res)
-        return res.sum()
+        if particles > torch.Size([0]): #do MC
+            assert torch.all(input.mean==input.mean)
+            thetas = self.gplink_function(input.rsample(self.particles))
+            assert torch.all(thetas==thetas)
+            res = self.copula(thetas, rotation=self.rotation).log_prob(target).mean(0)
+            if weights is not None:
+                res *= weights
+            assert res.dim()==1
+            assert torch.all(res==res)
+            return res.sum()
+        else: #use Gauss-Hermite quadrature
+            log_prob_lambda = lambda function_samples: self.forward(function_samples).log_prob(target)
+            log_prob = self.quadrature(log_prob_lambda, input) 
+            if weights is not None:
+                log_prob *= weights
+            return log_prob.sum(tuple(range(-1, -len(input.event_shape) - 1, -1)))
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -75,22 +58,8 @@ class Copula_Likelihood_Base(Likelihood):
         pass
 
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> GaussianCopula:
-        noise = self.noise_covar.noise #TODO: check that it is sigma^2
-        if noise.is_cuda:
-            get_cuda_device = noise.get_device()
-            noise_samples = noise.sqrt()*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).sample(function_samples.shape)
-        else:
-            noise_samples = noise.sqrt()*base_distributions.Normal(0,1).sample(function_samples.shape)
-        noise_samples = noise_samples.reshape(function_samples.shape)
-        scale = self.gplink_function(function_samples + noise_samples)
+        scale = self.gplink_function(function_samples)
         return self.copula(scale, rotation=self.rotation)
-
-    def marginal(self, function_dist: MultivariateNormal, *params: Any, **kwargs: Any) -> MultivariateNormal:
-        print('marginal')
-        mean, covar = function_dist.mean, function_dist.lazy_covariance_matrix
-        noise_covar = self._shaped_noise_covar(mean.shape, *params, **kwargs)
-        full_covar = covar + noise_covar
-        return function_dist.__class__(mean, full_covar)
 
 class GaussianCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):
@@ -98,21 +67,15 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = GaussianCopula
         self.rotation = None
         self.isrotatable = False
-        self.particles = torch.Size([100])
         self.name = 'Gaussian'
-        self.noise_covar = HomoskedasticNoise(
-            noise_prior=None,
-            noise_constraint=None,
-            batch_shape=torch.Size([]),
-        )
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
         if f.is_cuda:
             get_cuda_device = f.get_device()
-            return (2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
+            return 0.9999*(2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
         else:
-            return (2*base_distributions.Normal(0,1).cdf(f) - 1)
+            return 0.9999*(2*base_distributions.Normal(0,1).cdf(f) - 1)
 
 class StudentTCopula_Likelihood(Copula_Likelihood_Base):  
     def __init__(self, **kwargs: Any):
@@ -136,7 +99,6 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = FrankCopula
         self.rotation = None
         self.isrotatable = False
-        self.particles = torch.Size([100])
         self.name = 'Frank'
 
     @staticmethod
@@ -149,12 +111,11 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = ClaytonCopula
         self.isrotatable = True
         self.rotation = rotation
-        self.particles = torch.Size([100])
         self.name = 'Clayton'
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*9.9#/torch.exp(torch.tensor(1.)) 
+        return torch.sigmoid(f)*9.5+1e-4#/torch.exp(torch.tensor(1.)) 
         #maps (-inf, +inf) to [0,9.9]
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
@@ -163,7 +124,6 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = GumbelCopula
         self.isrotatable = True
         self.rotation = rotation
-        self.particles = torch.Size([100])
         self.name = 'Gumbel'
 
     @staticmethod
@@ -172,7 +132,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         #11. is maximum that does not crash on fully dependent samples
 
 class GaussianCopula_Flow_Likelihood(Likelihood):
-    def __init__(self, noise_prior=None, noise_constraint=None, batch_shape=torch.Size(), **kwargs: Any):
+    def __init__(self, batch_shape=torch.Size(), **kwargs: Any):
         batch_shape = _deprecate_kwarg_with_transform(
             kwargs, "batch_size", "batch_shape", batch_shape, lambda n: torch.Size([n])
         )
@@ -221,17 +181,58 @@ class MixtureCopula_Likelihood(Likelihood):
         else:
             self.theta_sharing = torch.arange(0,len(likelihoods)).long()
         
-    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, *params: Any, **kwargs: Any) -> Tensor:
-        function_samples = input.rsample(self.particles)
-        thetas, mix = self.gplink_function(function_samples)
-        copula = MixtureCopula(thetas, 
+    # def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, *params: Any, **kwargs: Any) -> Tensor:
+    #     function_samples = input.rsample(self.particles)
+    #     thetas, mix = self.gplink_function(function_samples)
+    #     copula = MixtureCopula(thetas, 
+    #                            mix, 
+    #                            [lik.copula for lik in self.likelihoods], 
+    #                            rotations=[lik.rotation for lik in self.likelihoods],
+    #                            theta_sharing = self.theta_sharing)
+    #     res = copula.log_prob(target).mean(0)
+    #     if weights is not None:
+    #         res *= weights
+    #     assert res.dim()==1
+    #     return res.sum()
+
+    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, particles=torch.Size([0]), *params: Any, **kwargs: Any) -> Tensor:
+        """
+        Computes the expected log likelihood (used for variational inference):
+        .. math::
+            \mathbb{E}_{f(x)} \left[ \log p \left( y \mid f(x) \right) \right]
+        Args:
+            :attr:`function_dist` (:class:`gpytorch.distributions.MultivariateNormal`)
+                Distribution for :math:`f(x)`.
+            :attr:`observations` (:class:`torch.Tensor`)
+                Values of :math:`y`.
+            :attr:`kwargs`
+        Returns
+            `torch.Tensor` (log probability)
+        """
+        #called during training
+        if particles > torch.Size([0]): #do MC
+            function_samples = input.rsample(particles)
+            thetas, mix = self.gplink_function(function_samples)
+            assert torch.all(thetas==thetas)
+            assert torch.all(mix==mix)
+            copula = MixtureCopula(thetas, 
                                mix, 
                                [lik.copula for lik in self.likelihoods], 
                                rotations=[lik.rotation for lik in self.likelihoods],
                                theta_sharing = self.theta_sharing)
-        res = copula.log_prob(target).mean(0)
-        assert res.dim()==1
-        return res.sum()
+            res = copula.log_prob(target).mean(0)
+            if weights is not None:
+                res *= weights
+            assert res.dim()==1
+            assert torch.all(res==res)
+            return res.sum()
+        else: #use Gauss-Hermite quadrature
+            log_prob_lambda = lambda function_samples: self.forward(function_samples).log_prob(target)
+            log_prob = self.quadrature(log_prob_lambda, input) 
+            if weights is not None:
+                log_prob *= weights
+            res = log_prob.sum(tuple(range(-1, -len(input.event_shape) - 1, -1)))
+            return res
 
     def gplink_function(self, f: Tensor) -> Tensor:
         """

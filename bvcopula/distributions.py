@@ -162,6 +162,9 @@ class GaussianCopula(SingleParamCopulaBase):
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
+
+        assert torch.all(log_prob==log_prob)
+        assert torch.all(log_prob!=float("Inf"))
         
         return log_prob
 
@@ -204,8 +207,8 @@ class FrankCopula(SingleParamCopulaBase):
         log_prob[mask & ((value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1))] = -float("Inf") 
 
-        assert torch.nonzero(torch.isnan(log_prob)).size(0) == 0 
-        assert torch.nonzero(log_prob == +float("Inf")).size(0) == 0
+        assert torch.all(log_prob==log_prob)
+        assert torch.all(log_prob!=float("Inf"))
         
         return log_prob
 
@@ -213,7 +216,7 @@ class ClaytonCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Clayton family.
     '''
-    arg_constraints = {"theta": constraints.interval(0.,9.9)}
+    arg_constraints = {"theta": constraints.interval(1e-4,9.5+1e-4)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
@@ -315,6 +318,9 @@ class GumbelCopula(SingleParamCopulaBase):
         # # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+
+        assert torch.all(log_prob==log_prob)
+        assert torch.all(log_prob!=float("Inf"))
         
         return log_prob
 
@@ -415,6 +421,9 @@ class StudentTCopula(SingleParamCopulaBase):
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
                 (value[..., 0] >= 1) | (value[..., 1] >= 1)] = -float("Inf") 
+
+        assert torch.all(log_prob==log_prob)
+        assert torch.all(log_prob!=float("Inf"))
         
         return log_prob
 
@@ -507,5 +516,6 @@ class MixtureCopula(Distribution):
             log_prob = log_prob.log()
     
         assert torch.all(log_prob==log_prob)
+        assert torch.all(log_prob!=float("Inf"))
 
         return log_prob
