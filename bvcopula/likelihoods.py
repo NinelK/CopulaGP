@@ -174,26 +174,32 @@ class MixtureCopula_Likelihood(Likelihood):
         super(Likelihood, self).__init__()
         self._max_plate_nesting = 1
         self.likelihoods = likelihoods
-        self.particles = torch.Size([100])
+        self.waic_samples = 1000
         self.copula = MixtureCopula
         if theta_sharing is not None:
             self.theta_sharing = theta_sharing
         else:
             self.theta_sharing = torch.arange(0,len(likelihoods)).long()
-        
-    # def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, *params: Any, **kwargs: Any) -> Tensor:
-    #     function_samples = input.rsample(self.particles)
-    #     thetas, mix = self.gplink_function(function_samples)
-    #     copula = MixtureCopula(thetas, 
-    #                            mix, 
-    #                            [lik.copula for lik in self.likelihoods], 
-    #                            rotations=[lik.rotation for lik in self.likelihoods],
-    #                            theta_sharing = self.theta_sharing)
-    #     res = copula.log_prob(target).mean(0)
-    #     if weights is not None:
-    #         res *= weights
-    #     assert res.dim()==1
-    #     return res.sum()
+
+    def WAIC(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True):
+        copulas = [lik.copula for lik in self.likelihoods]
+        rotations = [lik.rotation for lik in self.likelihoods]
+
+        with torch.no_grad():
+            f_samples = gp_distr.rsample(torch.Size([self.waic_samples]))
+            thetas, mixes = self.gplink_function(f_samples)
+            log_prob = self.copula(thetas,mixes,copulas,rotations=rotations).\
+                    log_prob(target).detach()
+            pwaic = torch.var(log_prob,dim=0).sum()
+            sum_prob = torch.exp(log_prob).sum(dim=0)
+            N = torch.ones_like(pwaic)*self.waic_samples
+            lpd=(sum_prob.log()-N.log()).sum() # sum_M log(1/N * sum^i_S p(y|theta_i)), where N is train_x.shape[0]
+        torch.cuda.empty_cache() 
+
+        if combine_terms:
+            return (lpd-pwaic) #=WAIC
+        else:
+            return lpd,pwaic
 
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, particles=torch.Size([0]), *params: Any, **kwargs: Any) -> Tensor:
         """

@@ -217,7 +217,7 @@ class ClaytonCopula(SingleParamCopulaBase):
     This class represents a copula from the Clayton family.
     '''
     arg_constraints = {"theta": constraints.interval(1e-4,9.5+1e-4)}
-    support = constraints.interval(0,1) # [0,1]
+    support = constraints.interval(1e-4,1-1e-4) # [0,1]
     
     def ppcf(self, samples):
         min_lim = 0 #min value for accurate calculation of logpdf. Below -- independence copula
@@ -251,6 +251,12 @@ class ClaytonCopula(SingleParamCopulaBase):
                        * torch.log(value).sum(dim=-1) \
                        + (-1 / self.theta - 2) \
                        * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
+
+        if torch.any(log_prob==-float("Inf")):
+            print(self.theta[log_prob==-float("Inf")])
+            print(value_[log_prob==-float("Inf")])
+
+        assert torch.all(log_prob!=-float("Inf"))
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
