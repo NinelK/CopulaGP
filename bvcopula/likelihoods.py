@@ -8,6 +8,7 @@ from torch.distributions.transformed_distribution import TransformedDistribution
 
 from .distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
 from .dist_transform import NormTransform
+from .models import Mixed_GPInferenceModel #to check input into input_information
 
 class Copula_Likelihood_Base(Likelihood):
     def __init__(self, **kwargs: Any): 
@@ -115,7 +116,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*9.5+1e-4#/torch.exp(torch.tensor(1.)) 
+        return torch.sigmoid(f)*8.7+1e-4#/torch.exp(torch.tensor(1.)) 
         #maps (-inf, +inf) to [0,9.9]
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
@@ -182,6 +183,21 @@ class MixtureCopula_Likelihood(Likelihood):
             self.theta_sharing = torch.arange(0,len(likelihoods)).long()
 
     def WAIC(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True):
+        '''
+            Computes WAIC
+        Args:
+            :attr:`gp_distr` (:class:`gpytorch.distributions.MultivariateNormal`)
+                Trained Gaussian Process distribution
+            :attr:`target` (:class:`torch.Tensor`)
+                Values of :math:`y`.
+            :attr:`n` (:class:`int`)
+                Number of points in input space for logprob estimation
+            :attr:`length` (:class:`float`)
+                Length of the input space in physical units (seconds/cm/...). Provides scale for derivative in FI.
+        Returns
+            `FI` (Fisher information)
+            `MI` (Mutual information)
+        '''
         copulas = [lik.copula for lik in self.likelihoods]
         rotations = [lik.rotation for lik in self.likelihoods]
 
@@ -200,6 +216,75 @@ class MixtureCopula_Likelihood(Likelihood):
             return (lpd-pwaic) #=WAIC
         else:
             return lpd,pwaic
+
+    def input_information(self, model: Mixed_GPInferenceModel, samples: Tensor, n: int, length: float, ignore_GP_uncertainty=False):
+        '''
+            Computes Fisher Information and Mutual information
+        Args:
+            :attr:`model` (:class:`bvcopula.models.Mixed_GPInferenceModel`)
+                Trained Gaussian Process for copual parameter inference
+            :attr:`samples` (:class:`torch.Tensor`)
+                Values of :math:`y`.
+            :attr:`n` (:class:`int`)
+                Number of points in input space for logprob estimation
+            :attr:`length` (:class:`float`)
+                Length of the input space in physical units (seconds/cm/...). 
+                Provides scale for derivative in FI.
+            :attr:`ignore_GP_uncertainty` (:class:`bool`)
+                If True, then mean value of GP is used. 
+                Otherwise (False), full doubly-stochastic model is used for logprob estimation.
+        Returns
+            `FI` (Fisher information)
+            `MI` (Mutual information)
+        '''
+        ds = length/n
+        logprob = torch.empty([n+1,samples.shape[0]])
+        if ignore_GP_uncertainty:
+            points = torch.arange(n+1).float()/n
+
+        if samples.is_cuda:
+            get_cuda_device = samples.get_device()
+            logprob = logprob.cuda(device=get_cuda_device)
+            if ignore_GP_uncertainty:
+                points = points.cuda(device=get_cuda_device)
+
+        assert(model.likelihood.likelihoods==self.likelihoods) #check that it is actually a parent model
+
+        copulas = [lik.copula for lik in self.likelihoods]
+        rotations = [lik.rotation for lik in self.likelihoods]
+
+        with torch.no_grad():
+            if ignore_GP_uncertainty:
+                thetas, mixes = self.gplink_function(model(points).mean)
+                thetas = thetas.expand(samples.shape[:1]+thetas.shape)
+                mixes = mixes.expand(samples.shape[:1]+mixes.shape)
+                thetas = torch.einsum('ijk->jki', thetas) # now: [copulas, positions, samples]
+                mixes = torch.einsum('ijk->jki', mixes)
+                logprob = model.likelihood.copula(thetas,mixes,copulas,rotations=rotations).log_prob(samples)
+            else:
+                for i in range(n+1): #if GPU memory allows, can parallelize this cycle as well
+                    points = torch.ones_like(samples[...,0])*(i/n)
+                    thetas = model(points)
+                    log_prob_lambda = lambda function_samples: model.likelihood.forward(function_samples).log_prob(samples)
+                    logprob[i] = model.likelihood.quadrature(log_prob_lambda, thetas) 
+                    
+            #calculate FI
+            FI = torch.empty_like(logprob[...,0])
+            FI[0] = ((logprob[0].exp())*((logprob[1]-logprob[0])/(ds/2)).pow(2)).sum()
+            FI[n] = ((logprob[n].exp())*((logprob[n]-logprob[n-1])/(ds/2)).pow(2)).sum()
+            for i in range(1,n):
+                FI[i] = ((logprob[i].exp())*((logprob[i+1]-logprob[i-1])/ds).pow(2)).sum()
+                
+            #now calculate MI    
+            # P(r) = integral P(r|s) P(s) ds
+            Pr = torch.zeros(samples.shape[0]).cuda(device=0)
+            for i in range(n+1):
+                Pr += logprob[i].exp().detach()*(1/(n+1))
+            MIs=0
+            for i in range(n+1):    
+                MIs+= 1/(n+1)*logprob[i].exp()*(logprob[i]-Pr.log())
+            MI = MIs.sum()     
+        return FI, MI                        
 
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, particles=torch.Size([0]), *params: Any, **kwargs: Any) -> Tensor:
         """

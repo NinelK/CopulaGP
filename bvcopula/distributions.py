@@ -216,7 +216,7 @@ class ClaytonCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Clayton family.
     '''
-    arg_constraints = {"theta": constraints.interval(1e-4,9.5+1e-4)}
+    arg_constraints = {"theta": constraints.interval(1e-4,8.7+1e-4)}
     support = constraints.interval(1e-4,1-1e-4) # [0,1]
     
     def ppcf(self, samples):
