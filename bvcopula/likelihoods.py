@@ -6,14 +6,13 @@ from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
 
-from .distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
+from .distributions import IndependenceCopula, GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
 from .dist_transform import NormTransform
 from .models import Mixed_GPInferenceModel #to check input into input_information
 
 class Copula_Likelihood_Base(Likelihood):
     def __init__(self, **kwargs: Any): 
         super(Likelihood, self).__init__()
-        self._max_plate_nesting = 1
         self.rotation = None
         self.isrotatable = False
 
@@ -61,6 +60,24 @@ class Copula_Likelihood_Base(Likelihood):
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> GaussianCopula:
         scale = self.gplink_function(function_samples)
         return self.copula(scale, rotation=self.rotation)
+
+class IndependenceCopula_Likelihood(Likelihood):
+    def __init__(self, **kwargs: Any):
+        super(Likelihood, self).__init__()
+        self.copula = IndependenceCopula
+        self.rotation = None
+        self.isrotatable = False
+        self.name = 'Independence'
+
+    @staticmethod
+    def gplink_function(f: Tensor) -> Tensor:
+        return f
+
+    def expected_log_prob(self, target: Tensor, *params: Any, **kwargs: Any) -> Tensor:
+        return torch.zeros(1)
+
+    def forward(self, *params: Any, **kwargs: Any) -> IndependenceCopula:
+        return self.copula()
 
 class GaussianCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):

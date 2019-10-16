@@ -111,6 +111,39 @@ class SingleParamCopulaBase(Distribution):
     def log_prob(self, value):
         raise NotImplementedError
 
+class IndependenceCopula(Distribution):
+    '''
+    This class represents a copula from the Independence Copula.
+    '''
+    has_rsample = True
+    
+    def __init__(self, theta, rotation=None, validate_args=None):
+        self.theta = theta
+        #TODO Check theta when there will be more than 1 param. Now it is checked by gpytorch
+        self.__check_rotation(rotation)
+        self.rotation = rotation
+        batch_shape, event_shape = self.theta.shape, torch.Size([2])
+        super(IndependenceCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
+
+    @classmethod
+    def __check_rotation(cls, rotation):
+        pass
+
+    def rsample(self, sample_shape=torch.Size([])):
+        shape = self._extended_shape(sample_shape) # now it is theta_size (batch) x sample_size x 2 (event)
+        
+        if sample_shape == torch.Size([]):   # not sure what to do with 1 sample
+            shape = torch.Size([1]) + shape
+            
+        samples = torch.empty(size=shape).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
+        if self.theta.is_cuda:
+            get_cuda_device = self.theta.get_device()
+            samples = samples.cuda(device=get_cuda_device)
+        return samples
+
+    def log_prob(self, value):
+        return torch.zeros_like(value[...,0])
+
 class GaussianCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Gaussian family.
