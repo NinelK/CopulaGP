@@ -1,0 +1,756 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>bvcopula package &#8212; CopulaGP 0.0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="greedy_constructor module" href="greedy_constructor.html" />
+    <link rel="prev" title="GaussCopulaPerformance module" href="GaussCopulaPerformance.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="bvcopula-package">
+<h1>bvcopula package<a class="headerlink" href="#bvcopula-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-bvcopula.dist_transform">
+<span id="bvcopula-dist-transform-module"></span><h2>bvcopula.dist_transform module<a class="headerlink" href="#module-bvcopula.dist_transform" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="bvcopula.dist_transform.NormTransform">
+<em class="property">class </em><code class="descclassname">bvcopula.dist_transform.</code><code class="descname">NormTransform</code><span class="sig-paren">(</span><em>cache_size=0</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.dist_transform.NormTransform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">torch.distributions.transforms.Transform</span></code></p>
+<p>Transform via the mapping <span class="math">\(y = Normal.cdf(x)\)</span>.</p>
+<dl class="attribute">
+<dt id="bvcopula.dist_transform.NormTransform.bijective">
+<code class="descname">bijective</code><em class="property"> = False</em><a class="headerlink" href="#bvcopula.dist_transform.NormTransform.bijective" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.dist_transform.NormTransform.codomain">
+<code class="descname">codomain</code><em class="property"> = Interval(lower_bound=-1, upper_bound=1)</em><a class="headerlink" href="#bvcopula.dist_transform.NormTransform.codomain" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.dist_transform.NormTransform.domain">
+<code class="descname">domain</code><em class="property"> = Real()</em><a class="headerlink" href="#bvcopula.dist_transform.NormTransform.domain" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.dist_transform.NormTransform.log_abs_det_jacobian">
+<code class="descname">log_abs_det_jacobian</code><span class="sig-paren">(</span><em>x</em>, <em>y</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.dist_transform.NormTransform.log_abs_det_jacobian" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-bvcopula.distributions">
+<span id="bvcopula-distributions-module"></span><h2>bvcopula.distributions module<a class="headerlink" href="#module-bvcopula.distributions" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="bvcopula.distributions.ClaytonCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">ClaytonCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.ClaytonCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.distributions.SingleParamCopulaBase" title="bvcopula.distributions.SingleParamCopulaBase"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.distributions.SingleParamCopulaBase</span></code></a></p>
+<p>This class represents a copula from the Clayton family.</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.ClaytonCopula.arg_constraints">
+<code class="descname">arg_constraints</code><em class="property"> = {'theta': Interval(lower_bound=0.0001, upper_bound=8.700099999999999)}</em><a class="headerlink" href="#bvcopula.distributions.ClaytonCopula.arg_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.ClaytonCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.ClaytonCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.ClaytonCopula.ppcf">
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.ClaytonCopula.ppcf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.ClaytonCopula.support">
+<code class="descname">support</code><em class="property"> = Interval(lower_bound=0.0001, upper_bound=0.9999)</em><a class="headerlink" href="#bvcopula.distributions.ClaytonCopula.support" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.FrankCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">FrankCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.FrankCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.distributions.SingleParamCopulaBase" title="bvcopula.distributions.SingleParamCopulaBase"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.distributions.SingleParamCopulaBase</span></code></a></p>
+<p>This class represents a copula from the Frank family.</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.FrankCopula.arg_constraints">
+<code class="descname">arg_constraints</code><em class="property"> = {'theta': Real()}</em><a class="headerlink" href="#bvcopula.distributions.FrankCopula.arg_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.FrankCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.FrankCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.FrankCopula.ppcf">
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.FrankCopula.ppcf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.FrankCopula.support">
+<code class="descname">support</code><em class="property"> = Interval(lower_bound=0, upper_bound=1)</em><a class="headerlink" href="#bvcopula.distributions.FrankCopula.support" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.GaussianCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">GaussianCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.GaussianCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.distributions.SingleParamCopulaBase" title="bvcopula.distributions.SingleParamCopulaBase"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.distributions.SingleParamCopulaBase</span></code></a></p>
+<p>This class represents a copula from the Gaussian family.</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.GaussianCopula.arg_constraints">
+<code class="descname">arg_constraints</code><em class="property"> = {'theta': Interval(lower_bound=-1, upper_bound=1)}</em><a class="headerlink" href="#bvcopula.distributions.GaussianCopula.arg_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.GaussianCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.GaussianCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.GaussianCopula.ppcf">
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.GaussianCopula.ppcf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.GaussianCopula.support">
+<code class="descname">support</code><em class="property"> = Interval(lower_bound=0, upper_bound=1)</em><a class="headerlink" href="#bvcopula.distributions.GaussianCopula.support" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.GumbelCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">GumbelCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.GumbelCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.distributions.SingleParamCopulaBase" title="bvcopula.distributions.SingleParamCopulaBase"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.distributions.SingleParamCopulaBase</span></code></a></p>
+<p>This class represents a copula from the Gumbel family.</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.GumbelCopula.arg_constraints">
+<code class="descname">arg_constraints</code><em class="property"> = {'theta': Interval(lower_bound=1.0, upper_bound=12.0)}</em><a class="headerlink" href="#bvcopula.distributions.GumbelCopula.arg_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.GumbelCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.GumbelCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.GumbelCopula.ppcf">
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.GumbelCopula.ppcf" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.GumbelCopula.support">
+<code class="descname">support</code><em class="property"> = Interval(lower_bound=0, upper_bound=1)</em><a class="headerlink" href="#bvcopula.distributions.GumbelCopula.support" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.IndependenceCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">IndependenceCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.IndependenceCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">torch.distributions.distribution.Distribution</span></code></p>
+<p>This class represents a copula from the Independence Copula.</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.IndependenceCopula.has_rsample">
+<code class="descname">has_rsample</code><em class="property"> = True</em><a class="headerlink" href="#bvcopula.distributions.IndependenceCopula.has_rsample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.IndependenceCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.IndependenceCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.IndependenceCopula.num_thetas">
+<code class="descname">num_thetas</code><em class="property"> = 0</em><a class="headerlink" href="#bvcopula.distributions.IndependenceCopula.num_thetas" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.IndependenceCopula.rsample">
+<code class="descname">rsample</code><span class="sig-paren">(</span><em>sample_shape=torch.Size([])</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.IndependenceCopula.rsample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.MixtureCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">MixtureCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>mix</em>, <em>copulas</em>, <em>rotations=None</em>, <em>theta_sharing=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.MixtureCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">torch.distributions.distribution.Distribution</span></code></p>
+<p>This class represents Mixture copula</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.MixtureCopula.arg_constraints">
+<code class="descname">arg_constraints</code><em class="property"> = {'mix': Interval(lower_bound=0, upper_bound=1), 'theta': Real()}</em><a class="headerlink" href="#bvcopula.distributions.MixtureCopula.arg_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.MixtureCopula.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>batch_shape</em>, <em>_instance=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.MixtureCopula.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.MixtureCopula.has_rsample">
+<code class="descname">has_rsample</code><em class="property"> = True</em><a class="headerlink" href="#bvcopula.distributions.MixtureCopula.has_rsample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.MixtureCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.MixtureCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.MixtureCopula.rsample">
+<code class="descname">rsample</code><span class="sig-paren">(</span><em>sample_shape=torch.Size([])</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.MixtureCopula.rsample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.MixtureCopula.support">
+<code class="descname">support</code><em class="property"> = Interval(lower_bound=0, upper_bound=1)</em><a class="headerlink" href="#bvcopula.distributions.MixtureCopula.support" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.SingleParamCopulaBase">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">SingleParamCopulaBase</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">torch.distributions.distribution.Distribution</span></code></p>
+<p>This abstract class represents a copula with a single parameter.
+:param theta: Parameter of the copula.
+:type theta: float
+:param rotation: Clockwise rotation of the copula.  Can be one of the elements of</p>
+<blockquote>
+<div><cite>Copula.rotation_options</cite> or <cite>None</cite>.  (Default: <cite>None</cite>)</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+</tbody>
+</table>
+<dl class="attribute">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.theta">
+<code class="descname">theta</code><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.theta" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>float</em> – Parameter of the copula.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.rotation">
+<code class="descname">rotation</code><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.rotation" title="Permalink to this definition">¶</a></dt>
+<dd><p><em>string</em> – Clockwise rotation of the copula.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log of the probability density function.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.rsample">
+<code class="descname">rsample</code><span class="sig-paren">(</span><em>size=1</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.rsample" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate random variates.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.ppcf">
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.ppcf" title="Permalink to this definition">¶</a></dt>
+<dd><p>Inverse conditional cdf on the copula.
+Required for sample generation using Rosenblatt transform.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>batch_shape</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.expand" title="Permalink to this definition">¶</a></dt>
+<dd><p>Expends the batch space: adds extra dimension for MCMC sampling
+corresponding to sampling particles.</p>
+</dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">expand</code><span class="sig-paren">(</span><em>batch_shape</em>, <em>_instance=None</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.has_rsample">
+<code class="descname">has_rsample</code><em class="property"> = True</em><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.has_rsample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.num_thetas">
+<code class="descname">num_thetas</code><em class="property"> = 1</em><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.num_thetas" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.SingleParamCopulaBase.rotation_options">
+<code class="descname">rotation_options</code><em class="property"> = ['0°', '90°', '180°', '270°']</em><a class="headerlink" href="#bvcopula.distributions.SingleParamCopulaBase.rotation_options" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt>
+<code class="descname">rsample</code><span class="sig-paren">(</span><em>sample_shape=torch.Size([])</em><span class="sig-paren">)</span></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.distributions.StudentTCopula">
+<em class="property">class </em><code class="descclassname">bvcopula.distributions.</code><code class="descname">StudentTCopula</code><span class="sig-paren">(</span><em>theta</em>, <em>rotation=None</em>, <em>validate_args=None</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.StudentTCopula" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.distributions.SingleParamCopulaBase" title="bvcopula.distributions.SingleParamCopulaBase"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.distributions.SingleParamCopulaBase</span></code></a></p>
+<p>This class represents a copula from the Student T family.</p>
+<dl class="attribute">
+<dt id="bvcopula.distributions.StudentTCopula.arg_constraints">
+<code class="descname">arg_constraints</code><em class="property"> = {'theta': Interval(lower_bound=-1, upper_bound=1)}</em><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.arg_constraints" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bvcopula.distributions.StudentTCopula.cdf_approx_2">
+<em class="property">static </em><code class="descname">cdf_approx_2</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.cdf_approx_2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bvcopula.distributions.StudentTCopula.icdf_approx_2">
+<em class="property">static </em><code class="descname">icdf_approx_2</code><span class="sig-paren">(</span><em>y</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.icdf_approx_2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bvcopula.distributions.StudentTCopula.icdf_approx_3">
+<em class="property">static </em><code class="descname">icdf_approx_3</code><span class="sig-paren">(</span><em>y</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.icdf_approx_3" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.StudentTCopula.log_prob">
+<code class="descname">log_prob</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.distributions.StudentTCopula.ppcf">
+<code class="descname">ppcf</code><span class="sig-paren">(</span><em>samples</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.ppcf" title="Permalink to this definition">¶</a></dt>
+<dd><p>all packages actually invert cdf, like R:
+<a class="reference external" href="https://github.com/SurajGupta/r-source/blob/master/src/nmath/qt.c">https://github.com/SurajGupta/r-source/blob/master/src/nmath/qt.c</a>
+which is not an option on GPU;
+There are many approximations for particular dfs, described in:
+William T. Shaw Sampling Student’s T distribution – use of the
+inverse cumulative distribution function
+He also describes a sampling method that oes not have to use icdf at all
+(Bailey’s method), which is also, unfortunatelly, iterative,
+meaning that it is not GPU-friendly.</p>
+<p>For now, we’ll simply use an pproximation for df=2.0:
+cdf = 1/2 + x/2/sqrt(x**2+2)
+icdf = sign(x-0.5) * sqrt(2/(1/(2y-1)**2 - 1))</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="bvcopula.distributions.StudentTCopula.support">
+<code class="descname">support</code><em class="property"> = Interval(lower_bound=0, upper_bound=1)</em><a class="headerlink" href="#bvcopula.distributions.StudentTCopula.support" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-bvcopula.likelihoods">
+<span id="bvcopula-likelihoods-module"></span><h2>bvcopula.likelihoods module<a class="headerlink" href="#module-bvcopula.likelihoods" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="bvcopula.likelihoods.ClaytonCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">ClaytonCopula_Likelihood</code><span class="sig-paren">(</span><em>rotation=None</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.ClaytonCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base" title="bvcopula.likelihoods.Copula_Likelihood_Base"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.likelihoods.Copula_Likelihood_Base</span></code></a></p>
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.ClaytonCopula_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.ClaytonCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.Copula_Likelihood_Base">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">Copula_Likelihood_Base</code><span class="sig-paren">(</span><em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.Copula_Likelihood_Base" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.likelihoods.likelihood.Likelihood</span></code></p>
+<dl class="method">
+<dt id="bvcopula.likelihoods.Copula_Likelihood_Base.expected_log_prob">
+<code class="descname">expected_log_prob</code><span class="sig-paren">(</span><em>target: torch.Tensor</em>, <em>input: gpytorch.distributions.multivariate_normal.MultivariateNormal</em>, <em>weights=None</em>, <em>particles=torch.Size([0])</em>, <em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.Copula_Likelihood_Base.expected_log_prob" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div><p>Computes the expected log likelihood (used for variational inference):
+.. math:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>\<span class="n">mathbb</span><span class="p">{</span><span class="n">E</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)}</span> \<span class="n">left</span><span class="p">[</span> \<span class="n">log</span> <span class="n">p</span> \<span class="n">left</span><span class="p">(</span> <span class="n">y</span> \<span class="n">mid</span> <span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>ight)
+ight]</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>Args:</dt>
+<dd><dl class="first docutils">
+<dt><code class="xref py py-attr docutils literal"><span class="pre">function_dist</span></code> (<code class="xref py py-class docutils literal"><span class="pre">gpytorch.distributions.MultivariateNormal</span></code>)</dt>
+<dd>Distribution for <span class="math">\(f(x)\)</span>.</dd>
+<dt><code class="xref py py-attr docutils literal"><span class="pre">observations</span></code> (<code class="xref py py-class docutils literal"><span class="pre">torch.Tensor</span></code>)</dt>
+<dd>Values of <span class="math">\(y\)</span>.</dd>
+</dl>
+<p class="last"><code class="xref py py-attr docutils literal"><span class="pre">kwargs</span></code></p>
+</dd>
+<dt>Returns</dt>
+<dd><cite>torch.Tensor</cite> (log probability)</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.Copula_Likelihood_Base.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>function_samples: torch.Tensor</em>, <em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; bvcopula.distributions.GaussianCopula<a class="headerlink" href="#bvcopula.likelihoods.Copula_Likelihood_Base.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.Copula_Likelihood_Base.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.Copula_Likelihood_Base.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>GP link function transforms the GP latent variable <cite>f</cite> into :math:`     heta`,
+which parameterizes the distribution in <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base.forward" title="bvcopula.likelihoods.Copula_Likelihood_Base.forward"><code class="xref py py-attr docutils literal"><span class="pre">forward</span></code></a> method as well as the
+log likelihood of this distribution defined in <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base.expected_log_prob" title="bvcopula.likelihoods.Copula_Likelihood_Base.expected_log_prob"><code class="xref py py-attr docutils literal"><span class="pre">expected_log_prob</span></code></a>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.FrankCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">FrankCopula_Likelihood</code><span class="sig-paren">(</span><em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.FrankCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base" title="bvcopula.likelihoods.Copula_Likelihood_Base"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.likelihoods.Copula_Likelihood_Base</span></code></a></p>
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.FrankCopula_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.FrankCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.GaussianCopula_Flow_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">GaussianCopula_Flow_Likelihood</code><span class="sig-paren">(</span><em>batch_shape=torch.Size([])</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.GaussianCopula_Flow_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.likelihoods.likelihood.Likelihood</span></code></p>
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.corr_mat">
+<em class="property">static </em><code class="descname">corr_mat</code><span class="sig-paren">(</span><em>X: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.corr_mat" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div>Constructs a batch of correlation matrices with ‘</div></blockquote>
+<dl class="docutils">
+<dt>ho’ = Tensor.</dt>
+<dd>Batch size = batch_size of `</dd>
+</dl>
+<p>ho`</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>function_samples: torch.Tensor</em>, <em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; bvcopula.distributions.GaussianCopula<a class="headerlink" href="#bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>GP link function transforms the GP latent variable <cite>f</cite> into :math:`     heta`,
+which parameterizes the distribution in <a class="reference internal" href="#bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.forward" title="bvcopula.likelihoods.GaussianCopula_Flow_Likelihood.forward"><code class="xref py py-attr docutils literal"><span class="pre">forward</span></code></a> method as well as the
+log likelihood of this distribution defined in <code class="xref py py-attr docutils literal"><span class="pre">expected_log_prob</span></code>.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.GaussianCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">GaussianCopula_Likelihood</code><span class="sig-paren">(</span><em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.GaussianCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base" title="bvcopula.likelihoods.Copula_Likelihood_Base"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.likelihoods.Copula_Likelihood_Base</span></code></a></p>
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.GaussianCopula_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.GaussianCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.GumbelCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">GumbelCopula_Likelihood</code><span class="sig-paren">(</span><em>rotation=None</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.GumbelCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base" title="bvcopula.likelihoods.Copula_Likelihood_Base"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.likelihoods.Copula_Likelihood_Base</span></code></a></p>
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.GumbelCopula_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.GumbelCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.IndependenceCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">IndependenceCopula_Likelihood</code><span class="sig-paren">(</span><em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.IndependenceCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.likelihoods.likelihood.Likelihood</span></code></p>
+<dl class="method">
+<dt id="bvcopula.likelihoods.IndependenceCopula_Likelihood.expected_log_prob">
+<code class="descname">expected_log_prob</code><span class="sig-paren">(</span><em>target: torch.Tensor</em>, <em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.IndependenceCopula_Likelihood.expected_log_prob" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.IndependenceCopula_Likelihood.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; bvcopula.distributions.IndependenceCopula<a class="headerlink" href="#bvcopula.likelihoods.IndependenceCopula_Likelihood.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.IndependenceCopula_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.IndependenceCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.MixtureCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">MixtureCopula_Likelihood</code><span class="sig-paren">(</span><em>likelihoods</em>, <em>theta_sharing=None</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.MixtureCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.likelihoods.likelihood.Likelihood</span></code></p>
+<dl class="method">
+<dt id="bvcopula.likelihoods.MixtureCopula_Likelihood.WAIC">
+<code class="descname">WAIC</code><span class="sig-paren">(</span><em>gp_distr: gpytorch.distributions.multivariate_normal.MultivariateNormal</em>, <em>target: torch.Tensor</em>, <em>combine_terms=True</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.WAIC" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div>Computes WAIC</div></blockquote>
+<p>:param <code class="xref py py-attr docutils literal"><span class="pre">gp_distr</span></code>: Trained Gaussian Process distribution
+:type <code class="xref py py-attr docutils literal"><span class="pre">gp_distr</span></code>: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.distributions.MultivariateNormal</span></code>
+:param <code class="xref py py-attr docutils literal"><span class="pre">target</span></code>: Values of <span class="math">\(y\)</span>.
+:type <code class="xref py py-attr docutils literal"><span class="pre">target</span></code>: <code class="xref py py-class docutils literal"><span class="pre">torch.Tensor</span></code>
+:param <code class="xref py py-attr docutils literal"><span class="pre">n</span></code>: Number of points in input space for logprob estimation
+:type <code class="xref py py-attr docutils literal"><span class="pre">n</span></code>: <code class="xref py py-class docutils literal"><span class="pre">int</span></code>
+:param <code class="xref py py-attr docutils literal"><span class="pre">length</span></code>: Length of the input space in physical units (seconds/cm/…). Provides scale for derivative in FI.
+:type <code class="xref py py-attr docutils literal"><span class="pre">length</span></code>: <code class="xref py py-class docutils literal"><span class="pre">float</span></code></p>
+<dl class="docutils">
+<dt>Returns</dt>
+<dd><cite>FI</cite> (Fisher information)
+<cite>MI</cite> (Mutual information)</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.MixtureCopula_Likelihood.expected_log_prob">
+<code class="descname">expected_log_prob</code><span class="sig-paren">(</span><em>target: torch.Tensor</em>, <em>input: gpytorch.distributions.multivariate_normal.MultivariateNormal</em>, <em>weights=None</em>, <em>particles=torch.Size([0])</em>, <em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.expected_log_prob" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div><p>Computes the expected log likelihood (used for variational inference):
+.. math:</p>
+<div class="highlight-default"><div class="highlight"><pre><span></span>\<span class="n">mathbb</span><span class="p">{</span><span class="n">E</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)}</span> \<span class="n">left</span><span class="p">[</span> \<span class="n">log</span> <span class="n">p</span> \<span class="n">left</span><span class="p">(</span> <span class="n">y</span> \<span class="n">mid</span> <span class="n">f</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></blockquote>
+<p>ight)
+ight]</p>
+<blockquote>
+<div><dl class="docutils">
+<dt>Args:</dt>
+<dd><dl class="first docutils">
+<dt><code class="xref py py-attr docutils literal"><span class="pre">function_dist</span></code> (<code class="xref py py-class docutils literal"><span class="pre">gpytorch.distributions.MultivariateNormal</span></code>)</dt>
+<dd>Distribution for <span class="math">\(f(x)\)</span>.</dd>
+<dt><code class="xref py py-attr docutils literal"><span class="pre">observations</span></code> (<code class="xref py py-class docutils literal"><span class="pre">torch.Tensor</span></code>)</dt>
+<dd>Values of <span class="math">\(y\)</span>.</dd>
+</dl>
+<p class="last"><code class="xref py py-attr docutils literal"><span class="pre">kwargs</span></code></p>
+</dd>
+<dt>Returns</dt>
+<dd><cite>torch.Tensor</cite> (log probability)</dd>
+</dl>
+</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.MixtureCopula_Likelihood.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>function_samples: torch.Tensor</em>, <em>*params: typing.Any</em>, <em>**kwargs: typing.Any</em><span class="sig-paren">)</span> &#x2192; bvcopula.distributions.MixtureCopula<a class="headerlink" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.MixtureCopula_Likelihood.gplink_function">
+<code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd><p>GP link function transforms the GP latent variable <cite>f</cite> into :math:`     heta`,
+which parameterizes the distribution in <a class="reference internal" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.forward" title="bvcopula.likelihoods.MixtureCopula_Likelihood.forward"><code class="xref py py-attr docutils literal"><span class="pre">forward</span></code></a> method as well as the
+log likelihood of this distribution defined in <a class="reference internal" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.expected_log_prob" title="bvcopula.likelihoods.MixtureCopula_Likelihood.expected_log_prob"><code class="xref py py-attr docutils literal"><span class="pre">expected_log_prob</span></code></a>.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="bvcopula.likelihoods.MixtureCopula_Likelihood.input_information">
+<code class="descname">input_information</code><span class="sig-paren">(</span><em>model: bvcopula.models.Mixed_GPInferenceModel</em>, <em>samples: torch.Tensor</em>, <em>n: int</em>, <em>length: float</em>, <em>ignore_GP_uncertainty=False</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.MixtureCopula_Likelihood.input_information" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div>Computes Fisher Information and Mutual information</div></blockquote>
+<p>:param <code class="xref py py-attr docutils literal"><span class="pre">model</span></code>: Trained Gaussian Process for copual parameter inference
+:type <code class="xref py py-attr docutils literal"><span class="pre">model</span></code>: <a class="reference internal" href="#bvcopula.models.Mixed_GPInferenceModel" title="bvcopula.models.Mixed_GPInferenceModel"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.models.Mixed_GPInferenceModel</span></code></a>
+:param <code class="xref py py-attr docutils literal"><span class="pre">samples</span></code>: Values of <span class="math">\(y\)</span>.
+:type <code class="xref py py-attr docutils literal"><span class="pre">samples</span></code>: <code class="xref py py-class docutils literal"><span class="pre">torch.Tensor</span></code>
+:param <code class="xref py py-attr docutils literal"><span class="pre">n</span></code>: Number of points in input space for logprob estimation
+:type <code class="xref py py-attr docutils literal"><span class="pre">n</span></code>: <code class="xref py py-class docutils literal"><span class="pre">int</span></code>
+:param <code class="xref py py-attr docutils literal"><span class="pre">length</span></code>: Length of the input space in physical units (seconds/cm/…).</p>
+<blockquote>
+<div>Provides scale for derivative in FI.</div></blockquote>
+<p>:type <code class="xref py py-attr docutils literal"><span class="pre">length</span></code>: <code class="xref py py-class docutils literal"><span class="pre">float</span></code>
+:param <code class="xref py py-attr docutils literal"><span class="pre">ignore_GP_uncertainty</span></code>: If True, then mean value of GP is used.</p>
+<blockquote>
+<div>Otherwise (False), full doubly-stochastic model is used for logprob estimation.</div></blockquote>
+<p>:type <code class="xref py py-attr docutils literal"><span class="pre">ignore_GP_uncertainty</span></code>: <code class="xref py py-class docutils literal"><span class="pre">bool</span></code></p>
+<dl class="docutils">
+<dt>Returns</dt>
+<dd><cite>FI</cite> (Fisher information)
+<cite>MI</cite> (Mutual information)</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.likelihoods.StudentTCopula_Likelihood">
+<em class="property">class </em><code class="descclassname">bvcopula.likelihoods.</code><code class="descname">StudentTCopula_Likelihood</code><span class="sig-paren">(</span><em>**kwargs: typing.Any</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.likelihoods.StudentTCopula_Likelihood" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#bvcopula.likelihoods.Copula_Likelihood_Base" title="bvcopula.likelihoods.Copula_Likelihood_Base"><code class="xref py py-class docutils literal"><span class="pre">bvcopula.likelihoods.Copula_Likelihood_Base</span></code></a></p>
+<dl class="staticmethod">
+<dt id="bvcopula.likelihoods.StudentTCopula_Likelihood.gplink_function">
+<em class="property">static </em><code class="descname">gplink_function</code><span class="sig-paren">(</span><em>f: torch.Tensor</em><span class="sig-paren">)</span> &#x2192; torch.Tensor<a class="headerlink" href="#bvcopula.likelihoods.StudentTCopula_Likelihood.gplink_function" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-bvcopula.models">
+<span id="bvcopula-models-module"></span><h2>bvcopula.models module<a class="headerlink" href="#module-bvcopula.models" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="bvcopula.models.GPInferenceModel">
+<em class="property">class </em><code class="descclassname">bvcopula.models.</code><code class="descname">GPInferenceModel</code><span class="sig-paren">(</span><em>train_x</em>, <em>likelihood</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.GPInferenceModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.models.abstract_variational_gp.AbstractVariationalGP</span></code></p>
+<dl class="method">
+<dt id="bvcopula.models.GPInferenceModel.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.GPInferenceModel.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.models.KISS_GPInferenceModel">
+<em class="property">class </em><code class="descclassname">bvcopula.models.</code><code class="descname">KISS_GPInferenceModel</code><span class="sig-paren">(</span><em>likelihood, prior_rbf_length=0.1, grid_size=128, grid_bounds=[(0, 1)]</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.KISS_GPInferenceModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.models.abstract_variational_gp.AbstractVariationalGP</span></code></p>
+<dl class="method">
+<dt id="bvcopula.models.KISS_GPInferenceModel.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.KISS_GPInferenceModel.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="bvcopula.models.Mixed_GPInferenceModel">
+<em class="property">class </em><code class="descclassname">bvcopula.models.</code><code class="descname">Mixed_GPInferenceModel</code><span class="sig-paren">(</span><em>likelihood, num_tasks, prior_rbf_length=0.1, grid_size=128, grid_bonds=[(0, 1)]</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.Mixed_GPInferenceModel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.models.abstract_variational_gp.AbstractVariationalGP</span></code></p>
+<dl class="method">
+<dt id="bvcopula.models.Mixed_GPInferenceModel.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.Mixed_GPInferenceModel.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="bvcopula.models.all">
+<code class="descclassname">bvcopula.models.</code><code class="descname">all</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.models.all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-bvcopula.variational_strategies">
+<span id="bvcopula-variational-strategies-module"></span><h2>bvcopula.variational_strategies module<a class="headerlink" href="#module-bvcopula.variational_strategies" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="bvcopula.variational_strategies.GridInterpolationVariationalStrategy">
+<em class="property">class </em><code class="descclassname">bvcopula.variational_strategies.</code><code class="descname">GridInterpolationVariationalStrategy</code><span class="sig-paren">(</span><em>model</em>, <em>num_tasks</em>, <em>grid_size</em>, <em>grid_bounds</em>, <em>variational_distribution</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.variational_strategies.GridInterpolationVariationalStrategy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">gpytorch.variational.variational_strategy.VariationalStrategy</span></code></p>
+<dl class="method">
+<dt id="bvcopula.variational_strategies.GridInterpolationVariationalStrategy.forward">
+<code class="descname">forward</code><span class="sig-paren">(</span><em>x</em><span class="sig-paren">)</span><a class="headerlink" href="#bvcopula.variational_strategies.GridInterpolationVariationalStrategy.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-bvcopula">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-bvcopula" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">LFI</a><ul>
+      <li>Previous: <a href="GaussCopulaPerformance.html" title="previous chapter">GaussCopulaPerformance module</a></li>
+      <li>Next: <a href="greedy_constructor.html" title="next chapter">greedy_constructor module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, NinelK.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../_sources/source/bvcopula.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

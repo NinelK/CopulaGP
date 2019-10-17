@@ -1,0 +1,7 @@
+greedy\_constructor module
+==========================
+
+.. automodule:: greedy_constructor
+    :members:
+    :undoc-members:
+    :show-inheritance:

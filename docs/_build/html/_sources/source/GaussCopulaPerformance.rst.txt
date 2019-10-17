@@ -1,0 +1,7 @@
+GaussCopulaPerformance module
+=============================
+
+.. automodule:: GaussCopulaPerformance
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -38,7 +38,6 @@ class SingleParamCopulaBase(Distribution):
     
     def __init__(self, theta, rotation=None, validate_args=None):
         self.theta = theta
-        #TODO Check theta when there will be more than 1 param. Now it is checked by gpytorch
         self.__check_rotation(rotation)
         self.rotation = rotation
         batch_shape, event_shape = self.theta.shape, torch.Size([2])

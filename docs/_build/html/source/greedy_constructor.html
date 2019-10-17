@@ -1,0 +1,153 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>greedy_constructor module &#8212; CopulaGP 0.0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="run_scan module" href="run_scan.html" />
+    <link rel="prev" title="bvcopula package" href="bvcopula.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-greedy_constructor">
+<span id="greedy-constructor-module"></span><h1>greedy_constructor module<a class="headerlink" href="#module-greedy_constructor" title="Permalink to this headline">¶</a></h1>
+<dl class="function">
+<dt id="greedy_constructor.copy_the_best">
+<code class="descclassname">greedy_constructor.</code><code class="descname">copy_the_best</code><span class="sig-paren">(</span><em>best_name</em>, <em>new_name</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.copy_the_best" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.infer">
+<code class="descclassname">greedy_constructor.</code><code class="descname">infer</code><span class="sig-paren">(</span><em>likelihoods</em>, <em>X</em>, <em>Y</em>, <em>name</em>, <em>theta_sharing=None</em>, <em>DEVICE=0</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.infer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.load_data">
+<code class="descclassname">greedy_constructor.</code><code class="descname">load_data</code><span class="sig-paren">(</span><em>animal</em>, <em>day_name</em>, <em>n1</em>, <em>n2</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.load_data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.main">
+<code class="descclassname">greedy_constructor.</code><code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.plot_indep_copula">
+<code class="descclassname">greedy_constructor.</code><code class="descname">plot_indep_copula</code><span class="sig-paren">(</span><em>filename</em>, <em>X</em>, <em>Y</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.plot_indep_copula" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.plot_loss">
+<code class="descclassname">greedy_constructor.</code><code class="descname">plot_loss</code><span class="sig-paren">(</span><em>filename</em>, <em>losses</em>, <em>rbf</em>, <em>means</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.plot_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.plot_result_copula">
+<code class="descclassname">greedy_constructor.</code><code class="descname">plot_result_copula</code><span class="sig-paren">(</span><em>filename</em>, <em>model</em>, <em>likelihoods</em>, <em>X</em>, <em>Y</em>, <em>train_x</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.plot_result_copula" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.plot_result_param">
+<code class="descclassname">greedy_constructor.</code><code class="descname">plot_result_param</code><span class="sig-paren">(</span><em>filename</em>, <em>model</em>, <em>likelihoods</em>, <em>test_x</em>, <em>testX</em>, <em>NSamp</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.plot_result_param" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.save_best">
+<code class="descclassname">greedy_constructor.</code><code class="descname">save_best</code><span class="sig-paren">(</span><em>best_name</em>, <em>new_name</em>, <em>waics</em>, <em>available</em>, <em>sequence</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.save_best" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.strrot">
+<code class="descclassname">greedy_constructor.</code><code class="descname">strrot</code><span class="sig-paren">(</span><em>rotation</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.strrot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.update_availability">
+<code class="descclassname">greedy_constructor.</code><code class="descname">update_availability</code><span class="sig-paren">(</span><em>best_ind</em>, <em>available</em>, <em>gauss_frank_count</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.update_availability" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="greedy_constructor.waic">
+<code class="descclassname">greedy_constructor.</code><code class="descname">waic</code><span class="sig-paren">(</span><em>model</em>, <em>likelihoods</em>, <em>train_x</em>, <em>train_y</em><span class="sig-paren">)</span><a class="headerlink" href="#greedy_constructor.waic" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">LFI</a><ul>
+      <li>Previous: <a href="bvcopula.html" title="previous chapter">bvcopula package</a></li>
+      <li>Next: <a href="run_scan.html" title="next chapter">run_scan module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, NinelK.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.7</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+      |
+      <a href="../_sources/source/greedy_constructor.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

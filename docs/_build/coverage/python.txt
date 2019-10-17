@@ -1,0 +1,69 @@
+Undocumented Python objects
+===========================
+bvcopula.dist_transform
+-----------------------
+Classes:
+ * NormTransform -- missing methods:
+
+   - log_abs_det_jacobian
+
+bvcopula.distributions
+----------------------
+Classes:
+ * ClaytonCopula -- missing methods:
+
+   - log_prob
+   - ppcf
+ * FrankCopula -- missing methods:
+
+   - log_prob
+   - ppcf
+ * GaussianCopula -- missing methods:
+
+   - log_prob
+   - ppcf
+ * GumbelCopula -- missing methods:
+
+   - log_prob
+   - ppcf
+ * IndependenceCopula -- missing methods:
+
+   - log_prob
+   - rsample
+ * MixtureCopula -- missing methods:
+
+   - expand
+   - log_prob
+   - rsample
+ * StudentTCopula -- missing methods:
+
+   - cdf_approx_2
+   - icdf_approx_2
+   - icdf_approx_3
+   - log_prob
+
+bvcopula.likelihoods
+--------------------
+Classes:
+ * ClaytonCopula_Likelihood
+ * Copula_Likelihood_Base
+ * FrankCopula_Likelihood
+ * GaussianCopula_Flow_Likelihood
+ * GaussianCopula_Likelihood
+ * GumbelCopula_Likelihood
+ * IndependenceCopula_Likelihood
+ * MixtureCopula_Likelihood
+ * StudentTCopula_Likelihood
+
+bvcopula.models
+---------------
+Classes:
+ * GPInferenceModel
+ * KISS_GPInferenceModel
+ * Mixed_GPInferenceModel
+
+bvcopula.variational_strategies
+-------------------------------
+Classes:
+ * GridInterpolationVariationalStrategy
+
