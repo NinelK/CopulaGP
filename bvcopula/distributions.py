@@ -33,6 +33,7 @@ class SingleParamCopulaBase(Distribution):
         corresponding to sampling particles.
     '''
     has_rsample = True
+    num_thetas = 1
     rotation_options = ['0°', '90°', '180°', '270°']
     
     def __init__(self, theta, rotation=None, validate_args=None):
@@ -116,29 +117,28 @@ class IndependenceCopula(Distribution):
     This class represents a copula from the Independence Copula.
     '''
     has_rsample = True
+    num_thetas = 0 
     
     def __init__(self, theta, rotation=None, validate_args=None):
-        self.theta = theta
-        #TODO Check theta when there will be more than 1 param. Now it is checked by gpytorch
-        self.__check_rotation(rotation)
-        self.rotation = rotation
-        batch_shape, event_shape = self.theta.shape, torch.Size([2])
+        if theta is None:
+            raise ValueError("Theta has to be provided anyway. Should be empty for independence copula, but will indentify the device where samples must be stored.")
+        elif theta.shape != torch.Size([0]):
+            raise ValueError("Theta should be empty for independence copula.")
+        else:
+            if theta.is_cuda:
+                self.cuda_device = theta.get_device()
+            else:
+                self.cuda_device = None
+        batch_shape, event_shape = torch.Size([]), torch.Size([2])
         super(IndependenceCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
-
-    @classmethod
-    def __check_rotation(cls, rotation):
-        pass
 
     def rsample(self, sample_shape=torch.Size([])):
         shape = self._extended_shape(sample_shape) # now it is theta_size (batch) x sample_size x 2 (event)
-        
-        if sample_shape == torch.Size([]):   # not sure what to do with 1 sample
-            shape = torch.Size([1]) + shape
             
         samples = torch.empty(size=shape).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            samples = samples.cuda(device=get_cuda_device)
+        if self.cuda_device is not None:
+            samples = samples.cuda(device=self.cuda_device)
+
         return samples
 
     def log_prob(self, value):
@@ -509,15 +509,12 @@ class MixtureCopula(Distribution):
         return new
     
     def rsample(self, sample_shape=torch.Size([])):
-        shape = self._extended_shape(sample_shape) # now it is copulas x sample_size x 2 (event)
-        
-#         if sample_shape == torch.Size([]):   # not sure what to do with 1 sample
-#             shape = torch.Size([1]) + shape
-    
+        shape = self._extended_shape(sample_shape) # now it is copulas x sample_size x 2 (event)    
         samples = torch.zeros(size=shape[1:])
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
             samples = samples.cuda(device=get_cuda_device)
+
         num_thetas = self.theta.shape[0]
         
         assert self.mix.shape[0]==len(self.copulas)
@@ -528,7 +525,10 @@ class MixtureCopula(Distribution):
         onehot = torch.einsum('...i->i...', onehot)
         onehot = onehot.type(torch.ByteTensor)
         for i,c in enumerate(self.copulas):
-            samples[onehot[i],...] = c(self.theta[self.theta_sharing[i],onehot[i]], rotation=self.rotations[i]).sample()
+            if c.num_thetas == 0:
+                samples[onehot[i],...] = c(self.theta[[],[]]).sample(self.theta[self.theta_sharing[i],onehot[i]].shape)
+            else:
+                samples[onehot[i],...] = c(self.theta[self.theta_sharing[i],onehot[i]], rotation=self.rotations[i]).sample()
         
         return samples
 
@@ -545,14 +545,14 @@ class MixtureCopula(Distribution):
         sum_mixes = self.mix.sum(dim=0)
         assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
         
-        if len(self.copulas)==1:
-            log_prob = self.copulas[0](self.theta[self.theta_sharing[0]], rotation=self.rotations[0]).log_prob(value)
-        else:
-            for i, c in enumerate(self.copulas):
+        for i, c in enumerate(self.copulas):
+            if c.num_thetas == 0:
+                add = c(self.theta[self.theta!=self.theta]).log_prob(value)+self.mix[i].log()
+            else:
                 add = c(self.theta[self.theta_sharing[i]], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
-                log_prob += torch.exp(add) 
-                #TODO is it possible to vectorize this part?
-            log_prob = log_prob.log()
+            log_prob += torch.exp(add) 
+            #TODO is it possible to vectorize this part?
+        log_prob = log_prob.log()
     
         assert torch.all(log_prob==log_prob)
         assert torch.all(log_prob!=float("Inf"))
