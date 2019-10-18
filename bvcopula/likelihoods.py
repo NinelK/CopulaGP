@@ -190,7 +190,6 @@ class GaussianCopula_Flow_Likelihood(Likelihood):
 class MixtureCopula_Likelihood(Likelihood):
     def __init__(self, likelihoods, theta_sharing=None, **kwargs: Any):
         super(Likelihood, self).__init__()
-        self._max_plate_nesting = 1
         self.likelihoods = likelihoods
         self.waic_samples = 1000
         self.copula = MixtureCopula
@@ -281,9 +280,9 @@ class MixtureCopula_Likelihood(Likelihood):
             else:
                 for i in range(n+1): #if GPU memory allows, can parallelize this cycle as well
                     points = torch.ones_like(samples[...,0])*(i/n)
-                    thetas = model(points)
+                    functions = model(points)
                     log_prob_lambda = lambda function_samples: model.likelihood.forward(function_samples).log_prob(samples)
-                    logprob[i] = model.likelihood.quadrature(log_prob_lambda, thetas) 
+                    logprob[i] = model.likelihood.quadrature(log_prob_lambda, functions) 
                     
             #calculate FI
             FI = torch.empty_like(logprob[...,0])

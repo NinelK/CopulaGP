@@ -2,3 +2,4 @@
 *.png
 logs
 .ipynb_checkpoints/
+figures/

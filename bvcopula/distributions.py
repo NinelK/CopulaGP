@@ -1,7 +1,6 @@
 import torch
 from torch.distributions.distribution import Distribution
 from torch.distributions import constraints, normal, studentT
-from torch.distributions.utils import _standard_normal
 
 class SingleParamCopulaBase(Distribution):
     '''

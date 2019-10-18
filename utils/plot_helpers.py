@@ -128,7 +128,6 @@ class LatentSpacePlot():
         Plot Latent Space functions for synthetic data.
     '''
     def __init__(self, title, xlabel, ylabel, ax):
-        from numpy import ones_like
         super(LatentSpacePlot, self).__init__()
         self.ax = ax
         self.ax.set_title(title)
@@ -139,6 +138,7 @@ class LatentSpacePlot():
         self.ax.plot(x, y, label=label)
         
     def add_colorbar(self, x, colors, y_level=0):
+        from numpy import ones_like
         assert(len(x)==len(colors))
         self.ax.scatter(x,ones_like(x)*y_level,color=colors)
         
