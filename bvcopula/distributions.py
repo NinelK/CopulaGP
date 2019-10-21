@@ -524,7 +524,7 @@ class MixtureCopula(Distribution):
         onehot = onehot.type(torch.ByteTensor)
         for i,c in enumerate(self.copulas):
             if c.num_thetas == 0:
-                samples[onehot[i],...] = c(self.theta[[],[]]).sample(self.theta[self.theta_sharing[i],onehot[i]].shape)
+                samples[onehot[i],...] = c(self.theta[self.theta!=self.theta]).sample(self.theta[self.theta_sharing[i],onehot[i]].shape)
             else:
                 samples[onehot[i],...] = c(self.theta[self.theta_sharing[i],onehot[i]], rotation=self.rotations[i]).sample()
         

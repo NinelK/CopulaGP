@@ -104,7 +104,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         # Initialize lengthscale and outputscale to mean of priors
         self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
 
-    def entropy(self, alpha=0.05, sem_tol=1e-2, mc_size=10000):
+    def entropy(self, alpha=0.05, sem_tol=1e-2, mc_size=10000, interv=torch.tensor([0.,1.])):
         '''
         Estimates the entropy of the mixed vine.
         Parameters
@@ -139,7 +139,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         with torch.no_grad():
             while sem >= sem_tol:
                 # Generate samples
-                points = points.uniform_(0., 1.)
+                points = points.uniform_(*interv)
                 functions = self(points)
                 with gpytorch.settings.num_likelihood_samples(1):
                     samples = self.likelihood(self(points)).rsample().squeeze()
