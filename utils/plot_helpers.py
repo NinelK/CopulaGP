@@ -14,6 +14,8 @@ def Plot_Copula_Density(axes, X, Y, interval_ends, shade=False, color='C0', mrg=
 def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
     '''
         Plot Thetas and Mixing parameters of a trained GP-Copula model.
+        May show strange confidence intervals due to gp_link transformaiton.
+        MCMC version, in contrast, first applies gp_link and THEN computes confidence intervals.
         Parameters
         ----------
         ax : list of matplotlib.axes._subplots.AxesSubplot
@@ -42,7 +44,7 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
             else:
                 line, = axis.plot(x, F_mean, label = label, alpha=0.5)
                 axis.fill_between(x, l.detach().cpu().numpy(),
-                            u.detach().cpu().numpy(), color=line.get_color(), alpha=0.2)
+                            u.detach().cpu().numpy(), color=line.get_color(), alpha=0.3)
 
     model.eval()
     with no_grad():
@@ -73,55 +75,60 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
     
     for axis in ax:
         axis.set_xlabel('Position, [cm]')
-        axis.set_xlim(0,160)
+        axis.set_xlim(x.min(),x.max())
         axis.legend()
 
-# def Plot_MixModel_Param_MCMC(ax,model,test_x,testX,rho=None):
-#     '''
-#         Plot Thetas and Mixing parameters of a trained GP-Copula model.
-#         MCMC_version
-#     '''
-#     assert len(ax)==2
+def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=1000):
+    '''
+        Plot Thetas and Mixing parameters of a trained GP-Copula model.
+        MCMC_version
+    '''
+    from torch import no_grad, Size
+    from numpy import mean, std
+    assert len(ax)==2
     
-#     def plot_gps(sampled, axis, skip_ind=False):
-#         for i, (t,c,r) in enumerate(zip(sampled,copulas,rotations)):
-#             if r==None:
-#                 label = '{}'.format(c)
-#             else:
-#                 label = '{} {}'.format(c,r)
-#             if skip_ind & (c == 'Independence'):
-#                 axis.plot([],[]) #just skip 1 color to be even with mixing parameters
-#             else:
-#                 sm = np.mean(sampled[i].cpu().numpy(),axis=0)
-#                 line, = axis.plot(testX*160, sm, label = label)
-#                 std = np.std(sampled[i].cpu().numpy(),axis=0)
-#                 axis.fill_between(testX*160, sm-2*std, sm+2*std, color=line.get_color(), alpha=0.5)
+    def plot_gps(sampled, axis, skip_ind=False):
+        for i, (t,c,r) in enumerate(zip(sampled,copulas,rotations)):
+            if r==None:
+                label = '{}'.format(c)
+            else:
+                label = '{} {}'.format(c,r)
+            if skip_ind & (c == 'Independence'):
+                axis.plot([],[]) #just skip 1 color to be even with mixing parameters
+            else:
+                sm = mean(sampled[i].cpu().numpy(),axis=0)
+                line, = axis.plot(x, sm, label = label)
+                stdev = std(sampled[i].cpu().numpy(),axis=0)
+                axis.fill_between(x, sm-2*stdev, sm+2*stdev, color=line.get_color(), alpha=0.3)
             
-#     model.eval()
-#     with torch.no_grad():
-#         output = model(test_x)
-#     gplink = model.likelihood.gplink_function
-#     thetas, mixes = gplink(output.rsample(torch.Size([1000])))
-#     #MC sampling is better here, since gplink function at least for mixing 
+    model.eval()
+    with no_grad():
+        output = model(test_x)
+    gplink = model.likelihood.gplink_function
+    thetas, mixes = gplink(output.rsample(Size([particles])))
+    #MC sampling is better here, since gplink function at least for mixing 
 
-#     copulas = [lik.name for lik in likelihoods]
-#     rotations = [lik.rotation for lik in likelihoods]
+    likelihoods = model.likelihood.likelihoods
+    copulas = [lik.name for lik in likelihoods]
+    rotations = [lik.rotation for lik in likelihoods]
 
-#     plot_gps(thetas,ax[0],skip_ind=True)
-#     plot_gps(mixes,ax[1])
+    plot_gps(thetas,ax[0],skip_ind=True)
+    plot_gps(mixes,ax[1])
     
-#     if rho is not None:
-#         ax[0].plot(x,rho, '--', color='grey', label='Pearson\'s rho')
+    if rho is not None:
+        assert len(rho) == 2
+        assert rho[0].shape == rho[1].shape
+        ax[0].plot(rho[0],rho[1], '--', color='grey', label='Pearson\'s rho')
 
-#     ax[0].set_ylabel(r'$\theta$')
-#     ax[0].set_title('Copula parameters for {} vs {}'.format(name1,name2))
-#     ax[1].set_ylabel('[c]')
-#     ax[1].set_title('Mixing param')
+    ax[0].set_ylabel(r'$\theta$')
+    ax[0].set_title('Copula parameters'+title)
+    ax[1].set_ylabel('[c]')
+    ax[1].set_title('Mixing param'+title)
     
-#     for axis in ax:
-#         axis.set_xlabel('Position, [cm]')
-#         axis.set_xlim(0,160)
-#         axis.legend()
+    for axis in ax:
+        axis.set_xlabel('Position, [cm]')
+        axis.set_xlim(x.min(),x.max())
+        axis.legend()
 
 class LatentSpacePlot():
     '''
