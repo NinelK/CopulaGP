@@ -351,7 +351,8 @@ class MixtureCopula_Likelihood(Likelihood):
         num_indep_thetas = self.theta_sharing.max() + 1
         assert num_copulas + num_indep_thetas - 1==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
 
-        lr_ratio = 0.5 # lr_mix / lr_thetas
+        lr_ratio = .25 # lr_mix / lr_thetas
+        #.5 works well for MCMC, .25 for GH
 
         thetas, mix = [], []
         prob_rem = torch.ones_like(f[...,0,:]) #1-x1, x1(1-x2), x1x2(1-x3)...
