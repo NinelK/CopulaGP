@@ -125,7 +125,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         '''
         # Gaussian confidence interval for sem_tol and level alpha
         conf = torch.distributions.normal.Normal(torch.zeros(1),torch.ones(1)).icdf(torch.tensor([1. - alpha]))
-        sem = torch.Tensor([float('inf')])[0]
+        sem = float('inf')
         ent = torch.zeros(1)
         var_sum = torch.zeros(1)
         log2 = torch.tensor([2.]).log()
@@ -143,10 +143,10 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
                 functions = self(points)
                 with gpytorch.settings.num_likelihood_samples(1):
                     samples = self.likelihood(self(points)).rsample().squeeze()
-                log_prob_lambda = lambda function_samples: self.likelihood.forward(function_samples).log_prob(samples)
+                log_prob_lambda = lambda function_samples: self.likelihood.forward(function_samples).log_prob(samples) #TODO: decide where to clamp
                 logp = self.likelihood.quadrature(log_prob_lambda, functions) 
                 assert torch.all(logp==logp)
-                log2p = logp / log2
+                log2p = logp[logp.abs()!=float("inf")] / log2
                 k += 1
                 # Monte-Carlo estimate of entropy
                 ent += (-log2p.mean() - ent) / k

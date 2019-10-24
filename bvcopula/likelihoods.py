@@ -133,7 +133,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*8.7+1e-4#/torch.exp(torch.tensor(1.)) 
+        return torch.sigmoid(f)*8.5#/torch.exp(torch.tensor(1.)) 
         #maps (-inf, +inf) to [0,9.9]
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
@@ -146,7 +146,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*11.0 + 1.0
+        return torch.sigmoid(f)*10.0 + 1.0
         #11. is maximum that does not crash on fully dependent samples
 
 class GaussianCopula_Flow_Likelihood(Likelihood):
@@ -332,13 +332,14 @@ class MixtureCopula_Likelihood(Likelihood):
                 res *= weights
             assert res.dim()==1
             assert torch.all(res==res)
-            return res.sum()
+            return res[res.abs()!=float("inf")].sum()
         else: #use Gauss-Hermite quadrature
-            log_prob_lambda = lambda function_samples: self.forward(function_samples).log_prob(target)
+            log_prob_lambda = lambda function_samples: self.forward(function_samples).log_prob(target).clamp(-float("inf"),1.0) #TODO: decide where to clamp
             log_prob = self.quadrature(log_prob_lambda, input) 
             if weights is not None:
                 log_prob *= weights
-            res = log_prob.sum(tuple(range(-1, -len(input.event_shape) - 1, -1)))
+            assert torch.all(log_prob==log_prob)
+            res = log_prob[log_prob.abs()!=float("inf")].sum(tuple(range(-1, -len(input.event_shape) - 1, -1)))
             return res
 
     def gplink_function(self, f: Tensor) -> Tensor:
