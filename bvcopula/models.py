@@ -22,7 +22,7 @@ class GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         
         #we specify prior here
         prior_rbf_length = 0.5 
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
+        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) 
         
         self.covar_module = gpytorch.kernels.ScaleKernel(
             gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior),
@@ -53,7 +53,7 @@ class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         self.mean_module = gpytorch.means.ConstantMean()
         
         #we specify prior here
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
+        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) 
         
         self.covar_module = gpytorch.kernels.ScaleKernel(
             gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior),
@@ -70,7 +70,7 @@ class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         return gpytorch.distributions.MultivariateNormal(mean, covar)
 
 class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
-    def __init__(self, likelihood, num_tasks, prior_rbf_length=0.1, 
+    def __init__(self, likelihood, num_tasks, prior_rbf_length=0.5, 
                  grid_size = 128, grid_bonds = [(0, 1)]):
         # Define all the variational stuff
         variational_distribution = \
@@ -90,16 +90,14 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         self.likelihood = likelihood
         
         # Mean, covar
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
+        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, .2)
+        mean_prior = None #gpytorch.priors.NormalPrior(0., .01)
         
-        self.mean_module = gpytorch.means.ConstantMean(batch_size=num_tasks)
+        self.mean_module = gpytorch.means.ConstantMean(prior=mean_prior,batch_size=num_tasks)
         self.covar_module = gpytorch.kernels.ScaleKernel(
             gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior, batch_size=num_tasks, ard_num_dims=1),
             batch_size=num_tasks, ard_num_dims=None
         )
-        
-        #we specify prior here
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) #variance does not matter much
         
         # Initialize lengthscale and outputscale to mean of priors
         self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean

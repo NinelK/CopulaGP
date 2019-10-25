@@ -150,6 +150,7 @@ class GaussianCopula(SingleParamCopulaBase):
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
+        assert torch.all(self.theta.abs()<=1.0)
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
             nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
@@ -161,11 +162,16 @@ class GaussianCopula(SingleParamCopulaBase):
                                  nrvs[..., 1] * self.theta) 
         return vals
 
-    def log_prob(self, value):
+    def log_prob(self, value, safe=False):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
+
+        if safe==True:
+            thetas = self.theta*0.9999
+        else:
+            thetas = self.theta
 
         # Check CUDA and make a Normal distribution
         if self.theta.is_cuda:
@@ -173,8 +179,6 @@ class GaussianCopula(SingleParamCopulaBase):
             nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(value)
         else:
             nrvs = normal.Normal(0,1).icdf(value)
-        
-        thetas = self.theta
         
         mask_theta = (thetas < 1.) & (thetas > -1.)
         mask_samples = (value[..., 0] > 0.) & (value[..., 1] > 0.) & \
@@ -512,7 +516,9 @@ class MixtureCopula(Distribution):
         num_thetas = self.theta.shape[0]
         
         assert self.mix.shape[0]==len(self.copulas)
-        assert self.theta_sharing.shape[0]==len(self.copulas)
+        #assert self.theta_sharing.shape[0]==len(self.copulas)
+        #gplink already returns thetas for each copula
+        #TODO: avoid returning identical thetas
         
         onehot = torch.distributions.one_hot_categorical.OneHotCategorical(
             probs=torch.einsum('i...->...i', self.mix)).sample()
@@ -520,13 +526,13 @@ class MixtureCopula(Distribution):
         onehot = onehot.type(torch.ByteTensor)
         for i,c in enumerate(self.copulas):
             if c.num_thetas == 0:
-                samples[onehot[i],...] = c(self.theta[self.theta!=self.theta]).sample(self.theta[self.theta_sharing[i],onehot[i]].shape)
+                samples[onehot[i],...] = c(self.theta[self.theta!=self.theta]).sample(self.theta[i,onehot[i]].shape)
             else:
-                samples[onehot[i],...] = c(self.theta[self.theta_sharing[i],onehot[i]], rotation=self.rotations[i]).sample()
+                samples[onehot[i],...] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).sample()
         
         return samples
 
-    def log_prob(self, value):
+    def log_prob(self, value, safe=False):
 
         if self._validate_args:
             self._validate_sample(value)
@@ -534,7 +540,7 @@ class MixtureCopula(Distribution):
         prob = torch.zeros_like(self.theta[0]) # by default
         
         assert self.mix.shape[0]==len(self.copulas)
-        assert self.theta_sharing.shape[0]==len(self.copulas)
+        #assert self.theta_sharing.shape[0]==len(self.copulas)
 
         if self._validate_args:
             sum_mixes = self.mix.sum(dim=0)
@@ -544,7 +550,8 @@ class MixtureCopula(Distribution):
             if c.num_thetas == 0:
                 add = c(self.theta[self.theta!=self.theta]).log_prob(value)+self.mix[i].log()
             else:
-                add = c(self.theta[self.theta_sharing[i]], rotation=self.rotations[i]).log_prob(value)+self.mix[i].log()
+                add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value,safe=safe).clamp(-100.,88.)+self.mix[i].log()
+                #-100 to 88 is a range of x such that torch.exp(x).log()!=+-inf
             prob += torch.exp(add)
             #TODO is it possible to vectorize this part?
         log_prob = prob.log()

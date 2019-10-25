@@ -91,9 +91,9 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
     def gplink_function(f: Tensor) -> Tensor:
         if f.is_cuda:
             get_cuda_device = f.get_device()
-            return 0.9999*(2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
+            return (2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
         else:
-            return 0.9999*(2*base_distributions.Normal(0,1).cdf(f) - 1)
+            return (2*base_distributions.Normal(0,1).cdf(f) - 1)
 
 class StudentTCopula_Likelihood(Copula_Likelihood_Base):  
     def __init__(self, **kwargs: Any):
@@ -334,10 +334,14 @@ class MixtureCopula_Likelihood(Likelihood):
             assert torch.all(res==res)
             return res[res.abs()!=float("inf")].sum()
         else: #use Gauss-Hermite quadrature
-            log_prob_lambda = lambda function_samples: self.forward(function_samples).log_prob(target).clamp(-float("inf"),1.0) #TODO: decide where to clamp
-            log_prob = self.quadrature(log_prob_lambda, input) 
+            def log_prob_lambda (function_samples):
+                logprob = self.forward(function_samples).log_prob(target, safe=True)
+                #print(logprob.min(),logprob.max(),logprob.mean(),logprob.std())
+                return logprob
+            log_prob = self.quadrature(log_prob_lambda, input)
             if weights is not None:
                 log_prob *= weights
+            #print(log_prob.min(),log_prob.max(),log_prob.mean())
             assert torch.all(log_prob==log_prob)
             res = log_prob[log_prob.abs()!=float("inf")].sum(tuple(range(-1, -len(input.event_shape) - 1, -1)))
             return res
@@ -352,7 +356,7 @@ class MixtureCopula_Likelihood(Likelihood):
         num_indep_thetas = self.theta_sharing.max() + 1
         assert num_copulas + num_indep_thetas - 1==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
 
-        lr_ratio = .25 # lr_mix / lr_thetas
+        lr_ratio = .5 # lr_mix / lr_thetas
         #.5 works well for MCMC, .25 for GH
 
         thetas, mix = [], []
