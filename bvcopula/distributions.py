@@ -220,7 +220,7 @@ class FrankCopula(SingleParamCopulaBase):
                 / self.theta)[..., self.theta != 0]
         return torch.clamp(vals,0.,1.) # could be slightly higher than 1 due to numerical errors
 
-    def log_prob(self, value):
+    def log_prob(self, value, safe=True):
 
         self.theta_thr = 17.
 
@@ -272,7 +272,7 @@ class ClaytonCopula(SingleParamCopulaBase):
         assert torch.all(vals==vals)
         return vals
 
-    def log_prob(self, value):
+    def log_prob(self, value, safe=True):
 
         if self._validate_args:
             self._validate_sample(value)
@@ -333,7 +333,7 @@ class GumbelCopula(SingleParamCopulaBase):
         v = torch.clamp(v,0,1) # for theta>10 v is sometimes >1
         return v
 
-    def log_prob(self, value):
+    def log_prob(self, value, safe=True):
 
         if self._validate_args:
             self._validate_sample(value)
@@ -421,7 +421,7 @@ class StudentTCopula(SingleParamCopulaBase):
         vals = self.cdf_approx_2(x * torch.sqrt((df + torch.pow(y, 2.0)) * h1 / nu1) + self.theta * y)
         return vals
 
-    def log_prob(self, value):
+    def log_prob(self, value, safe=True):
 
         self.exp_thr = torch.tensor(torch.finfo(torch.float32).max).log()
 
