@@ -134,22 +134,22 @@ class TestCopulaSampling(unittest.TestCase):
 
 	def test_gaussian_sampling(self):
 		bin_size = 20
-		gaussian_copula = GaussianCopula(torch.tensor(np.full(bin_size**2,0.5)).float())#torch.ones(100)*0.7)
+		gaussian_copula = GaussianCopula(torch.full([bin_size**2],0.5).float())#torch.ones(100)*0.7)
 		self.sampling_general(gaussian_copula, bin_size)
 
 	def test_frank_sampling(self):
 		bin_size = 20
-		frank_copula = FrankCopula(torch.tensor(np.full(bin_size**2,5.0)).float())#torch.ones(100)*0.7)
+		frank_copula = FrankCopula(torch.full([bin_size**2],5.0).float())#torch.ones(100)*0.7)
 		self.sampling_general(frank_copula, bin_size)
 
 	def test_clayton_sampling(self):
 		bin_size = 20
-		clayton_copula = ClaytonCopula(torch.tensor(np.full(bin_size**2,2.0)).float())#torch.ones(100)*0.7)
+		clayton_copula = ClaytonCopula(torch.full([bin_size**2],2.0).float())#torch.ones(100)*0.7)
 		self.sampling_general(clayton_copula, bin_size)
 
 	def test_gumbel_sampling(self):
 		bin_size = 20
-		gumbel_copula = GumbelCopula(torch.tensor(np.full(bin_size**2,2.0)).float())#torch.ones(100)*0.7)
+		gumbel_copula = GumbelCopula(torch.full([bin_size**2],2.0).float())#torch.ones(100)*0.7)
 		self.sampling_general(gumbel_copula, bin_size)
 
 	# def test_studentT_sampling(self):

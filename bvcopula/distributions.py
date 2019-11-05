@@ -1,6 +1,7 @@
 import torch
 from torch.distributions.distribution import Distribution
 from torch.distributions import constraints, normal, studentT
+from . import conf
 
 class SingleParamCopulaBase(Distribution):
     '''
@@ -169,7 +170,7 @@ class GaussianCopula(SingleParamCopulaBase):
         log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
 
         if safe==True:
-            thetas = self.theta*0.9999
+            thetas = self.theta*conf.Gauss_Safe_Theta
         else:
             thetas = self.theta
 
@@ -195,8 +196,8 @@ class GaussianCopula(SingleParamCopulaBase):
         assert torch.all(log_prob==log_prob)
 
         #now add inf were it is appropriate (will be ignored in integration anyway)
-        log_prob[(thetas >= 1.)  & ((value[..., 0] - value[..., 1]).abs() < 1e-4)]      = float("Inf") # u==v
-        log_prob[(thetas <= -1.) & ((value[..., 0] - 1 + value[..., 1]).abs() < 1e-4)]  = float("Inf") # u==1-v
+        log_prob[(thetas >= 1.)  & ((value[..., 0] - value[..., 1]).abs() < conf.Gauss_diag)]      = float("Inf") # u==v
+        log_prob[(thetas <= -1.) & ((value[..., 0] - 1 + value[..., 1]).abs() < conf.Gauss_diag)]  = float("Inf") # u==1-v
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[mask_theta & ~mask_samples] = -float("Inf") 
@@ -209,20 +210,23 @@ class FrankCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Frank family.
     '''
-    arg_constraints = {"theta": constraints.real}
+    arg_constraints = {"theta": constraints.interval(-conf.Frank_Theta_Max,conf.Frank_Theta_Max)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
         vals = samples[..., 0] #will stay this for self.theta == 0
-        vals[..., self.theta != 0] = (-torch.log1p(samples[..., 0] * torch.expm1(-self.theta) \
-                / (torch.exp(-self.theta * samples[..., 1]) \
-                - samples[..., 0] * torch.expm1(-self.theta * samples[..., 1]))) \
-                / self.theta)[..., self.theta != 0]
+        theta_ = -self.theta.abs() # generate everything for negative thetas, then flip
+        u = samples[...,0]
+        v = samples[...,1]
+        vals = (-torch.log1p(u * torch.expm1(-theta_) \
+                / (torch.exp(-theta_ * v) \
+                - u * torch.expm1(-theta_ * v))) \
+                / theta_)
+        vals[..., self.theta==0] = samples[..., 0][...,self.theta==0]
+        vals[..., self.theta > 0] = 1. - vals[..., self.theta > 0] # flip for positive thetas here
         return torch.clamp(vals,0.,1.) # could be slightly higher than 1 due to numerical errors
 
     def log_prob(self, value, safe=True):
-
-        self.theta_thr = 17.
 
         value[torch.isnan(value)] = 0 # log_prob = -inf
 
@@ -231,7 +235,7 @@ class FrankCopula(SingleParamCopulaBase):
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
         
-        mask = (self.theta.abs() > 1e-2) & (self.theta.abs() < self.theta_thr)
+        mask = (self.theta.abs() > 1e-2) & (self.theta.abs() < conf.Frank_Theta_Max)
         theta_ = self.theta[mask]
         value_ = value.expand(self.theta.shape + torch.Size([2]))[mask]
         log_prob[..., mask] = torch.log(-theta_ * torch.expm1(-theta_)) \
@@ -253,7 +257,7 @@ class ClaytonCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Clayton family.
     '''
-    arg_constraints = {"theta": constraints.interval(0.,8.5)}
+    arg_constraints = {"theta": constraints.interval(0.,conf.Clayton_Theta_Max)}
     support = constraints.interval(0.,1.) # [0,1]
     
     def ppcf(self, samples):
@@ -264,11 +268,12 @@ class ClaytonCopula(SingleParamCopulaBase):
         nonzero_theta = thetas_[thetas_>min_lim]
         unstable_part = (samples[thetas_>min_lim][..., 0] * (samples[thetas_>min_lim][..., 1]**(1 + nonzero_theta))) \
                 ** (-nonzero_theta / (1 + nonzero_theta))
-        unstable_part = unstable_part.reshape(*samples.shape[:-1])
-        mask = (thetas_>min_lim) & (unstable_part != float("Inf"))
-        vals[mask] = (1 - samples[mask][..., 1]**(-thetas_[mask]) + unstable_part[mask])** (-1 / thetas_[mask])
-        mask = (thetas_>min_lim) & (unstable_part == float("Inf"))
-        vals[mask] = 0. # (inf)^(-1/nonzero_theta) is still something very small
+        if unstable_part.numel() > 0:
+            unstable_part = unstable_part.reshape(*samples.shape[:-1])
+            mask = (thetas_>min_lim) & (unstable_part != float("Inf"))
+            vals[mask] = (1 - samples[mask][..., 1]**(-thetas_[mask]) + unstable_part[mask])** (-1 / thetas_[mask])
+            mask = (thetas_>min_lim) & (unstable_part == float("Inf"))
+            vals[mask] = 0. # (inf)^(-1/nonzero_theta) is still something very small
         assert torch.all(vals==vals)
         return vals
 
@@ -304,12 +309,10 @@ class GumbelCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Gumbel family.
     '''
-    arg_constraints = {"theta": constraints.interval(1.,11.0)}
+    arg_constraints = {"theta": constraints.interval(1.,conf.Gumbel_Theta_Max)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
-
-        self.theta_thr = 12.0 #sample generation is tricky above 16.
 
         def h(z,samples):
             x = -samples[...,1].log()
@@ -318,7 +321,7 @@ class GumbelCopula(SingleParamCopulaBase):
         def hd(z):
             return 1+(self.theta-1)*z.pow(-1)
 
-        thetas = torch.clamp(self.theta,1.0,self.theta_thr)
+        thetas = torch.clamp(self.theta,1.0,conf.Gumbel_Theta_Max)
 
         x = -samples[...,1].log()
         z = x

@@ -9,6 +9,7 @@ from torch.distributions.transformed_distribution import TransformedDistribution
 from .distributions import IndependenceCopula, GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
 from .dist_transform import NormTransform
 from .models import Mixed_GPInferenceModel #to check input into input_information
+from . import conf
 
 class Copula_Likelihood_Base(Likelihood):
     def __init__(self, **kwargs: Any): 
@@ -121,7 +122,7 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (torch.sigmoid(f)-0.5)*29.8 #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
+        return (torch.sigmoid(f)-0.5)*conf.Frank_Theta_Max #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
 
 class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
@@ -133,7 +134,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*8.5#/torch.exp(torch.tensor(1.)) 
+        return torch.sigmoid(f)*conf.Clayton_Theta_Max
         #maps (-inf, +inf) to [0,9.9]
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
@@ -146,7 +147,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*10.0 + 1.0
+        return torch.sigmoid(f)*(conf.Gumbel_Theta_Max - 1.0) + 1.0
         #11. is maximum that does not crash on fully dependent samples
 
 class GaussianCopula_Flow_Likelihood(Likelihood):
@@ -191,7 +192,7 @@ class MixtureCopula_Likelihood(Likelihood):
     def __init__(self, likelihoods, theta_sharing=None, **kwargs: Any):
         super(Likelihood, self).__init__()
         self.likelihoods = likelihoods
-        self.waic_samples = 1000
+        self.waic_samples = conf.waic_samples
         self.copula = MixtureCopula
         if theta_sharing is not None:
             self.theta_sharing = theta_sharing
@@ -298,7 +299,7 @@ class MixtureCopula_Likelihood(Likelihood):
                 Pr += logprob[i].exp().detach()*(1/(n+1))
             MIs=0
             for i in range(n+1):    
-                MIs+= 1/(n+1)*logprob[i].exp()*(logprob[i]-Pr.log())
+                MIs+= 1/(n+1)*logprob[i].exp()*(logprob[i]-Pr.log()) # sum p(r|s) * log p(r|s)/p(r)
             MI = MIs.sum()     
         return FI, MI                        
 
