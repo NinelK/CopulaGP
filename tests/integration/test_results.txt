@@ -1,0 +1,50 @@
+Gumbel (theta=11.6) converged in 1800 steps!
+Took 0 min 44 s (44)
+Thetas mean: 11.6 and std: 0.138
+Correct value lays in (11.4,12.0) everywhere? Pass
+Gumbel (theta=1.0) did not converge in 2000 steps.
+Took 0 min 45 s (45)
+Thetas mean: 1.16 and std: 0.0011
+Correct value lays in (1.15,1.16) everywhere? Pass
+Gumbel (theta=4.26) converged in 1100 steps!
+Took 0 min 25 s (25)
+Thetas mean: 4.28 and std: 0.00593
+Correct value lays in (4.26,4.32) everywhere? Pass
+Clayton (theta=9.4) converged in 1600 steps!
+Took 0 min 34 s (34)
+Thetas mean: 9.41 and std: 0.0931
+Correct value lays in (9.25,9.83) everywhere? Pass
+Clayton (theta=0.0) did not converge in 2000 steps.
+Took 0 min 42 s (42)
+Thetas mean: 0.174 and std: 0.00234
+Correct value lays in (0.164,0.184) everywhere? Pass
+Clayton (theta=2.97) converged in 1000 steps!
+Took 0 min 21 s (21)
+Thetas mean: 2.95 and std: 0.0415
+Correct value lays in (2.89,3.06) everywhere? Pass
+Frank (theta=17.0) did not converge in 2000 steps.
+Took 0 min 49 s (49)
+Thetas mean: 16.8 and std: 0.205
+Correct value lays in (16.6,17.5) everywhere? Pass
+Frank (theta=-17.0) did not converge in 2000 steps.
+Took 0 min 50 s (50)
+Thetas mean: -16.9 and std: 0.2
+Correct value lays in (-17.5,-16.6) everywhere? Pass
+Frank (theta=0.0) converged in 300 steps!
+Took 0 min 7 s (7)
+Thetas mean: -0.00272 and std: 0.0155
+Correct value lays in (-0.124,0.0698) everywhere? Pass
+Gaussian (theta=1.0) converged in 1700 steps!
+Took 0 min 58 s (58)
+Thetas mean: 1.0 and std: 9.06e-08
+Correct value lays in (1.0,1.0) everywhere? Pass
+Gaussian (theta=0.0) converged in 700 steps!
+Took 0 min 22 s (22)
+Thetas mean: 0.0015 and std: 0.0211
+Correct value lays in (-0.0573,0.0538) everywhere? Pass
+Gaussian (theta=-1.0) converged in 1700 steps!
+Took 0 min 54 s (54)
+Thetas mean: -1.0 and std: 8.73e-08
+Correct value lays in (-1.0,-1.0) everywhere? Pass
+Gauss (100%), Frank (100%), Clayton (100%), Gumbel (100%)
+All tests took 0 h 7 min 37 s (457)

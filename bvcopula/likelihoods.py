@@ -122,7 +122,7 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (torch.sigmoid(f)-0.5)*conf.Frank_Theta_Max #makes derivatives bigger and allows to keep the same learning rate as for Gaussian 
+        return 0.3*f + f.sign()*(0.3*f)**2 
 
 class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
@@ -134,8 +134,8 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*conf.Clayton_Theta_Max
-        #maps (-inf, +inf) to [0,9.9]
+        return (0.2*f+1e-4).exp()
+        #maps (-inf, +inf) to [0,max]
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
@@ -147,8 +147,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return torch.sigmoid(f)*(conf.Gumbel_Theta_Max - 1.0) + 1.0
-        #11. is maximum that does not crash on fully dependent samples
+        return (0.2*f+1e-4).exp() + 1.0
 
 class GaussianCopula_Flow_Likelihood(Likelihood):
     def __init__(self, batch_shape=torch.Size(), **kwargs: Any):

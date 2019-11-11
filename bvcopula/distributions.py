@@ -215,7 +215,8 @@ class FrankCopula(SingleParamCopulaBase):
     
     def ppcf(self, samples):
         vals = samples[..., 0] #will stay this for self.theta == 0
-        theta_ = -self.theta.abs() # generate everything for negative thetas, then flip
+        theta_ = self.theta.clone()#.abs() # generate everything for small or negative thetas, then flip
+        theta_[self.theta > conf.Frank_Theta_Flip] = -self.theta[self.theta > conf.Frank_Theta_Flip] 
         u = samples[...,0]
         v = samples[...,1]
         vals = (-torch.log1p(u * torch.expm1(-theta_) \
@@ -223,7 +224,7 @@ class FrankCopula(SingleParamCopulaBase):
                 - u * torch.expm1(-theta_ * v))) \
                 / theta_)
         vals[..., self.theta==0] = samples[..., 0][...,self.theta==0]
-        vals[..., self.theta > 0] = 1. - vals[..., self.theta > 0] # flip for positive thetas here
+        vals[..., self.theta > conf.Frank_Theta_Flip] = 1. - vals[..., self.theta > conf.Frank_Theta_Flip] # flip for highly positive thetas here
         return torch.clamp(vals,0.,1.) # could be slightly higher than 1 due to numerical errors
 
     def log_prob(self, value, safe=True):
@@ -288,11 +289,13 @@ class ClaytonCopula(SingleParamCopulaBase):
         value_ = value.expand(self.theta.shape + torch.Size([2]))
         
         #log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
-        mask = (self.theta > 0) 
-        log_prob[..., mask] = (torch.log(1 + self.theta) + (-1 - self.theta) \
+        #mask = (self.theta > 0) & (self.theta < conf.Clayton_Theta_Max)
+        self.theta = torch.clamp(self.theta,0.,conf.Clayton_Theta_Max)
+        log_prob = (torch.log(1 + self.theta) + (-1 - self.theta) \
                        * torch.log(value).sum(dim=-1) \
                        + (-1 / self.theta - 2) \
-                       * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))[..., mask]
+                       * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))
+        log_prob[self.theta<1e-4] = 0.
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
@@ -343,6 +346,8 @@ class GumbelCopula(SingleParamCopulaBase):
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         value = self._SingleParamCopulaBase__rotate_input(value.clone())
         log_prob = torch.zeros_like(self.theta) # by default
+
+        self.theta = torch.clamp(self.theta,1.,conf.Gumbel_Theta_Max)
 
         h1 = self.theta - 1.0
         h2 = (1.0 - 2.0 * self.theta) / self.theta
