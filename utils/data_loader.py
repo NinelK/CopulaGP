@@ -11,7 +11,7 @@ def load_experimental_data(path,animal,day_name,n1,n2):
 		elif n==-2:
 			data = behaviour_pkl['transformed_licks']
 		elif n==-3:
-			data = behaviour_pkl['transformed_early_reward'] + behaviour_pkl['transformed_late_reward']
+			data = (behaviour_pkl['transformed_early_reward'] + behaviour_pkl['transformed_late_reward'])/2
 		elif n==-4:
 			data = behaviour_pkl['transformed_early_reward']
 		elif n==-5:

@@ -1,4 +1,3 @@
-import time
 import torch
 import numpy as np
 from torch import Tensor
@@ -137,9 +136,9 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 
 	#convert numpy data to tensors (optionally on GPU)
 	if train_x is None:
-		train_x = torch.tensor(X).float().cuda(device=device)
+		train_x = torch.tensor(X).float().to(device=device)
 	if train_y is None:
-		train_y = torch.tensor(Y).float().cuda(device=device)
+		train_y = torch.tensor(Y).float().to(device=device)
 	
 	mixtures = [[]]
 	waics = [-float("inf")]
