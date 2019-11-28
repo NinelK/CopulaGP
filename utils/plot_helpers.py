@@ -1,3 +1,13 @@
+import torch
+from torch import Tensor
+from gpytorch.settings import num_likelihood_samples
+import matplotlib.pyplot as plt
+import numpy as np
+
+import bvcopula
+from . import plot_conf as conf
+#all of these imports are for Plot_Fit only
+
 def Plot_Copula_Density(axes, X, Y, interval_ends, shade=False, color='C0', mrg=.2):
     '''
         Plot Latent Space functions for synthetic data.
@@ -51,14 +61,18 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
         output = model(test_x)
     gplink = model.likelihood.gplink_function
                 
-    thetas, mixes = gplink(output.mean)
+    thetas, mixes = gplink(output.mean, normalized_thetas=True)
     lower, upper = output.confidence_region() #thetas & mix together
-    thetas_low, mixes_low = gplink(lower)
-    thetas_upp, mixes_upp = gplink(upper)
+    thetas_low, mixes_low = gplink(lower, normalized_thetas=True)
+    thetas_upp, mixes_upp = gplink(upper, normalized_thetas=True)
     
     likelihoods = model.likelihood.likelihoods
     copulas = [lik.name for lik in likelihoods]
     rotations = [lik.rotation for lik in likelihoods]
+
+    # thetas = bvcopula._normalize_thetas(thetas,copulas)
+    # thetas_low = bvcopula._normalize_thetas(thetas_low,copulas)
+    # thetas_upp = bvcopula._normalize_thetas(thetas_upp,copulas)
 
     plot_gps(thetas,thetas_low,thetas_upp,ax[0],skip_ind=True)
     plot_gps(mixes,mixes_low,mixes_upp,ax[1])
@@ -68,7 +82,7 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
         assert rho[0].shape == rho[1].shape
         ax[0].plot(rho[0],rho[1], '--', color='grey', label='Pearson\'s rho')
 
-    ax[0].set_ylabel(r'$\theta$')
+    ax[0].set_ylabel(r'$\theta$_normalized')
     ax[0].set_title('Copula parameters'+title)
     ax[1].set_ylabel('[c]')
     ax[1].set_title('Mixing param'+title)
@@ -105,8 +119,8 @@ def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=1000)
     with no_grad():
         output = model(test_x)
     gplink = model.likelihood.gplink_function
-    thetas, mixes = gplink(output.rsample(Size([particles])))
-    #MC sampling is better here, since gplink function at least for mixing 
+    thetas, mixes = gplink(output.rsample(Size([particles])), normalized_thetas=True)
+    #MC sampling is better here, at least for mixing, since gplink function is non-monotonic for them
 
     likelihoods = model.likelihood.likelihoods
     copulas = [lik.name for lik in likelihoods]
@@ -120,7 +134,7 @@ def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=1000)
         assert rho[0].shape == rho[1].shape
         ax[0].plot(rho[0],rho[1], '--', color='grey', label='Pearson\'s rho')
 
-    ax[0].set_ylabel(r'$\theta$')
+    ax[0].set_ylabel(r'$\theta$_normalized')
     ax[0].set_title('Copula parameters'+title)
     ax[1].set_ylabel('[c]')
     ax[1].set_title('Mixing param'+title)
@@ -129,6 +143,87 @@ def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=1000)
         axis.set_xlabel('Position, [cm]')
         axis.set_xlim(x.min(),x.max())
         axis.legend()
+
+def _generate_test_samples(model: bvcopula.Mixed_GPInferenceModel, test_x: Tensor) -> Tensor:
+    
+    with torch.no_grad():
+        output = model(test_x)
+
+    #generate some samples
+    model.eval()
+    with torch.no_grad(), num_likelihood_samples(1):
+        gplink = model.likelihood.gplink_function
+        likelihoods = model.likelihood.likelihoods
+        copulas = [lik.copula for lik in likelihoods]
+        rotations = [lik.rotation for lik in likelihoods]
+        thetas, mixes = gplink(output.mean)
+        test_y = model.likelihood.copula(thetas,mixes,
+                    copulas, rotations=rotations,
+                    theta_sharing=model.likelihood.theta_sharing).rsample()
+        Y_sim = test_y.cpu().detach().numpy()
+
+    return Y_sim
+
+def _get_pearson(X: Tensor, Y: Tensor):
+    from scipy.stats import pearsonr
+
+    X = X.squeeze()
+    assert np.isclose(X.max(),1.0)
+    assert np.isclose(X.min(),0.0)
+    N = int(160/2.5)
+    x = np.linspace(0,1,N)
+    p = np.empty(N)
+
+    for b in range(N):
+        dat = Y[(X>b*(1./N)) & (X<(b+1)*(1./N))]
+        if len(dat)>1:
+            p[b] = pearsonr(*dat.T)[0]
+        
+    p = np.convolve(np.array(p), np.ones((4,))/4, mode='valid')    
+
+    return np.stack([x[2:-1],p])
+
+def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
+            name_x: str, name_y: str, filename: str,
+            device: torch.device):
+    '''
+        The main plotting function that summarises the parameters if the model
+        as well as compares simulated vs. real copula densities.
+    '''
+    # visualize the result
+    fig = plt.figure(figsize=conf.figsize)
+
+    top_axes = (fig.add_axes(conf.top_left_ax),fig.add_axes(conf.top_right_ax))
+    bottom_axes = np.array([fig.add_axes(conf.bottom_ax0),
+                            fig.add_axes(conf.bottom_ax1),
+                            fig.add_axes(conf.bottom_ax2),
+                            fig.add_axes(conf.bottom_ax3)])
+        
+    for a in top_axes:
+        a.axvline(120, color='black', alpha=0.5)
+        a.axvline(140, color='black', alpha=0.5)
+        a.axvline(160, color='black', alpha=0.5)    
+
+    # define test set (optionally on GPU)
+    NSamp = X.shape[0] #by defauls generate as many samples as in training set
+    testX = np.linspace(0,1,NSamp)
+    test_x = torch.tensor(testX).float().cuda(device=device)
+
+    Y_sim = _generate_test_samples(model, test_x)
+        
+    Plot_MixModel_Param_MCMC(top_axes,model,test_x,testX*160,rho=_get_pearson(X,Y),title=' for {} vs {}'.format(name_x,name_y))
+
+    bottom_axes[0].set_ylabel(name_y)
+    bottom_axes[0].set_xlabel(name_x)
+
+    interval_ends = [0,60,120,140,160]
+    Plot_Copula_Density(bottom_axes, testX.squeeze()*160, Y_sim.squeeze(), interval_ends, shade=True)
+    Plot_Copula_Density(bottom_axes, X.squeeze()*160, Y, interval_ends, shade=False, color='#073763ff')
+
+    plt.subplots_adjust(wspace=0.5)
+
+    fig.savefig(filename)
+    plt.close()
 
 class LatentSpacePlot():
     '''

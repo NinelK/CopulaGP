@@ -96,6 +96,10 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
         else:
             return (2*base_distributions.Normal(0,1).cdf(f) - 1)
 
+    @staticmethod
+    def normalize(theta: Tensor) -> Tensor:
+        return theta
+
 class StudentTCopula_Likelihood(Copula_Likelihood_Base):  
     def __init__(self, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
@@ -124,6 +128,10 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
     def gplink_function(f: Tensor) -> Tensor:
         return 0.3*f + f.sign()*(0.3*f)**2 
 
+    @staticmethod
+    def normalize(theta: Tensor) -> Tensor:
+        return theta/conf.Frank_Theta_Max
+
 class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
@@ -134,8 +142,14 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.2*f+1e-4).exp()
+        return (0.3*f+1e-4).exp()
         #maps (-inf, +inf) to [0,max]
+
+    def normalize(self, theta: Tensor) -> Tensor:
+        if (self.rotation == '90°') | (self.rotation == '270°'):
+            return -theta/conf.Clayton_Theta_Max
+        else:
+            return theta/conf.Clayton_Theta_Max
 
 class GumbelCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, rotation=None, **kwargs: Any):
@@ -147,7 +161,13 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.2*f+1e-4).exp() + 1.0
+        return (0.3*f+1e-4).exp() + 1.0
+
+    def normalize(self, theta: Tensor) -> Tensor:
+        if (self.rotation == '90°') | (self.rotation == '270°'):
+            return -(theta-1)/(conf.Gumbel_Theta_Max-1)
+        else:
+            return (theta-1)/(conf.Gumbel_Theta_Max-1)
 
 class GaussianCopula_Flow_Likelihood(Likelihood):
     def __init__(self, batch_shape=torch.Size(), **kwargs: Any):
@@ -226,7 +246,7 @@ class MixtureCopula_Likelihood(Likelihood):
             sum_prob = torch.exp(log_prob).sum(dim=0)
             N = torch.ones_like(pwaic)*self.waic_samples
             lpd=(sum_prob.log()-N.log()).sum() # sum_M log(1/N * sum^i_S p(y|theta_i)), where N is train_x.shape[0]
-        torch.cuda.empty_cache() 
+        #torch.cuda.empty_cache() 
 
         if combine_terms:
             return (lpd-pwaic) #=WAIC
@@ -293,7 +313,7 @@ class MixtureCopula_Likelihood(Likelihood):
                 
             #now calculate MI    
             # P(r) = integral P(r|s) P(s) ds
-            Pr = torch.zeros(samples.shape[0]).cuda(device=0)
+            Pr = torch.zeros(samples.shape[0]).cuda(device=get_cuda_device)
             for i in range(n+1):
                 Pr += logprob[i].exp().detach()*(1/(n+1))
             MIs=0
@@ -346,7 +366,7 @@ class MixtureCopula_Likelihood(Likelihood):
             res = log_prob[log_prob.abs()!=float("inf")].sum(tuple(range(-1, -len(input.event_shape) - 1, -1)))
             return res
 
-    def gplink_function(self, f: Tensor) -> Tensor:
+    def gplink_function(self, f: Tensor, normalized_thetas=False) -> Tensor:
         """
         GP link function transforms the GP latent variable `f` into :math:`\theta`,
         which parameterizes the distribution in :attr:`forward` method as well as the
@@ -366,7 +386,10 @@ class MixtureCopula_Likelihood(Likelihood):
             get_cuda_device = f.get_device()
         
             for i, lik in enumerate(self.likelihoods):
-                thetas.append(lik.gplink_function(f[...,self.theta_sharing[i],:]))
+                theta = lik.gplink_function(f[...,self.theta_sharing[i],:])
+                if normalized_thetas==True:
+                    theta = lik.normalize(theta)
+                thetas.append(theta)
                 prob = torch.ones_like(f[...,0,:])
                 for j in range(i):
                     p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
@@ -380,7 +403,10 @@ class MixtureCopula_Likelihood(Likelihood):
                 mix.append(prob)
         else:
             for i, lik in enumerate(self.likelihoods):
-                thetas.append(lik.gplink_function(f[...,self.theta_sharing[i],:]))
+                theta = lik.gplink_function(f[...,self.theta_sharing[i],:])
+                if normalized_thetas==True:
+                    theta = lik.normalize(theta)
+                thetas.append(theta)
                 prob = torch.ones_like(f[...,0,:])
 
                 for j in range(i):

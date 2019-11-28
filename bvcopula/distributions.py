@@ -267,7 +267,8 @@ class ClaytonCopula(SingleParamCopulaBase):
         vals = torch.zeros_like(thetas_)
         vals[thetas_<=min_lim] = samples[thetas_<=min_lim][..., 0] #for self.theta == 0
         nonzero_theta = thetas_[thetas_>min_lim]
-        unstable_part = (samples[thetas_>min_lim][..., 0] * (samples[thetas_>min_lim][..., 1]**(1 + nonzero_theta))) \
+        unstable_part = torch.empty_like(vals)
+        unstable_part[thetas_>min_lim] = (samples[thetas_>min_lim][..., 0] * (samples[thetas_>min_lim][..., 1]**(1 + nonzero_theta))) \
                 ** (-nonzero_theta / (1 + nonzero_theta))
         if unstable_part.numel() > 0:
             unstable_part = unstable_part.reshape(*samples.shape[:-1])
