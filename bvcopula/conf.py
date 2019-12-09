@@ -12,9 +12,9 @@ loss_tol2check_waic = 0.005
 # which should not become +inf
 Gauss_Safe_Theta = 0.9999	# (-safe,+safe), for safe mode, otherwise (-1,1)
 Frank_Theta_Max = 16.8 		# (-max, max)
-Frank_Theta_Flip = 10.0
+Frank_Theta_Flip = 9.0
 Clayton_Theta_Max = 9.4 	# (0, max)
-Gumbel_Theta_Max = 11.0		# (1, max)
+Gumbel_Theta_Max = 10.0		# (1, max)
 # looser limits for sample generation
 Frank_Theta_Sampling_Max = 88.0 	# (-max, max)
 Clayton_Theta_Sampling_Max = 22.5 	# (0, max)

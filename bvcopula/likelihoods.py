@@ -80,6 +80,10 @@ class IndependenceCopula_Likelihood(Likelihood):
     def forward(self, *params: Any, **kwargs: Any) -> IndependenceCopula:
         return self.copula()
 
+    @staticmethod
+    def normalize(theta: Tensor) -> Tensor:
+        return theta
+
 class GaussianCopula_Likelihood(Copula_Likelihood_Base):
     def __init__(self, **kwargs: Any):
         super(Copula_Likelihood_Base, self).__init__(**kwargs)
@@ -90,11 +94,11 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        if f.is_cuda:
-            get_cuda_device = f.get_device()
-            return (2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
-        else:
-            return (2*base_distributions.Normal(0,1).cdf(f) - 1)
+        return torch.erf(f/1.4)
+
+    @staticmethod
+    def normalize(theta: Tensor) -> Tensor:
+        return theta
 
     @staticmethod
     def normalize(theta: Tensor) -> Tensor:
@@ -110,11 +114,7 @@ class StudentTCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        if f.is_cuda:
-            get_cuda_device = f.get_device()
-            return (2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
-        else:
-            return (2*base_distributions.Normal(0,1).cdf(f) - 1)
+        return torch.erf(f)
 
 class FrankCopula_Likelihood(Copula_Likelihood_Base):  
     def __init__(self, **kwargs: Any):

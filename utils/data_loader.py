@@ -35,8 +35,8 @@ def load_experimental_data(path,animal,day_name,n1,n2):
 	Y_all = np.array([data1,data2]).T
 	X_all = np.array(behaviour_pkl['position'])#local_time
 
-	rule = (Y_all[:,0]>1e-4) & (Y_all[:,1]>1e-4)  \
-	        & (Y_all[:,0]<1.-1e-4) & (Y_all[:,1]<1.-1e-4)
+	rule = (Y_all[:,0]>0) & (Y_all[:,1]>0)  \
+	        & (Y_all[:,0]<1) & (Y_all[:,1]<1)
 	 
 	X = np.reshape(X_all[rule],(-1,1))
 	X[X<0] = 160.+X[X<0]

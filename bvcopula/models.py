@@ -122,7 +122,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
             Standard error of the mixed vine entropy estimate in bits.
         '''
         # Gaussian confidence interval for sem_tol and level alpha
-        conf = torch.distributions.normal.Normal(torch.zeros(1),torch.ones(1)).icdf(torch.tensor([1. - alpha]))
+        conf = torch.erfinv(torch.tensor([1. - alpha]))
         sem = float('inf')
         ent = torch.zeros(1)
         var_sum = torch.zeros(1)

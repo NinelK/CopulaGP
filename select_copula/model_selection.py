@@ -129,8 +129,8 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 	exp_pref: str, path_output: str, name_x: str, name_y: str,
 	train_x = None, train_y = None):
 
-	exp_name = exp_name = '{}_{}_{}-{}'.format(exp_pref,device,name_x,name_y)
-	log_name = '{}/log_{}.txt'.format(path_output,exp_name)
+	exp_name = '{}_{}-{}'.format(exp_pref,name_x,name_y)
+	log_name = '{}/log_{}_{}.txt'.format(path_output,device,exp_name)
 	logging.getLogger("matplotlib").setLevel(logging.WARNING)
 	logging.basicConfig(filename=log_name, filemode='w', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -147,7 +147,12 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 		(likelihoods, waic) = add_copula(X,Y,train_x,train_y,device,mixtures[-1],exp_name,path_output,name_x,name_y)
 		num_elements = len(likelihoods)
 		if _check_history(likelihoods,mixtures): #if nothing changed since last iteration
-			if (num_elements<3) | (waic >= max(waics)):
+			if (waic < conf.waic_threshold*X.shape[0]):
+				logging.info('The variables are independent (waic less than {:.3f}).'.format(conf.waic_threshold*X.shape[0]))	
+				mixtures.append([bvcopula.IndependenceCopula_Likelihood()])
+				waics.append(0)
+				break
+			elif (num_elements<3) | (waic >= max(waics)):
 				mixtures.append(likelihoods)
 				waics.append(waic)
 			else:
@@ -162,13 +167,14 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 	logging.info("The best model is {} with WAIC = {:.0f}".format(utils.get_copula_name_string(mixtures[best_ind]),waics[best_ind]))
 
 	# copy the very best model 
-	name = '{}_{}'.format(exp_name,utils.get_copula_name_string(mixtures[best_ind]))
-	source = '{}/w_{}.pth'.format(path_output,name)
-	target = '{}/model_{}.pth'.format(path_output,exp_name)
-	os.popen('cp {} {}'.format(source,target)) 
-	source = '{}/res_{}.png'.format(path_output,name)
-	target = '{}/best_{}.png'.format(path_output,exp_name)
-	os.popen('cp {} {}'.format(source,target))
+	if (utils.get_copula_name_string(mixtures[best_ind])!='Independence'):
+		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(mixtures[best_ind]))
+		source = '{}/w_{}.pth'.format(path_output,name)
+		target = '{}/model_{}.pth'.format(path_output,exp_name)
+		os.popen('cp {} {}'.format(source,target)) 
+		source = '{}/res_{}.png'.format(path_output,name)
+		target = '{}/best_{}.png'.format(path_output,exp_name)
+		os.popen('cp {} {}'.format(source,target))
 
 	print('History:')
 	for mix,waic in zip(mixtures[1:],waics[1:]):

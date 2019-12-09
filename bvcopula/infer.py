@@ -37,11 +37,22 @@ def _get_theta_sharing(likelihoods, theta_sharing):
 		num_fs = 2*len(likelihoods)-1
 	return theta_sharing, num_fs
 
+def _grid_size(num_copulas):
+	if num_copulas<4:
+		grid_size = conf.grid_size
+	else:
+		grid_size = int(conf.grid_size/(num_copulas/2))
+	return grid_size
+
 def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 			theta_sharing=None,
 			output_loss = None):
 
 	theta_sharing, num_fs = _get_theta_sharing(likelihoods, theta_sharing)
+
+	if device!=torch.device('cpu'):
+		with torch.cuda.device(device):
+			torch.cuda.empty_cache()
 
 	logging.info('Trying {}'.format(utils.get_copula_name_string(likelihoods)))
 
@@ -51,7 +62,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 								theta_sharing=theta_sharing), 
                             num_fs,  
                             prior_rbf_length=0.5, 
-                            grid_size=conf.grid_size).to(device=device)
+                            grid_size=_grid_size(len(likelihoods))).to(device=device).float()
 
 	optimizer = torch.optim.Adam([
 	    {'params': model.mean_module.parameters()},
@@ -124,7 +135,9 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	        optimizer.step()
 
 	t1 = time.time()
-	train(train_x,train_y)
+
+	if (len(likelihoods)!=1) | (likelihoods[0].name!='Independence'):
+		train(train_x,train_y)
 
 	if nans_detected==1:
 		logging.warning('NaNs were detected in gradients.')
@@ -158,7 +171,7 @@ def load_model(filename, likelihoods, device: torch.device,
 								theta_sharing=theta_sharing), 
                             num_fs,  
                             prior_rbf_length=0.5, 
-                            grid_size=conf.grid_size).to(device=device)
+                            grid_size=_grid_size(len(likelihoods))).to(device=device)
 
 	model.load_state_dict(torch.load(filename))
 	model.eval()

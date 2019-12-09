@@ -6,10 +6,11 @@ import torch
 import gpytorch
 import utils
 import bvcopula
+import pytest
 from bvcopula import conf
 from numpy.testing import assert_allclose
 
-def test_extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=torch.device('cpu')):
+def extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=torch.device('cpu')):
 
     t1 = time.time()
 
@@ -59,9 +60,8 @@ def test_extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=to
     else:
         return 0
 
-def main():
-
-    start = time.time()
+def try_copula(likelihood, minTh, midTh, maxTh, 
+                ex_atol, mid_atol):
 
     NSamp=2500
     X = np.linspace(0.,1.,NSamp)
@@ -71,25 +71,36 @@ def main():
     # mid theta corresponding to maximal gradient in gp_link (can generate NaN in gradients)
     # max theta (can fail the test)
 
-    gauss, frank, clayton, gumbel = 0,0,0,0
+    success = 0
+    success+=extreme_thetas_inference(X, likelihood, torch.full([NSamp],minTh).float(),atol=ex_atol)
+    success+=extreme_thetas_inference(X, likelihood, torch.full([NSamp],midTh).float(),atol=mid_atol)
+    success+=extreme_thetas_inference(X, likelihood, torch.full([NSamp],maxTh).float(),atol=ex_atol)
 
-    gumbel+=test_extreme_thetas_inference(X, bvcopula.GumbelCopula_Likelihood(),torch.full([NSamp],conf.Gumbel_Theta_Max).float(),atol=.5)
-    gumbel+=test_extreme_thetas_inference(X, bvcopula.GumbelCopula_Likelihood(),torch.full([NSamp],1.).float(),atol=.5)
-    gumbel+=test_extreme_thetas_inference(X, bvcopula.GumbelCopula_Likelihood(),torch.full([NSamp],1.+np.sqrt(conf.Gumbel_Theta_Max-1.)).float(),atol=.5)
+    assert success==3
 
-    clayton+=test_extreme_thetas_inference(X, bvcopula.ClaytonCopula_Likelihood(),torch.full([NSamp],conf.Clayton_Theta_Max).float(),atol=.5)
-    clayton+=test_extreme_thetas_inference(X, bvcopula.ClaytonCopula_Likelihood(),torch.full([NSamp],0.).float(),atol=.5)
-    clayton+=test_extreme_thetas_inference(X, bvcopula.ClaytonCopula_Likelihood(),torch.full([NSamp],np.sqrt(conf.Clayton_Theta_Max)-0.1).float(),atol=.5)
+def test_gumbel():
+    try_copula(bvcopula.GumbelCopula_Likelihood(),1.,1.+np.sqrt(conf.Gumbel_Theta_Max-1.),conf.Gumbel_Theta_Max,
+                .5, .5)
 
-    frank+=test_extreme_thetas_inference(X, bvcopula.FrankCopula_Likelihood(),torch.full([NSamp],+conf.Frank_Theta_Max).float(),atol=0.7)
-    frank+=test_extreme_thetas_inference(X, bvcopula.FrankCopula_Likelihood(),torch.full([NSamp],-conf.Frank_Theta_Max).float(),atol=0.7)
-    frank+=test_extreme_thetas_inference(X, bvcopula.FrankCopula_Likelihood(),torch.full([NSamp],0.).float(),atol=0.1) #it's Frank copula (-inf,+inf)
+def test_clayton():
+    try_copula(bvcopula.ClaytonCopula_Likelihood(),0.,np.sqrt(conf.Clayton_Theta_Max)-0.1,conf.Clayton_Theta_Max,
+                .7, .7)
 
-    gauss+=test_extreme_thetas_inference(X, bvcopula.GaussianCopula_Likelihood(),torch.full([NSamp],1.).float(),atol=1e-4)
-    gauss+=test_extreme_thetas_inference(X, bvcopula.GaussianCopula_Likelihood(),torch.full([NSamp],0.).float(),atol=0.15)
-    gauss+=test_extreme_thetas_inference(X, bvcopula.GaussianCopula_Likelihood(),torch.full([NSamp],-1.).float(),atol=1e-4)
+def test_gauss():
+    try_copula(bvcopula.GaussianCopula_Likelihood(),-1.,0.,1.,
+                1e-4, .15)
 
-    print("Gauss ({}%), Frank ({}%), Clayton ({}%), Gumbel ({}%)".format(int(gauss*100/3),int(frank*100/3),int(clayton*100/3),int(gumbel*100/3)))
+def test_frank():
+    try_copula(bvcopula.FrankCopula_Likelihood(),-conf.Frank_Theta_Max,0.,conf.Frank_Theta_Max,
+                1., .1)
+
+if __name__ == "__main__":
+    start = time.time()
+
+    try_gumbel()
+    try_clayton()
+    try_frank()
+    try_gauss()
 
     end = time.time()
 
@@ -99,7 +110,3 @@ def main():
     seconds = (int(total_time)%(60))
     print("All tests took {} h {} min {} s ({})".format(hours,minutes,seconds,int(total_time)))
 
-    assert gauss+frank+clayton+gumbel==12
-
-if __name__ == "__main__":
-    main()

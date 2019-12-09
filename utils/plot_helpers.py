@@ -168,8 +168,8 @@ def _get_pearson(X: Tensor, Y: Tensor):
     from scipy.stats import pearsonr
 
     X = X.squeeze()
-    assert np.isclose(X.max(),1.0)
-    assert np.isclose(X.min(),0.0)
+    assert np.isclose(X.max(),1.0,atol=1e-4)
+    assert np.isclose(X.min(),0.0,atol=1e-4)
     N = int(160/2.5)
     x = np.linspace(0,1,N)
     p = np.empty(N)
@@ -181,7 +181,32 @@ def _get_pearson(X: Tensor, Y: Tensor):
         
     p = np.convolve(np.array(p), np.ones((4,))/4, mode='valid')    
 
-    return np.stack([x[2:-1],p])
+    return np.stack([x[2:-1]*160,p])
+
+def _code_names(code):
+    if isinstance(code, str):
+        return code
+    elif isinstance(code, int):
+        if code>1:
+            return 'Neuron {}'.format(code)
+        elif code==1:
+            return 'Neuropil'
+        elif code==0:
+            return 'Background'
+        elif code==-1:
+            return 'Velocity'
+        elif code==-2:
+            return 'Licks'
+        elif code==-3:
+            return 'Reward'
+        elif code==-4:
+            return 'Early Reward'
+        elif code==-5:
+            return 'Late Reward'
+        else:
+            return 'Unknown code'
+    else:
+        return 'Code not int or str'
 
 def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
             name_x: str, name_y: str, filename: str,
@@ -210,6 +235,9 @@ def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
     test_x = torch.tensor(testX).float().cuda(device=device)
 
     Y_sim = _generate_test_samples(model, test_x)
+
+    name_x = _code_names(name_x)
+    name_y = _code_names(name_y)
         
     Plot_MixModel_Param_MCMC(top_axes,model,test_x,testX*160,rho=_get_pearson(X,Y),title=' for {} vs {}'.format(name_x,name_y))
 

@@ -10,7 +10,12 @@ import bvcopula
 from bvcopula import conf
 from numpy.testing import assert_allclose
 
-def test_model_selection(mode, X, likelihoods, device=torch.device('cuda:1')):
+import pytest
+
+def model_selection(mode, likelihoods, device=torch.device('cpu')):
+
+    NSamp=2000
+    X = np.linspace(0.,1.,NSamp)
 
     if len(likelihoods)==1:
         assert mode=='thetas'
@@ -29,15 +34,17 @@ def test_model_selection(mode, X, likelihoods, device=torch.device('cuda:1')):
                                                 './temp','{}1'.format(mode[0]),'{}2'.format(mode[0]),
                                                 train_x=train_x,train_y=train_y)
 
-    if (select_copula.available_elements(likelihoods) == select_copula.available_elements(selected)):
-        print('Pass. Model identified correctly!')
-        return 0
-    else:
-        waic, model = bvcopula.infer(likelihoods,train_x,train_y,device=device)
-        print('Fail. WAIC of a correct model: {:.0f}'.format(waic))
-        return 1
+    assert (select_copula.available_elements(likelihoods) == select_copula.available_elements(selected))
 
-    logging.info("Result: {} -> {}".format(utils.get_copula_name_string(likelihoods),utils.get_copula_name_string(selected)))
+    # if (select_copula.available_elements(likelihoods) == select_copula.available_elements(selected)):
+    #     print('Pass. Model identified correctly!')
+    #     return 0
+    # else:
+    #     waic, model = bvcopula.infer(likelihoods,train_x,train_y,device=device)
+    #     print('Fail. WAIC of a correct model: {:.0f}'.format(waic))
+    #     return 1
+
+    # logging.info("Result: {} -> {}".format(utils.get_copula_name_string(likelihoods),utils.get_copula_name_string(selected)))
 
 def generate_thetas(likelihoods,n):
     m = len(likelihoods)
@@ -53,6 +60,8 @@ def generate_thetas(likelihoods,n):
             thetas[i] = conf.Clayton_Theta_Max/4*torch.abs(sin) #sin=0=independence
         elif lik.name == 'Gumbel':
             thetas[i] = 1.+(conf.Gumbel_Theta_Max/1.4-1.)/4*torch.abs(sin)
+        elif lik.name == 'Independence':
+            thetas[i] = 0.
         else:
             raise('Unknown copula')
             
@@ -102,68 +111,65 @@ def create_model(mode,likelihoods,n):
         raise('Unknown model generation mode')
     return copula_model
 
-def main():
+def test_Independence():
+    model_selection('thetas', [bvcopula.IndependenceCopula_Likelihood()])
+
+def test_Gaussian():
+    model_selection('thetas', [bvcopula.GaussianCopula_Likelihood()])
+
+def test_Frank():
+    model_selection('thetas', [bvcopula.FrankCopula_Likelihood()])
+
+def test_Clayton():
+    rot = np.random.choice(['0°','90°','180°','270°'])
+    model_selection('thetas', [bvcopula.ClaytonCopula_Likelihood(rotation=rot)])
+
+def test_Gumbel():
+    rot = np.random.choice(['0°','90°','180°','270°'])
+    model_selection('thetas', [bvcopula.GumbelCopula_Likelihood(rotation=rot)])
+
+if __name__ == "__main__":
 
     start = time.time()
 
-    NSamp=20000
-    X = np.linspace(0.,1.,NSamp)
-
-    fails = 0
-
-    likelihoods = [bvcopula.GaussianCopula_Likelihood()]
-    fails += test_model_selection('thetas', X, likelihoods)
-    likelihoods = [bvcopula.FrankCopula_Likelihood()]
-    fails += test_model_selection('thetas', X, likelihoods)
+    model_selection('thetas', [bvcopula.GaussianCopula_Likelihood()])
+    model_selection('thetas', [bvcopula.FrankCopula_Likelihood()])
     for rot in ['0°','90°','180°','270°']:
-        likelihoods = [bvcopula.ClaytonCopula_Likelihood(rotation=rot)]
-        fails += test_model_selection('thetas', X, likelihoods)
-        likelihoods = [bvcopula.GumbelCopula_Likelihood(rotation=rot)]
-        fails += test_model_selection('thetas', X, likelihoods)
+        model_selection('thetas', [bvcopula.ClaytonCopula_Likelihood(rotation=rot)])
+        model_selection('thetas', [bvcopula.GumbelCopula_Likelihood(rotation=rot)])
 
     for mode in ['mixes','thetas']:
 
-        likelihoods = [bvcopula.GumbelCopula_Likelihood(rotation='90°'),
-                    bvcopula.GaussianCopula_Likelihood()]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.GumbelCopula_Likelihood(rotation='90°'),
+                                    bvcopula.GaussianCopula_Likelihood()])
 
-        likelihoods = [bvcopula.GaussianCopula_Likelihood(),
-                    bvcopula.ClaytonCopula_Likelihood(rotation='270°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.GaussianCopula_Likelihood(),
+                                    bvcopula.ClaytonCopula_Likelihood(rotation='270°')])
 
-        likelihoods = [bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
-                    bvcopula.GumbelCopula_Likelihood(rotation='270°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='270°')])
 
-        likelihoods = [bvcopula.FrankCopula_Likelihood(),
-                    bvcopula.GumbelCopula_Likelihood(rotation='180°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.FrankCopula_Likelihood(),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='180°')])
 
-        likelihoods = [bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
-                    bvcopula.GumbelCopula_Likelihood(rotation='270°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='270°')])
 
-        likelihoods = [bvcopula.GaussianCopula_Likelihood(),
-                    bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
-                    bvcopula.GumbelCopula_Likelihood(rotation='0°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.GaussianCopula_Likelihood(),
+                                    bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='0°')])
 
-        likelihoods = [bvcopula.FrankCopula_Likelihood(),
-                    bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
-                    bvcopula.GumbelCopula_Likelihood(rotation='0°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.FrankCopula_Likelihood(),
+                                    bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='0°')])
 
-        likelihoods = [bvcopula.FrankCopula_Likelihood(),
-                    bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
-                    bvcopula.GumbelCopula_Likelihood(rotation='270°')]
-        fails += test_model_selection(mode, X, likelihoods)
+        model_selection(mode, [bvcopula.FrankCopula_Likelihood(),
+                                    bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='270°')])
 
-        likelihoods = [bvcopula.GumbelCopula_Likelihood(rotation='0°'),
-                    bvcopula.GumbelCopula_Likelihood(rotation='180°'),
-                    bvcopula.ClaytonCopula_Likelihood(rotation='90°')]
-        fails += test_model_selection(mode, X, likelihoods)
-
-    print('{} tests failed.'.format(fails))
+        model_selection(mode, [bvcopula.GumbelCopula_Likelihood(rotation='0°'),
+                                    bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+                                    bvcopula.ClaytonCopula_Likelihood(rotation='90°')])
 
     end = time.time()
 
@@ -172,6 +178,3 @@ def main():
     minutes = int(total_time/60)%60
     seconds = (int(total_time)%(60))
     print("All tests took {} h {} min {} s ({})".format(hours,minutes,seconds,int(total_time)))
-
-if __name__ == "__main__":
-    main()

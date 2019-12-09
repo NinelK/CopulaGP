@@ -7,14 +7,16 @@ Greedy algorithm performs well on synthetic data (see tests/integration).
 
 ## TODO
 
-- [ ] Add Independence to model selection
+- [x] Add Independence to model selection
+	- [x] Test Independence
+	- [ ] Add proper weight sharing to reduce memory usage
 - [ ] Fix MI
 	- [ ] Use GP mean instead of the doubly-stochastic model
 	- [ ] Make MI/FI for marginals
 	- [ ] Make a post-processing tool that loads models and checks how tuning differs for neurons vs. their dependence
-- [ ] Check computation_time(max_waic), as it looks dependent
+- [x] Check computation_time(max_waic), as it looks dependent (nothing interesting)
 - [ ] Visualize the most frequently used models (first choice, combinations, etc.)
-- [ ] Wrap integration tests in pytest and add to travis
+- [x] Wrap integration tests in pytest and add to travis
 - [ ] (!) Implement vine copula models
 - [ ] Add transformation of the marginals to this package (move from data processing package)
 - [ ] Implement 1-param Student-T copula

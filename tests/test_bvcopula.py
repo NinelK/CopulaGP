@@ -25,7 +25,7 @@ class TestCopulaLogPDF(unittest.TestCase):
 		r_logpdf = np.array([-np.inf, 0.2165361255, 0.1438410362,
 		                     0.2165361255, -np.inf])
 		p_logpdf = gaussian_copula.log_prob(samples.squeeze()).numpy()
-		assert_allclose(p_logpdf, r_logpdf)
+		assert_allclose(p_logpdf, r_logpdf,atol=1e-6)
 
 		frank_copula = FrankCopula(torch.tensor(np.full(5,5)).float())
 		# Comparison values
