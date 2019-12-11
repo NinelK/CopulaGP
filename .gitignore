@@ -3,3 +3,5 @@
 logs
 .ipynb_checkpoints/
 figures/
+temp*
+out*
