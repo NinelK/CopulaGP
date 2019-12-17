@@ -95,12 +95,13 @@ def test_frank():
                 1., .1)
 
 if __name__ == "__main__":
+
     start = time.time()
 
-    try_gumbel()
-    try_clayton()
-    try_frank()
-    try_gauss()
+    test_gumbel()
+    test_clayton()
+    test_frank()
+    test_gauss()
 
     end = time.time()
 
