@@ -1,4 +1,3 @@
-import statsmodels.api as sm
 import numpy as np
 from fastkde import fastKDE
 

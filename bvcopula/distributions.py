@@ -532,7 +532,7 @@ class MixtureCopula(Distribution):
         onehot = torch.distributions.one_hot_categorical.OneHotCategorical(
             probs=torch.einsum('i...->...i', self.mix)).sample()
         onehot = torch.einsum('...i->i...', onehot)
-        onehot = onehot.type(torch.ByteTensor)
+        onehot = onehot.type(torch.bool)
         for i,c in enumerate(self.copulas):
             if c.num_thetas == 0:
                 samples[onehot[i],...] = c(self.theta[self.theta!=self.theta]).sample(self.theta[i,onehot[i]].shape)
