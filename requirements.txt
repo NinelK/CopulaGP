@@ -1,7 +1,6 @@
 attrs==19.3.0
 backcall==0.1.0
 cycler==0.10.0
-Cython==0.29.14
 decorator==4.4.1
 fastkde==1.0.13
 gpytorch==0.3.6

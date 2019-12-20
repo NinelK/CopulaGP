@@ -173,7 +173,7 @@ def load_model(filename, likelihoods, device: torch.device,
                             prior_rbf_length=0.5, 
                             grid_size=_grid_size(len(likelihoods))).to(device=device)
 
-	model.load_state_dict(torch.load(filename))
+	model.load_state_dict(torch.load(filename, map_location=device))
 	model.eval()
 
 	return model
