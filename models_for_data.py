@@ -9,24 +9,34 @@ import multiprocessing
 import utils
 import select_copula
 
-gpu_id_list = range(1) 
+import traceback
+import warnings
+import sys
+
+gpu_id_list = range(2) 
+unique_id_list = np.random.randint(0,10000,len(gpu_id_list)) #TODO: make truely unique
 #[i//2 for i in range(8*2)]  # 2 workers on each GPU
 
-animal = 'ST264'
-dayN = 1
+animal = 'ST262'
+dayN = 4
 day_name = 'Day{}'.format(dayN)
 path2data = '/home/nina/VRData/Processing/pkls'
 
 exp_pref = '{}_{}'.format(animal,day_name)
 
-out_dir = 'out_london/'+exp_pref
+out_dir = 'out_christmas/'+exp_pref
 try:
 	os.mkdir(out_dir)
 except FileExistsError as error:
 	print(error)
 
-NN = 34 #number of neurons
+NN = 61 #number of neurons
 beh = 5
+
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+    log = file if hasattr(file,'write') else sys.stderr
+    traceback.print_stack(file=log)
+    log.write(warnings.formatwarning(message, category, filename, lineno, line))
 
 def worker(n1,n2):
 	#get unique gpu id for cpu id
@@ -36,7 +46,7 @@ def worker(n1,n2):
 
 	device_str = 'cuda:{}'.format(gpu_id)
 
-	unique_id = cpu_id
+	unique_id = unique_id_list[cpu_id]
 	results = np.empty((NN+beh,NN+beh),dtype=object)
 
 	X,Y = utils.load_experimental_data(path2data, animal, day_name, n1, n2)
@@ -65,14 +75,17 @@ def worker(n1,n2):
 	return 0
 
 if __name__ == '__main__':
-	pool = multiprocessing.Pool(len(gpu_id_list))
 
-	for n1 in range(0,NN-1):
-		for n2 in range(n1+1,NN):
-			res = pool.apply_async(worker, (n1,n2,))
-	pool.close()
-	pool.join()  # block at this line until all processes are done
-	print("completed")
+    warnings.showwarning = warn_with_traceback
+
+    pool = multiprocessing.Pool(len(gpu_id_list))
+
+    for n1 in range(-beh,NN-1):
+        for n2 in range(n1+1,NN):
+            res = pool.apply_async(worker, (n1,n2,))
+    pool.close()
+    pool.join()  # block at this line until all processes are done
+    print("completed")
 		
 
 
