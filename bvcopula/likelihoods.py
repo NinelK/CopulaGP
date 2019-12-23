@@ -253,6 +253,19 @@ class MixtureCopula_Likelihood(Likelihood):
         else:
             return lpd,pwaic
 
+    def _get_copula(self, f, sample_size):
+        '''
+            TODO: write docstr
+        '''
+        thetas, mixes = self.gplink_function(f)
+        thetas = thetas.expand(sample_size+thetas.shape)
+        mixes = mixes.expand(sample_size+mixes.shape)
+        thetas = torch.einsum('ijk->jki', thetas) # now: [copulas, positions, samples]
+        mixes = torch.einsum('ijk->jki', mixes)
+        copulas = [lik.copula for lik in self.likelihoods]
+        rotations = [lik.rotation for lik in self.likelihoods]
+        return self.copula(thetas,mixes,copulas,rotations=rotations)
+
     def input_information(self, model: Mixed_GPInferenceModel, samples: Tensor, n: int, length: float, ignore_GP_uncertainty=False):
         '''
             Computes Fisher Information and Mutual information
