@@ -497,6 +497,35 @@ class MixtureCopula(Distribution):
         #TODO Check theta when there will be more than 1 param. Now it is checked by gpytorch
         batch_shape, event_shape = self.theta.shape, torch.Size([2])
         super(MixtureCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
+
+    def _entropy_given_params(self, alpha=0.05, sem_tol=1e-3):
+        '''
+            TODO: write docstr
+        '''
+        # Gaussian confidence interval for sem_tol and level alpha
+        conf = torch.erfinv(torch.tensor([1. - alpha]))
+        sem = torch.ones(self.theta.shape[1])*float('inf')
+        ent = torch.zeros(self.theta.shape[1])
+        var_sum = torch.zeros(self.theta.shape[1])
+        log2 = torch.tensor([2.]).log()
+        k = 0
+        mc_size = self.theta.shape[-1]
+        with torch.no_grad():
+            while torch.all(sem >= sem_tol):
+                # Generate samples
+                samples = self.rsample()
+                assert samples.dim()==3 # [conditioning_variable, samples, 2]
+                logp = self.log_prob(samples)
+                assert torch.all(logp==logp)
+                assert torch.all(logp.abs()!=float("inf")) #otherwise make masked tensor below
+                log2p = logp / log2 #maybe should check for inf 2 lines earlier
+                k += 1
+                # Monte-Carlo estimate of entropy
+                ent += (-log2p.mean(dim=(-1)) - ent) / k
+                # Estimate standard error
+                var_sum += ((-log2p.t() - ent) ** 2).sum(dim=0)
+                sem = conf * (var_sum / (k * mc_size * (k * mc_size - 1))).pow(.5)
+        return ent#, sem
     
     def expand(self, batch_shape, _instance=None):
         new = self._get_checked_instance(MixtureCopula, _instance)
