@@ -4,6 +4,7 @@ from typing import Any
 from gpytorch.likelihoods.likelihood import Likelihood
 from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
+from gpytorch.settings import num_gauss_hermite_locs
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
 
 from .distributions import IndependenceCopula, GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
@@ -234,14 +235,13 @@ class MixtureCopula_Likelihood(Likelihood):
             `FI` (Fisher information)
             `MI` (Mutual information)
         '''
-        copulas = [lik.copula for lik in self.likelihoods]
-        rotations = [lik.rotation for lik in self.likelihoods]
 
         with torch.no_grad():
-            f_samples = gp_distr.rsample(torch.Size([self.waic_samples]))
-            thetas, mixes = self.gplink_function(f_samples)
-            log_prob = self.copula(thetas,mixes,copulas,rotations=rotations).\
-                    log_prob(target).detach()
+            samples_shape = torch.Size([self.waic_samples])
+            f_samples = gp_distr.rsample(samples_shape) # [sample shape x GP variables x batch_shape (diff positions)]
+            # from GP perspective it is [sample x batch x event] dims
+            target = target.expand(samples_shape+target.shape)
+            log_prob = self.get_copula(f_samples).log_prob(target).detach()
             pwaic = torch.var(log_prob,dim=0).sum()
             sum_prob = torch.exp(log_prob).sum(dim=0)
             N = torch.ones_like(pwaic)*self.waic_samples
@@ -253,89 +253,129 @@ class MixtureCopula_Likelihood(Likelihood):
         else:
             return lpd,pwaic
 
-    def _get_copula(self, f, sample_size):
+    def get_copula(self, f):
         '''
-            TODO: write docstr
+        Returns a copula given the GP sample
         '''
         thetas, mixes = self.gplink_function(f)
-        thetas = thetas.expand(sample_size+thetas.shape)
-        mixes = mixes.expand(sample_size+mixes.shape)
-        thetas = torch.einsum('ijk->jki', thetas) # now: [copulas, positions, samples]
-        mixes = torch.einsum('ijk->jki', mixes)
         copulas = [lik.copula for lik in self.likelihoods]
         rotations = [lik.rotation for lik in self.likelihoods]
         return self.copula(thetas,mixes,copulas,rotations=rotations)
 
-    def input_information(self, model: Mixed_GPInferenceModel, samples: Tensor, n: int, length: float, ignore_GP_uncertainty=False):
+    def stimMI(likelihood, S, F, alpha=0.05, sem_tol=1e-3,
+        s_mc_size=200, r_mc_size=20, sR_mc_size=5000):
         '''
-            Computes Fisher Information and Mutual information
-        Args:
-            :attr:`model` (:class:`bvcopula.models.Mixed_GPInferenceModel`)
-                Trained Gaussian Process for copual parameter inference
-            :attr:`samples` (:class:`torch.Tensor`)
-                Values of :math:`y`.
-            :attr:`n` (:class:`int`)
-                Number of points in input space for logprob estimation
-            :attr:`length` (:class:`float`)
-                Length of the input space in physical units (seconds/cm/...). 
-                Provides scale for derivative in FI.
-            :attr:`ignore_GP_uncertainty` (:class:`bool`)
-                If True, then mean value of GP is used. 
-                Otherwise (False), full doubly-stochastic model is used for logprob estimation.
+        Estimates the mutual information between the stimulus 
+        (conditioning variable) and the response (observable variables
+        modelled with copula mixture) with the Robbins-Monro algorithm.
+        Parameters
+        ----------
+        S: Tensor
+            A representative set that defines the distribution of 
+            the conditioning variable
+        F: Tensor
+            A batch of values from GP copula parameter priors,
+            taken on a set S 
+        alpha : float, optional
+            Significance level of the entropy estimate.  (Default: 0.05)
+        sem_tol : float, optional
+            Maximum standard error as a stopping criterion.  (Default: 1e-3)
+        s_mc_size : integer, optional
+            Number of stimuli samples that are drawn from S in each iteration 
+            of the MI estimation.  (Default: 200)
+        r_mc_size : integer, optional
+            Number of response samples that are drawn from a copula model for 
+            a set of stimuli (size of s_mc_size) in each iteration of 
+            the MI estimation.  (Default: 20)
+        sR_mc_size : integer, optional            
+            Number of stimuli samples that are drawn from S in each iteration 
+            of the p(R) estimation. (Default: 5000)
         Returns
-            `FI` (Fisher information)
-            `MI` (Mutual information)
+        -------
+        ent : float
+            Estimate of the MI in bits.
+        sem : float
+            Standard error of the MI estimate in bits.
         '''
-        ds = length/n
-        logprob = torch.empty([n+1,samples.shape[0]])
-        if ignore_GP_uncertainty:
-            points = torch.arange(n+1).float()/n
-
-        if samples.is_cuda:
-            get_cuda_device = samples.get_device()
-            logprob = logprob.cuda(device=get_cuda_device)
-            if ignore_GP_uncertainty:
-                points = points.cuda(device=get_cuda_device)
-
-        assert(model.likelihood.likelihoods==self.likelihoods) #check that it is actually a parent model
-
-        copulas = [lik.copula for lik in self.likelihoods]
-        rotations = [lik.rotation for lik in self.likelihoods]
-
+        # figure out which device we are using
+        assert F.dim() == S.dim()+2 # +f and copula dimensions
+        assert F.shape[-1] == S.shape[0]
+        f_mc_size = F.shape[0] # samples are already passed to this function
+        if S.is_cuda:
+            device = S.get_device()
+            assert F.get_device()==device
+        else:
+            device = torch.device('cpu')
+        # Gaussian confidence interval for sem_tol and level alpha
+        conf = torch.erfinv(torch.tensor([1. - alpha])).to(device)
+        sem = torch.ones(2,f_mc_size).to(device)*float('inf')
+        Hrs = torch.zeros(f_mc_size).to(device) # sum of conditional entropies 
+        Hr = torch.zeros(f_mc_size).to(device) # entropy of p(r)
+        var_sum = torch.zeros(2,f_mc_size).to(device)
+        log2 = torch.tensor([2.]).log().to(device)
+        k = 0
+        N = r_mc_size*s_mc_size
         with torch.no_grad():
-            if ignore_GP_uncertainty:
-                thetas, mixes = self.gplink_function(model(points).mean)
-                thetas = thetas.expand(samples.shape[:1]+thetas.shape)
-                mixes = mixes.expand(samples.shape[:1]+mixes.shape)
-                thetas = torch.einsum('ijk->jki', thetas) # now: [copulas, positions, samples]
-                mixes = torch.einsum('ijk->jki', mixes)
-                logprob = model.likelihood.copula(thetas,mixes,copulas,rotations=rotations).log_prob(samples)
-            else:
-                for i in range(n+1): #if GPU memory allows, can parallelize this cycle as well
-                    points = torch.ones_like(samples[...,0])*(i/n)
-                    functions = model(points)
-                    log_prob_lambda = lambda function_samples: model.likelihood.forward(function_samples).log_prob(samples)
-                    logprob[i] = model.likelihood.quadrature(log_prob_lambda, functions) 
-                    
-            #calculate FI
-            FI = torch.empty_like(logprob[...,0])
-            FI[0] = ((logprob[0].exp())*((logprob[1]-logprob[0])/(ds/2)).pow(2)).sum()
-            FI[n] = ((logprob[n].exp())*((logprob[n]-logprob[n-1])/(ds/2)).pow(2)).sum()
-            for i in range(1,n):
-                FI[i] = ((logprob[i].exp())*((logprob[i+1]-logprob[i-1])/ds).pow(2)).sum()
-                
-            #now calculate MI    
-            # P(r) = integral P(r|s) P(s) ds
-            Pr = torch.zeros(samples.shape[0]).cuda(device=get_cuda_device)
-            for i in range(n+1):
-                Pr += logprob[i].exp().detach()*(1/(n+1))
-            MIs=0
-            for i in range(n+1):    
-                MIs+= 1/(n+1)*logprob[i].exp()*(logprob[i]-Pr.log()) # sum p(r|s) * log p(r|s)/p(r)
-            MI = MIs.sum()     
-        return FI, MI                        
+            while torch.any(sem >= sem_tol):
+                # Sample from p(s)
+                subset = torch.randperm(torch.numel(S))[:s_mc_size]
+                subset_S = S.view(-1)[subset]
+                copula = likelihood(F[...,subset]) #[f, stimuli(positions)]
+                # Generate samples from p(r|s)*p(s)
+                samples = copula.rsample(sample_shape = torch.Size([r_mc_size]))
+                # these are samples for p(r|s) for each s
+                # size [responses(samples), fs, stimuli(positions), 2] = [r,f,s,2]
+                logpRgS = copula.log_prob(samples) / log2 # [r,f,s]
+                assert torch.all(logpRgS==logpRgS)
+                assert torch.all(logpRgS.abs()!=float("inf"))
+                logpRgS = torch.einsum("ijk->ikj",logpRgS) # [r,s,f]
+                logpRgS = logpRgS.reshape(-1,f_mc_size) # [N,f]
 
-    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, weights=None, particles=torch.Size([0]), *params: Any, **kwargs: Any) -> Tensor:
+                # marginalise s (get p(r)) and reshape
+                samples = torch.einsum("ijk...->ikj...",samples) # samples x Xs x fs x 2 = [r, s, f, 2]
+                samples = samples.reshape(-1,*samples.shape[2:]) # (samples * Xs) x fs x 2 = [r*s, f, 2]
+                samples = samples.unsqueeze(dim=-2) # (samples * Xs) x fs x 1 x 2 = [r*s, f, 1, 2]
+                samples = samples.expand([N,f_mc_size,sR_mc_size,2]) # (samples * Xs) x fs x Xs x 2
+                # now find E[p(r|s)] under p(s) with MC
+                rR = torch.ones(N,f_mc_size).to(device)*float('inf')
+                pR = torch.zeros(N,f_mc_size).to(device)
+                var_sumR = torch.zeros(N,f_mc_size).to(device)
+                kR = 0
+                print(f"Start calculating p(r) {k}")
+                while torch.any(rR >= sem_tol): #relative error of p(r) = absolute error of log p(r)
+                    new_subset = torch.randperm(torch.numel(S))[:sR_mc_size]
+                    new_subset_S = S.view(-1)[new_subset]
+                    new_copula = likelihood(F[...,new_subset]) #[copulas, stimuli(positions)]
+                    pRs = new_copula.log_prob(samples).exp() # [r from p(r),f,new_s] = [N,f,s]
+                    kR += 1
+                    # Monte-Carlo estimate of p(r)
+                    pR += (pRs.mean(dim=-1) - pR) / kR # [N,f]
+                    # Estimate standard error
+                    var_sumR += ((pRs - pR.unsqueeze(-1)) ** 2).sum(dim=-1) # [N,f]
+                    semR = conf * (var_sumR / (kR * sR_mc_size * (kR * sR_mc_size - 1))).pow(.5) 
+                    rR = semR/pR #relative error
+                print(f"Finished in {kR} steps")
+
+                logpR = pR.log() / log2 #[N,f]
+                k += 1
+                if k>100:
+                 print('MC integral failed to converge')
+                 break
+                # Monte-Carlo estimate of MI
+                #MI += (log2p.mean(dim=0) - MI) / k # mean over sample dimensions -> [f]
+                Hrs += (logpRgS.mean(dim=0) - Hrs) / k # negative sum H(r|s) * p(s)
+                Hr += (logpR.mean(dim=0) - Hr) / k # negative entropy H(r)
+                # Estimate standard error
+                var_sum[0] += ((logpRgS - Hrs) ** 2).sum(dim=0)
+                var_sum[1] += ((logpR - Hr) ** 2).sum(dim=0)
+                sem = conf * (var_sum / (k * N * (k * N - 1))).pow(.5)
+                print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
+                    {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
+        return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5) #error of sum                 
+
+    def expected_log_prob(self, target: Tensor, input: MultivariateNormal, 
+        weights=None, particles=torch.Size([0]),
+        gh_locs=20, *params: Any, **kwargs: Any) -> Tensor:
         """
         Computes the expected log likelihood (used for variational inference):
         .. math::
@@ -371,7 +411,9 @@ class MixtureCopula_Likelihood(Likelihood):
                 logprob = self.forward(function_samples).log_prob(target, safe=True)
                 #print(logprob.min(),logprob.max(),logprob.mean(),logprob.std())
                 return logprob
-            log_prob = self.quadrature(log_prob_lambda, input)
+            target = target.expand(torch.Size([gh_locs]) + target.shape)
+            with num_gauss_hermite_locs(gh_locs):
+                log_prob = self.quadrature(log_prob_lambda, input)
             if weights is not None:
                 log_prob *= weights
             #print(log_prob.min(),log_prob.max(),log_prob.mean())
@@ -387,10 +429,14 @@ class MixtureCopula_Likelihood(Likelihood):
         """
         num_copulas = len(self.likelihoods)
         num_indep_thetas = self.theta_sharing.max() + 1
+        # f dimensions are [f_samples dim x GP variables dim x theta dim]
+        # theta dimensions will be [copulas dim x f samples dim x theta dim], where
+        # f samples dim is essentially an extra batch dimension
+        # note that f samples dim may be empty
         assert num_copulas + num_indep_thetas - 1==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
+        # WARNING: we assume here that there is 1 theta dim. Need to rethink it if there will be multiparametric copulas. 
 
         lr_ratio = .5 # lr_mix / lr_thetas
-        #.5 works well for MCMC, .25 for GH
 
         thetas, mix = [], []
         prob_rem = torch.ones_like(f[...,0,:]) #1-x1, x1(1-x2), x1x2(1-x3)...

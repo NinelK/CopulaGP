@@ -167,12 +167,15 @@ class GaussianCopula(SingleParamCopulaBase):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
+
+        theta_ = self.theta.expand(value.shape[:-1]) # take samples + batch dimensions, no event dims
+        assert theta_.shape==value[...,0].shape
+        log_prob = torch.zeros_like(theta_) # by default 0 and already on a correct device
 
         if safe==True:
-            thetas = self.theta*conf.Gauss_Safe_Theta
+            thetas = theta_*conf.Gauss_Safe_Theta
         else:
-            thetas = self.theta
+            thetas = theta_
 
         # Check CUDA and make a Normal distribution
         if self.theta.is_cuda:
@@ -182,8 +185,9 @@ class GaussianCopula(SingleParamCopulaBase):
             nrvs = normal.Normal(0,1).icdf(value)
         
         mask_theta = (thetas < 1.) & (thetas > -1.)
-        mask_samples = (value[..., 0] > 0.) & (value[..., 1] > 0.) & \
-                (value[..., 0] < 1.) & (value[..., 1] < 1.)
+        m = 1e-6
+        mask_samples = (value[..., 0] > m) & (value[..., 1] > m) & \
+                (value[..., 0] < 1.-m) & (value[..., 1] < 1.-m)
         mask = mask_theta & mask_samples
 
         log_prob[..., mask] = (2 * thetas * nrvs[..., 0] * nrvs[..., 1] - thetas**2 \
@@ -234,11 +238,14 @@ class FrankCopula(SingleParamCopulaBase):
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        log_prob = torch.zeros_like(self.theta) # by default 0 and already on a correct device
+                
+        theta_ = self.theta.expand(value.shape[:-1]) # take samples + batch dimensions, no event dims
+        mask = (theta_.abs() > 1e-2) & (theta_.abs() < conf.Frank_Theta_Max)
+        assert theta_.shape==value[...,0].shape
+        value_ = value[mask] #now add event dim
         
-        mask = (self.theta.abs() > 1e-2) & (self.theta.abs() < conf.Frank_Theta_Max)
-        theta_ = self.theta[mask]
-        value_ = value.expand(self.theta.shape + torch.Size([2]))[mask]
+        log_prob = torch.zeros_like(theta_) # by default 0 and already on a correct device
+        theta_ = theta_[mask]
         log_prob[..., mask] = torch.log(-theta_ * torch.expm1(-theta_)) \
                             - (theta_ * (value_[..., 0] + value_[..., 1])) \
                             - 2*torch.log(torch.abs(torch.expm1(-theta_)
@@ -285,18 +292,18 @@ class ClaytonCopula(SingleParamCopulaBase):
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         value = self._SingleParamCopulaBase__rotate_input(value.clone())
-        log_prob = torch.zeros_like(self.theta) # by default
-
-        value_ = value.expand(self.theta.shape + torch.Size([2]))
+        theta_ = self.theta.expand(value.shape[:-1]) # take samples + batch dimensions, no event dims
+        assert theta_.shape==value[...,0].shape
+        log_prob = torch.zeros_like(theta_) # by default
         
         #log_base = -torch.min(value[...,0],value[...,1]).log() # max_theta depends on the coordinate of the value
         #mask = (self.theta > 0) & (self.theta < conf.Clayton_Theta_Max)
-        self.theta = torch.clamp(self.theta,0.,conf.Clayton_Theta_Max)
-        log_prob = (torch.log(1 + self.theta) + (-1 - self.theta) \
+        theta_ = torch.clamp(theta_,0.,conf.Clayton_Theta_Max)
+        log_prob = (torch.log(1 + theta_) + (-1 - theta_) \
                        * torch.log(value).sum(dim=-1) \
-                       + (-1 / self.theta - 2) \
-                       * torch.log(value_[...,0].pow(-self.theta) + value_[...,1].pow(-self.theta) - 1))
-        log_prob[self.theta<1e-4] = 0.
+                       + (-1 / theta_ - 2) \
+                       * torch.log(value[...,0].pow(-theta_) + value[...,1].pow(-theta_) - 1))
+        log_prob[theta_<1e-4] = 0.
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
@@ -346,20 +353,22 @@ class GumbelCopula(SingleParamCopulaBase):
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         value = self._SingleParamCopulaBase__rotate_input(value.clone())
-        log_prob = torch.zeros_like(self.theta) # by default
+        theta_ = self.theta.expand(value.shape[:-1]) # take samples + batch dimensions, no event dims
+        assert theta_.shape==value[...,0].shape
+        log_prob = torch.zeros_like(theta_) # by default
 
-        self.theta = torch.clamp(self.theta,1.,conf.Gumbel_Theta_Max)
+        theta_ = torch.clamp(theta_,1.,conf.Gumbel_Theta_Max)
 
-        h1 = self.theta - 1.0
-        h2 = (1.0 - 2.0 * self.theta) / self.theta
-        h3 = 1.0 / self.theta
+        h1 = theta_ - 1.0
+        h2 = (1.0 - 2.0 * theta_) / theta_
+        h3 = 1.0 / theta_
 
         h4 = -value[...,0].log()
         h5 = -value[...,1].log()
-        h6 = torch.pow(h4, self.theta) + torch.pow(h5, self.theta)
+        h6 = (torch.pow(h4, theta_) + torch.pow(h5, theta_))
         h7 = torch.pow(h6, h3)
 
-        log_prob = -h7+h4+h5 + h1*h4.log() + h1 * h5.log() + h2 * h6.log() + (h1+h7).log()
+        log_prob = -h7+h4+h5 + h1*h4.log() + h1 * h5.log() + h2 * h6.log().clamp(-1e38,float("Inf")) + (h1+h7).log()
 
         # # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[..., (value[..., 0] <= 0) | (value[..., 1] <= 0) |
@@ -498,32 +507,48 @@ class MixtureCopula(Distribution):
         batch_shape, event_shape = self.theta.shape, torch.Size([2])
         super(MixtureCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
 
-    def _entropy_given_params(self, alpha=0.05, sem_tol=1e-3):
+    def entropy(self, alpha=0.05, sem_tol=1e-3, mc_size=10000):
         '''
-            TODO: write docstr
+        Estimates the entropy of the mixture of copulas 
+        with the Robbins-Monro algorithm.
+        Parameters
+        ----------
+        alpha : float, optional
+            Significance level of the entropy estimate.  (Default: 0.05)
+        sem_tol : float, optional
+            Maximum standard error as a stopping criterion.  (Default: 1e-3)
+        mc_size : integer, optional
+            Number of samples that are drawn in each iteration of the Monte
+            Carlo estimation.  (Default: 10000)
+        Returns
+        -------
+        ent : float
+            Estimate of the entropy in bits.
+        sem : float
+            Standard error of the entropy estimate in bits.
         '''
+
         # Gaussian confidence interval for sem_tol and level alpha
         conf = torch.erfinv(torch.tensor([1. - alpha]))
-        sem = torch.ones(self.theta.shape[1])*float('inf')
-        ent = torch.zeros(self.theta.shape[1])
-        var_sum = torch.zeros(self.theta.shape[1])
+        batch_shape = self.batch_shape[1:] #first dm is number of copulas, discard it
+        sem = torch.ones(batch_shape)*float('inf')
+        ent = torch.zeros(batch_shape) #theta here must have dims: copula x batch dims
+        var_sum = torch.zeros(batch_shape)
         log2 = torch.tensor([2.]).log()
         k = 0
-        mc_size = self.theta.shape[-1]
         with torch.no_grad():
-            while torch.all(sem >= sem_tol):
+            while torch.any(sem >= sem_tol):
                 # Generate samples
-                samples = self.rsample()
-                assert samples.dim()==3 # [conditioning_variable, samples, 2]
-                logp = self.log_prob(samples)
+                samples = self.rsample(sample_shape = torch.Size([mc_size]))
+                logp = self.log_prob(samples) # [sample dim, batch dims]
                 assert torch.all(logp==logp)
                 assert torch.all(logp.abs()!=float("inf")) #otherwise make masked tensor below
                 log2p = logp / log2 #maybe should check for inf 2 lines earlier
                 k += 1
                 # Monte-Carlo estimate of entropy
-                ent += (-log2p.mean(dim=(-1)) - ent) / k
+                ent += (-log2p.mean(dim=0) - ent) / k # mean over samples dimension
                 # Estimate standard error
-                var_sum += ((-log2p.t() - ent) ** 2).sum(dim=0)
+                var_sum += ((-log2p - ent) ** 2).sum(dim=0)
                 sem = conf * (var_sum / (k * mc_size * (k * mc_size - 1))).pow(.5)
         return ent#, sem
     
@@ -544,15 +569,16 @@ class MixtureCopula(Distribution):
         new._validate_args = self._validate_args
         return new
     
-    def rsample(self, sample_shape=torch.Size([])):
-        shape = self._extended_shape(sample_shape) # now it is copulas x sample_size x 2 (event)    
-        samples = torch.zeros(size=shape[1:])
+    def rsample(self, sample_shape=torch.Size([1])):
+        shape = self._extended_shape(sample_shape) # now it is sample_size x copulas(batch) x thetas(batch) x 2 (event)    
+        samples = torch.zeros(size=(sample_shape + self._batch_shape[1:] + self._event_shape))  # no copula dimension
+        
         if self.theta.is_cuda:
             get_cuda_device = self.theta.get_device()
             samples = samples.cuda(device=get_cuda_device)
 
         num_thetas = self.theta.shape[0]
-        
+
         assert self.mix.shape[0]==len(self.copulas)
         #assert self.theta_sharing.shape[0]==len(self.copulas)
         #gplink already returns thetas for each copula
@@ -560,22 +586,23 @@ class MixtureCopula(Distribution):
         
         onehot = torch.distributions.one_hot_categorical.OneHotCategorical(
             probs=torch.einsum('i...->...i', self.mix)).sample()
-        onehot = torch.einsum('...i->i...', onehot)
+        onehot = torch.einsum('...i->i...', onehot) # now copulas x batch
         onehot = onehot.type(torch.bool)
         for i,c in enumerate(self.copulas):
             if c.num_thetas == 0:
-                samples[onehot[i],...] = c(self.theta[self.theta!=self.theta]).sample(self.theta[i,onehot[i]].shape)
+                shape = samples[:, onehot[i],...].shape[:-1]
+                samples[:, onehot[i],...] = c(self.theta[self.theta!=self.theta]).sample(shape)
             else:
-                samples[onehot[i],...] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).sample()
-        
-        return samples
+                samples[:, onehot[i],...] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).sample(sample_shape)
+  
+        return samples # sample_size x thetas(batch) x 2 (event)    
 
     def log_prob(self, value, safe=False):
 
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
-        prob = torch.zeros_like(self.theta[0]) # by default
+        prob = torch.zeros_like(value[...,0]) # by default
         
         assert self.mix.shape[0]==len(self.copulas)
         #assert self.theta_sharing.shape[0]==len(self.copulas)
@@ -583,14 +610,14 @@ class MixtureCopula(Distribution):
         if self._validate_args:
             sum_mixes = self.mix.sum(dim=0)
             assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
-        
+       
         for i, c in enumerate(self.copulas):
             if c.num_thetas == 0:
-                add = c(self.theta[self.theta!=self.theta]).log_prob(value)+self.mix[i].log()
+                add = c(self.theta[self.theta!=self.theta]).log_prob(value)
             else:
-                add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value,safe=safe).clamp(-100.,88.)+self.mix[i].log()
+                add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value,safe=safe).clamp(-100.,88.)
                 #-100 to 88 is a range of x such that torch.exp(x).log()!=+-inf
-            prob += torch.exp(add)
+            prob += self.mix[i]*torch.exp(add)
             #TODO is it possible to vectorize this part?
         log_prob = prob.log()
     

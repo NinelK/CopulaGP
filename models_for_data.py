@@ -17,7 +17,7 @@ gpu_id_list = range(2)
 unique_id_list = np.random.randint(0,10000,len(gpu_id_list)) #TODO: make truely unique
 #[i//2 for i in range(8*2)]  # 2 workers on each GPU
 
-animal = 'ST264'
+animal = 'ST262'
 dayN = 3
 day_name = 'Day{}'.format(dayN)
 path2data = '/home/nina/VRData/Processing/pkls'
@@ -30,7 +30,7 @@ try:
 except FileExistsError as error:
 	print(error)
 
-NN = 34 #number of neurons
+NN = 61 #number of neurons
 beh = 5
 
 def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
@@ -66,10 +66,16 @@ def worker(n1,n2):
 
 		with open(out_dir+'_model_list.txt','a') as f:
 			f.write("{}-{} {}\t{:.0f}\t{}\n".format(n1,n2,utils.get_copula_name_string(likelihoods),waic,int(t_end-t_start)))
+		
+		results_file = f"{out_dir}_{unique_id}_models.pkl"
+		if os.path.exists(results_file):
+			with open(results_file,'rb') as f:
+				results = pkl.load(f)  
 
+		assert (results[beh+n1,beh+n2]==None)
 		results[beh+n1,beh+n2] = [likelihoods,utils.get_copula_name_string(likelihoods),waic,int(t_end-t_start)]
 
-		with open('{}_{}_models.pkl'.format(out_dir,unique_id),'wb') as f:
+		with open(results_file,'wb') as f:
 			pkl.dump(results,f)   
 
 	return 0
@@ -80,8 +86,11 @@ if __name__ == '__main__':
 
     pool = multiprocessing.Pool(len(gpu_id_list))
 
+#    res = pool.apply_async(worker, (3,31,))
+
     for n1 in range(-beh,NN-1):
         for n2 in range(n1+1,NN):
+            #if (n1>-5) | (n2>-2):
             res = pool.apply_async(worker, (n1,n2,))
     pool.close()
     pool.join()  # block at this line until all processes are done
