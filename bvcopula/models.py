@@ -102,6 +102,45 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         # Initialize lengthscale and outputscale to mean of priors
         self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
 
+    def MI(self, points, alpha=0.05, sem_tol=1e-3, mc_size=10000):
+        '''
+        Measure mutual information between variables 
+        (=negative conditioned copula entropy)
+        Parameters
+        ----------
+        points: Tensor
+            Input points where MI (-entropy) is estimated.
+        alpha : float, optional
+            Significance level of the entropy estimate.  (Default: 0.05)
+        sem_tol : float, optional
+            Maximum standard error as a stopping criterion.  (Default: 1e-3)
+        mc_size : integer, optional
+            Number of samples that are drawn in each iteration of the Monte
+            Carlo estimation.  (Default: 10000)
+        Returns
+        -------
+        MI_mean : float
+            Estimate of the MI in bits for a copula, parameterised with a mean of GP.
+        MIs_mean : float
+            Estimate of the mean MI in bits for a copula, parameterised with a GP.
+        MIs_std : float
+            Estimate of the standard deviation of MI in bits for a copula, 
+            parameterised with a GP.
+        '''
+        MIs = []
+        with torch.no_grad():
+            fs = self(points).rsample(torch.Size([5])) #[samples_f, copulas, positions]
+        f_mean = self(points).mean.unsqueeze(0)
+        # now add mean f to a set of f samples
+        fs = torch.cat((fs,f_mean),0) #[samples_f + 1, copulas, positions]
+
+        copula = self.likelihood(fs)
+        MIs = copula.entropy()
+        MI_mean = MIs[-1]
+        MIs = MIs[:-1]
+
+        return (MI_mean,MIs.mean(dim=0),MIs.std(dim=0)) 
+
     def forward(self, x):
         mean = self.mean_module(x)  # Returns an n_data vec
         covar = self.covar_module(x)

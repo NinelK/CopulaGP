@@ -1,6 +1,14 @@
 import numpy as np
 from fastkde import fastKDE
 
+def transform_point(x,y,distr,axes):
+    f_x = np.sum(axes[0]<x)
+    f_y = np.sum(axes[1]<y)
+    wx = np.abs((axes[0][f_x]-x)/(axes[0][f_x]-axes[0][f_x-1]))
+    wy = np.abs((axes[1][f_y]-y)/(axes[1][f_y]-axes[1][f_y-1]))
+    return (1-wy) * ((1-wx)*distr[f_y,f_x] + wx*distr[f_y,f_x-1]) + \
+            wy * ((1-wx)*distr[f_y-1,f_x] + wx*distr[f_y-1,f_x-1])
+
 def fast_signal2uniform(input,condition,numPointsPerSigma=20):
     '''
     Transforms distributions into uniform distribution
@@ -20,14 +28,6 @@ def fast_signal2uniform(input,condition,numPointsPerSigma=20):
     '''
     pOfYGivenX,axes = fastKDE.conditional(input,condition,numPointsPerSigma=numPointsPerSigma)
 
-    def transform_point(x,y):
-        f_x = np.sum(axes[0]<x)
-        f_y = np.sum(axes[1]<y)
-        wx = np.abs((axes[0][f_x]-x)/(axes[0][f_x]-axes[0][f_x-1]))
-        wy = np.abs((axes[1][f_y]-y)/(axes[1][f_y]-axes[1][f_y-1]))
-        return (1-wy) * ((1-wx)*cOfYGivenX[f_y,f_x] + wx*cOfYGivenX[f_y,f_x-1]) + \
-                wy * ((1-wx)*cOfYGivenX[f_y-1,f_x] + wx*cOfYGivenX[f_y-1,f_x-1])
-
     #make CDF from PDF
     cOfYGivenX = np.empty_like(pOfYGivenX)
     for i, p in enumerate(pOfYGivenX.T):
@@ -35,7 +35,7 @@ def fast_signal2uniform(input,condition,numPointsPerSigma=20):
     #transform data points as CDF(x)
     s_tr = np.zeros_like(input)
     for i, (x,y) in enumerate(zip(condition,input)):
-        s_tr[i] = transform_point(x,y)
+        s_tr[i] = transform_point(x,y,axes,cOfYGivenX)
 
     return s_tr
 

@@ -2,7 +2,10 @@ import pickle as pkl
 import numpy as np
 
 def load_experimental_data(path,animal,day_name,n1,n2):
-
+	'''
+		Loads experimental data
+		TODO: squash parameters into "{}/{}_{}".format(path,animal,day_name)
+	'''
 	def data_from_n(n):
 		if n>=0:
 			data = signals[n]
@@ -45,3 +48,48 @@ def load_experimental_data(path,animal,day_name,n1,n2):
 	Y = Y_all[rule]
 	
 	return X, Y
+
+def get_likelihoods(summary_path,n1,n2):
+	'''
+	Looks up the likelihoods of the best selected model in summary.pkl
+	Parameters
+	----------
+	summary_path: str
+		A path to a summary of model selection
+	n1: int
+		The number of the first variable
+	n2: int
+		The number of the second variable
+	Returns
+	-------
+	likelihoods: list
+		A list of copula likelihood objects, corresponding to the
+		best selected model for a given pair of variables.
+	'''
+	with open(summary_path,'rb') as f:
+		data = pkl.load(f)	
+	return data[n1+5,n2+5][0]
+
+def get_model(weights_file,likelihoods,device):
+	'''
+	Loads the weights of the best selected model and returns
+	the bvcopula.Mixed_GPInferenceModel object
+	Parameters
+	----------
+	weights_file: str
+		A path to the folder, containing the results of the model selection
+
+	'''
+	import glob
+	from bvcopula import load_model
+	get_weights_filename = glob.glob(weights_file)
+	print(get_weights_filename)
+	if len(get_weights_filename)>0:
+		if len(get_weights_filename)>1:
+			print('There is more then 1 file, taking the first one')
+			return 0
+		model = load_model(get_weights_filename[0], likelihoods, device)
+		return model
+	else:
+		print('Weights file {} not found.'.format(get_weights_filename))
+		return 0
