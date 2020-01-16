@@ -341,7 +341,7 @@ class MixtureCopula_Likelihood(Likelihood):
                 pR = torch.zeros(N,f_mc_size).to(device)
                 var_sumR = torch.zeros(N,f_mc_size).to(device)
                 kR = 0
-                print(f"Start calculating p(r) {k}")
+                # print(f"Start calculating p(r) {k}")
                 while torch.any(rR >= sem_tol): #relative error of p(r) = absolute error of log p(r)
                     new_subset = torch.randperm(torch.numel(S))[:sR_mc_size]
                     new_subset_S = S.view(-1)[new_subset]
@@ -354,7 +354,7 @@ class MixtureCopula_Likelihood(Likelihood):
                     var_sumR += ((pRs - pR.unsqueeze(-1)) ** 2).sum(dim=-1) # [N,f]
                     semR = conf * (var_sumR / (kR * sR_mc_size * (kR * sR_mc_size - 1))).pow(.5) 
                     rR = semR/pR #relative error
-                print(f"Finished in {kR} steps")
+                # print(f"Finished in {kR} steps")
 
                 logpR = pR.log() / log2 #[N,f]
                 k += 1
@@ -369,8 +369,8 @@ class MixtureCopula_Likelihood(Likelihood):
                 var_sum[0] += ((logpRgS - Hrs) ** 2).sum(dim=0)
                 var_sum[1] += ((logpR - Hr) ** 2).sum(dim=0)
                 sem = conf * (var_sum / (k * N * (k * N - 1))).pow(.5)
-                print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
-                    {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
+                # print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
+                #     {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
         return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5) #error of sum                 
 
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, 

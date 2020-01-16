@@ -13,24 +13,31 @@ import traceback
 import warnings
 import sys
 
-gpu_id_list = range(2) 
+gpu_id_list = range(1) 
 unique_id_list = np.random.randint(0,10000,len(gpu_id_list)) #TODO: make truely unique
 #[i//2 for i in range(8*2)]  # 2 workers on each GPU
 
-animal = 'ST262'
+animal = 'ST263'
 dayN = 3
 day_name = 'Day{}'.format(dayN)
 path2data = '/home/nina/VRData/Processing/pkls'
 
 exp_pref = '{}_{}'.format(animal,day_name)
 
-out_dir = 'out_christmas/'+exp_pref
+out_dir = 'out_au/'+exp_pref
 try:
 	os.mkdir(out_dir)
 except FileExistsError as error:
 	print(error)
 
-NN = 61 #number of neurons
+d = {
+    'ST260': 104,
+    'ST262': 61,
+    'ST263': 23,
+    'ST264': 34
+}
+
+NN = d[animal] #number of neurons
 beh = 5
 
 def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
@@ -40,6 +47,7 @@ def warn_with_traceback(message, category, filename, lineno, file=None, line=Non
 
 def worker(n1,n2):
 	#get unique gpu id for cpu id
+	#os.environ['CUDA_VISIBLE_DEVICES'] = "0" 
 	cpu_name = multiprocessing.current_process().name
 	cpu_id = int(cpu_name[cpu_name.find('-') + 1:]) - 1
 	gpu_id = gpu_id_list[cpu_id]
@@ -82,19 +90,17 @@ def worker(n1,n2):
 
 if __name__ == '__main__':
 
-    warnings.showwarning = warn_with_traceback
+	warnings.showwarning = warn_with_traceback
 
-    pool = multiprocessing.Pool(len(gpu_id_list))
+	pool = multiprocessing.Pool(len(gpu_id_list))
 
-#    res = pool.apply_async(worker, (3,31,))
+	#    res = pool.apply_async(worker, (3,31,))
 
-    for n1 in range(-beh,NN-1):
-        for n2 in range(n1+1,NN):
-            #if (n1>-5) | (n2>-2):
-            res = pool.apply_async(worker, (n1,n2,))
-    pool.close()
-    pool.join()  # block at this line until all processes are done
-    print("completed")
-		
-
+	for n1 in range(-beh,NN-1):
+	    for n2 in range(n1+1,NN):
+	        if True:
+	        	res = pool.apply_async(worker, (n1,n2,))
+	pool.close()
+	pool.join()  # block at this line until all processes are done
+	print("completed")
 
