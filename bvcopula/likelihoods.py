@@ -371,7 +371,7 @@ class MixtureCopula_Likelihood(Likelihood):
                 sem = conf * (var_sum / (k * N * (k * N - 1))).pow(.5)
                 # print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
                 #     {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
-        return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5) #error of sum                 
+        return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5), Hr, sem[1] #2nd arg is an error of sum
 
     def expected_log_prob(self, target: Tensor, input: MultivariateNormal, 
         weights=None, particles=torch.Size([0]),

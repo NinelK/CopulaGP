@@ -75,9 +75,8 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	mll = utils.VariationalELBO(model.likelihood, model, torch.ones_like(train_x.squeeze()), 
                             num_data=train_y.size(0), particles=torch.Size([0]), combine_terms=True)
 
-	losses = torch.zeros(conf.max_num_iter, device=device)
-	rbf = torch.zeros(conf.max_num_iter, device=device)
-	means = torch.zeros(conf.max_num_iter, device=device)
+	losses, rbf, means = [], [], []
+
 	nans_detected = 0
 	WAIC = 1 #assume that the model will train well
 	
@@ -92,13 +91,13 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	        
 	        loss = -mll(output, train_y)  
 	 
-	        losses[i] = loss.detach()
-	        #rbf[i] = model.covar_module.base_kernel.lengthscale.detach()
-	        #means[i] = model.variational_strategy.variational_distribution.variational_mean\
-	        #		.detach()
+	        losses.append(loss.detach().cpu().numpy())
+	        rbf.append(model.covar_module.base_kernel.lengthscale.detach().cpu().numpy())
+	        means.append(model.variational_strategy.variational_distribution.variational_mean\
+	        		.detach().cpu().numpy())
 
 	        if len(losses)>100: 
-	            p += torch.abs(torch.mean(losses[i-50:i+1]) - torch.mean(losses[i-100:i-50]))
+	            p += np.abs(np.mean(losses[-50:]) - np.mean(losses[-100:-50]))
 
 	        if not (i + 1) % conf.iter_print:
 	            
@@ -145,7 +144,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	if output_loss is not None:
 		assert isinstance(output_loss, str)
-		plot_loss(output_loss, losses.cpu().numpy(), rbf.cpu().numpy(), means.cpu().numpy())
+		plot_loss(output_loss, losses, rbf, means)
 
 	if (WAIC > 0):
 		WAIC = model.likelihood.WAIC(model(train_x),train_y)

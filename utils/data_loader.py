@@ -82,14 +82,9 @@ def get_model(weights_file,likelihoods,device):
 	'''
 	import glob
 	from bvcopula import load_model
-	get_weights_filename = glob.glob(weights_file)
-	# print(get_weights_filename)
-	if len(get_weights_filename)>0:
-		if len(get_weights_filename)>1:
-			print('There is more then 1 file, taking the first one')
-			return 0
-		model = load_model(get_weights_filename[0], likelihoods, device)
+	try:
+		model = load_model(weights_file, likelihoods, device)
 		return model
-	else:
-		print('Weights file {} not found.'.format(get_weights_filename))
+	except FileNotFoundError:
+		print('Weights file {} not found.'.format(weights_file))
 		return 0

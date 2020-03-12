@@ -135,12 +135,12 @@ def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=1000)
         ax[0].plot(rho[0],rho[1], '--', color='grey', label='Pearson\'s rho')
 
     ax[0].set_ylabel(r'$\theta$_normalized')
-    ax[0].set_title('Copula parameters'+title)
+    ax[0].set_title('Copula parameters '+title)
     ax[1].set_ylabel('[c]')
-    ax[1].set_title('Mixing param'+title)
+    ax[1].set_title('Mixing param '+title)
     
     for axis in ax:
-        axis.set_xlabel('Position, [cm]')
+        axis.set_xlabel('Position in VR, [cm]')
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 

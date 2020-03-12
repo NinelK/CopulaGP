@@ -17,7 +17,7 @@ def revised_mi(x,y,k=5,q=float('inf')):
         y: 2D list of size N*d_y
         k: k-nearest neighbor parameter
         q: l_q norm used to decide k-nearest distance
-        Output: one number of I(X;Y)
+        Output: one number of I(X;Y), entropy of Y
     '''
 
     assert len(x)==len(y), "Lists should have same length"

@@ -529,12 +529,16 @@ class MixtureCopula(Distribution):
         '''
 
         # Gaussian confidence interval for sem_tol and level alpha
-        conf = torch.erfinv(torch.tensor([1. - alpha]))
+        if self.theta.is_cuda:
+            device = self.theta.get_device()
+        else:
+            device = torch.device('cpu')
+        conf = torch.erfinv(torch.tensor([1. - alpha],device=device))
         batch_shape = self.batch_shape[1:] #first dm is number of copulas, discard it
-        sem = torch.ones(batch_shape)*float('inf')
-        ent = torch.zeros(batch_shape) #theta here must have dims: copula x batch dims
-        var_sum = torch.zeros(batch_shape)
-        log2 = torch.tensor([2.]).log()
+        sem = torch.ones(batch_shape,device=device)*float('inf')
+        ent = torch.zeros(batch_shape,device=device) #theta here must have dims: copula x batch dims
+        var_sum = torch.zeros(batch_shape,device=device)
+        log2 = torch.tensor([2.],device=device).log()
         k = 0
         with torch.no_grad():
             while torch.any(sem >= sem_tol):

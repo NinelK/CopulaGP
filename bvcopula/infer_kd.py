@@ -75,12 +75,16 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	mll = utils.VariationalELBO(model.likelihood, model, torch.ones_like(train_x.squeeze()), 
                             num_data=train_y.size(0), particles=torch.Size([0]), combine_terms=True)
 
-	losses = torch.zeros(conf.max_num_iter, device=device)
-	rbf = torch.zeros(conf.max_num_iter, device=device)
-	means = torch.zeros(conf.max_num_iter, device=device)
+	losses = torch.zeros(conf.max_num_iter)
+	rbf = torch.zersos(conf.max_num_iter)
+	means = torch.zeros(conf.max_num_iter)
+
+	print('Init')
 	nans_detected = 0
 	WAIC = 1 #assume that the model will train well
 	
+        #loss_for_stop = torch.zeros(1)
+
 	def train(train_x, train_y, num_iter=conf.max_num_iter):
 	    model.train()
 
@@ -93,12 +97,15 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	        loss = -mll(output, train_y)  
 	 
 	        losses[i] = loss.detach()
-	        #rbf[i] = model.covar_module.base_kernel.lengthscale.detach()
-	        #means[i] = model.variational_strategy.variational_distribution.variational_mean\
-	        #		.detach()
+	        print(losses[:i+1])
+	        rbf[i] = model.covar_module.base_kernel.lengthscale.detach()
+	        means[i] = model.variational_strategy.variational_distribution.variational_mean\
+	        		.detach()
 
 	        if len(losses)>100: 
-	            p += torch.abs(torch.mean(losses[i-50:i+1]) - torch.mean(losses[i-100:i-50]))
+	            print(torch.array(losses[-50:]).mean())
+	            p += (torch.array(losses[-50:]).mean() \
+                            - torch.array(losses[-100:-50]).mean()).abs()
 
 	        if not (i + 1) % conf.iter_print:
 	            
@@ -145,7 +152,10 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	if output_loss is not None:
 		assert isinstance(output_loss, str)
-		plot_loss(output_loss, losses.cpu().numpy(), rbf.cpu().numpy(), means.cpu().numpy())
+		losses_cpu = losses.cpu().numpy() #TODO:only view nonzero steps
+		rbf_cpu = rbf.cpu().numpy()
+		means_cpu = means.cpu().numpy()
+		plot_loss(output_loss, losses_cpu, rbf_cpu, means_cpu)
 
 	if (WAIC > 0):
 		WAIC = model.likelihood.WAIC(model(train_x),train_y)

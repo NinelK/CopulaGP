@@ -36,20 +36,23 @@ f_mc_size = 5
 def get_MI(n1,n2):
     likelihoods = utils.get_likelihoods(f"{path_models}/{exp_pref}/summary.pkl",n1,n2)
     if (len(likelihoods)==1) & (likelihoods[0].name=='Independence'):
-        return (0,0)
+        return (0,0,0,0)
     else:
         weights_file = f"{path_models}/{exp_pref}/model_{n1}-{n2}.pth"
 
         model = utils.get_model(weights_file, likelihoods, device) 
-        with torch.no_grad():
-            Fs = model(S).rsample(torch.Size([f_mc_size])) 
-            #[samples_f, copulas, stimuli(positions)]
-            MI,sem=model.likelihood.stimMI(S,Fs,s_mc_size=200,r_mc_size=20,sR_mc_size=4000,sem_tol=5*1e-3)
-            #print(f"{MI.mean().item():.3}±{MI.std().item():.3} -- {(sem.max()/(MI.max()-MI.min())).item():.3}")
+        if model!=0: #if 0 -- then get_model returned an error, because weights file was not found
+            with torch.no_grad():
+                Fs = model(S).rsample(torch.Size([f_mc_size])) 
+                #[samples_f, copulas, stimuli(positions)]
+                MI,sem,Hr,sem1=model.likelihood.stimMI(S,Fs,s_mc_size=200,r_mc_size=20,sR_mc_size=2000,sem_tol=5*1e-3)
+                #print(f"{MI.mean().item():.3}±{MI.std().item():.3} -- {(sem.max()/(MI.max()-MI.min())).item():.3}")
 
-        return (MI.mean(),MI.std())
+            return (MI.mean(),MI.std(),Hr.mean(),Hr.std())
+        else:
+            return (0,0,0,0)
 
-MI = np.zeros((N_max+beh,N_max+beh,2))
+MI = np.zeros((N_max+beh,N_max+beh,4))
 
 start_time = time.time()
 for n1 in range(-5,N_max-1):
