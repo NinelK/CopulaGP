@@ -5,3 +5,8 @@ logs
 figures/
 temp*
 out*
+imgs/
+figures*/
+list*.sh
+*.cache*
+arch/

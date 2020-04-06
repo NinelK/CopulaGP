@@ -1,65 +1,48 @@
 import numpy as np
 from fastkde import fastKDE
+import scipy.interpolate as intrp
 
-def transform_point(x,y,distr,axes):
+def interpolate2d_masked_array(masked_array2d):
+    m = ~masked_array2d.mask.flatten()
+    X,Y = masked_array2d.shape
+    xx,yy = np.mgrid[:X,:Y]
+    x = np.unique(xx.flatten()[m])
+    y = np.unique(yy.flatten()[m])
+    sel = np.ix_(x,y)
+    if any(masked_array2d.mask[sel].flatten()):
+        raise ValueError("Points are not on the grid")
+    return intrp.RectBivariateSpline(x,y,masked_array2d.data[sel], kx=1, ky=1)
+
+def transform_coord(x,y,axes):
     f_x = np.sum(axes[0]<x)
     f_y = np.sum(axes[1]<y)
-    wx = np.abs((axes[0][f_x]-x)/(axes[0][f_x]-axes[0][f_x-1]))
-    wy = np.abs((axes[1][f_y]-y)/(axes[1][f_y]-axes[1][f_y-1]))
-    return (1-wy) * ((1-wx)*distr[f_y,f_x] + wx*distr[f_y,f_x-1]) + \
-            wy * ((1-wx)*distr[f_y-1,f_x] + wx*distr[f_y-1,f_x-1])
+    wx = (axes[0][f_x]-x)/(axes[0][f_x]-axes[0][f_x-1])
+    wy = (axes[1][f_y]-y)/(axes[1][f_y]-axes[1][f_y-1])
+    return (f_y - wy),(f_x - wx)
 
 def fast_signal2uniform(input,condition,numPointsPerSigma=20):
-    '''
-    Transforms distributions into uniform distribution
-    for any value of the conditioning variable.
-    
-    Args:
-        :attr:`input` (:class:`np.array`)
-            Values of the random variable.
-        :attr:`condition` (:class:`np.array`)
-            Conditioning variable.
-        :attr:`numPointsPerSigma` (int, default=20)
-            Number of points for conditional PDF/CDF estimation.
-    Returns
-        :class:`np.array`
-            Transformed random variable with uniform distribution
-            for any given value of the conditioning variable.
-    '''
+
     pOfYGivenX,axes = fastKDE.conditional(input,condition,numPointsPerSigma=numPointsPerSigma)
 
     #make CDF from PDF
     cOfYGivenX = np.empty_like(pOfYGivenX)
     for i, p in enumerate(pOfYGivenX.T):
         cOfYGivenX[:,i] = np.cumsum(p)/np.sum(p)
+        
+    f = interpolate2d_masked_array(cOfYGivenX)
     #transform data points as CDF(x)
     s_tr = np.zeros_like(input)
     for i, (x,y) in enumerate(zip(condition,input)):
-        s_tr[i] = transform_point(x,y,axes,cOfYGivenX)
+        s_tr[i] = f(*transform_coord(x,y,axes))
 
     return s_tr
 
-def zeroinflated_signal2uniform(input,condition,numPointsPerSigma=20):
-    '''
-    Transforms zero-inflated distributions into uniform distribution
-    for any value of the conditioning variable.
-    
-    Args:
-        :attr:`input` (:class:`np.array`)
-            Values of the random variable with zero-inflation.
-        :attr:`condition` (:class:`np.array`)
-            Conditioning variable.
-        :attr:`numPointsPerSigma` (int, default=20)
-            Number of points for conditional PDF/CDF estimation.
-    Returns
-        :class:`np.array`
-            Transformed random variable with uniform distribution
-            for any given value of the conditioning variable.
-    '''
+def zeroinflated_signal2uniform(input,condition,numPointsPerSigma=50):
+
     transformed = np.empty_like(input)
     zeros = len(input[input==0])
     part_zero = zeros/len(input)
-    transformed[input!=0] = part_zero + (1-part_zero)*fast_signal2uniform(input[input!=0],condition[input!=0],numPointsPerSigma=20)
+    transformed[input!=0] = part_zero + (1-part_zero)*fast_signal2uniform(input[input!=0],condition[input!=0],numPointsPerSigma=numPointsPerSigma)
     transformed[input==0] = np.random.rand(zeros)*part_zero
 
     return transformed

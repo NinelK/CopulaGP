@@ -92,7 +92,7 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
-def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=1000):
+def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=200):
     '''
         Plot Thetas and Mixing parameters of a trained GP-Copula model.
         MCMC_version

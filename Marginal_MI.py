@@ -28,16 +28,16 @@ gao_MIs = np.zeros((signal_pkl['signals_fissa'].shape[0]+5,repeats))
 for rep in range(repeats):
     order = np.random.choice(len(stimulus), int(len(stimulus)/2), replace=False)
     gao_MIs[0,rep] = mg.revised_mi(stimulus[order].reshape(-1,1).tolist(),\
-                                   behaviour_pkl['transformed_late_reward'][order].reshape(-1,1).tolist())
+                                   behaviour_pkl['fat_late_reward'][order].reshape(-1,1).tolist())
     gao_MIs[1,rep] = mg.revised_mi(stimulus[order].reshape(-1,1).tolist(),\
-                                   behaviour_pkl['transformed_early_reward'][order].reshape(-1,1).tolist())
+                                   behaviour_pkl['fat_early_reward'][order].reshape(-1,1).tolist())
     gao_MIs[2,rep] = mg.revised_mi(stimulus[order].reshape(-1,1).tolist(),\
-                                  (behaviour_pkl['transformed_late_reward']+\
-                                   behaviour_pkl['transformed_early_reward'])[order].reshape(-1,1).tolist())
+                                  (behaviour_pkl['fat_late_reward']+\
+                                   behaviour_pkl['fat_early_reward'])[order].reshape(-1,1).tolist())
     gao_MIs[3,rep] = mg.revised_mi(stimulus[order].reshape(-1,1).tolist(),\
-                                   behaviour_pkl['transformed_licks'][order].reshape(-1,1).tolist())
+                                   behaviour_pkl['fat_licks'][order].reshape(-1,1).tolist())
     gao_MIs[4,rep] = mg.revised_mi(stimulus[order].reshape(-1,1).tolist(),\
-                                   behaviour_pkl['transformed_velocity'][order].reshape(-1,1).tolist())
+                                   behaviour_pkl['velocity'][order].reshape(-1,1).tolist())
     for i, r in enumerate(signal_pkl['signals_fissa']):
         gao_MIs[i+5,rep] = mg.revised_mi(stimulus[order].reshape(-1,1).tolist(),r[order].reshape(-1,1).tolist())
         

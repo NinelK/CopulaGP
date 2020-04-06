@@ -11,7 +11,7 @@ loss_tol2check_waic = 0.005
 # here thetas are mainly constrained by the summation of probabilities in mixture model,
 # which should not become +inf
 Gauss_Safe_Theta = 0.9999	# (-safe,+safe), for safe mode, otherwise (-1,1)
-Frank_Theta_Max = 16.8 		# (-max, max)
+Frank_Theta_Max = 13.0 		# (-max, max) Reduced due to bad ccdf
 Frank_Theta_Flip = 9.0
 Clayton_Theta_Max = 9.4 	# (0, max)
 Gumbel_Theta_Max = 10.0		# (1, max)
@@ -38,4 +38,4 @@ Gauss_diag = 1e-5 # how far from diagonal the point can be to be considered as u
 
 
 # waic parameters
-waic_samples = 1000
+waic_samples = 2000

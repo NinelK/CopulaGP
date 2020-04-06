@@ -3,7 +3,7 @@ import pickle as pkl
 import glob
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(0, '/home/nina/LFI/')
+sys.path.insert(0, '/home/nina/CopulaGP/')
 
 path = '../out_christmas/'
 animal = sys.argv[1]

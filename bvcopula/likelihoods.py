@@ -212,7 +212,10 @@ class MixtureCopula_Likelihood(Likelihood):
     def __init__(self, likelihoods, theta_sharing=None, **kwargs: Any):
         super(Likelihood, self).__init__()
         self.likelihoods = likelihoods
-        self.waic_samples = conf.waic_samples
+        if len(likelihoods)<=4:
+            self.waic_samples = conf.waic_samples
+        else:
+            self.waic_samples = int(conf.waic_samples/2)
         self.copula = MixtureCopula
         if theta_sharing is not None:
             self.theta_sharing = theta_sharing
