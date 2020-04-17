@@ -38,4 +38,4 @@ Gauss_diag = 1e-5 # how far from diagonal the point can be to be considered as u
 
 
 # waic parameters
-waic_samples = 2000
+waic_samples = 1200

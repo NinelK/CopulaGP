@@ -108,7 +108,7 @@ class SingleParamCopulaBase(Distribution):
             get_cuda_device = self.theta.get_device()
             samples = samples.cuda(device=get_cuda_device)
         samples[...,0] = self.ppcf(samples)
-        samples = self._SingleParamCopulaBase__rotate_input(samples)
+        #samples = self._SingleParamCopulaBase__rotate_input(samples) 
         return samples
 
     def log_prob(self, value):
@@ -305,24 +305,33 @@ class ClaytonCopula(SingleParamCopulaBase):
     support = constraints.interval(0.,1.) # [0,1]
     
     def ppcf(self, samples):
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         min_lim = 0 #min value for accurate calculation of logpdf. Below -- independence copula
         thetas_ = self.theta.expand(samples.shape[:-1])
         vals = torch.zeros_like(thetas_)
         vals[thetas_<=min_lim] = samples[thetas_<=min_lim][..., 0] #for self.theta == 0
         nonzero_theta = thetas_[thetas_>min_lim]
-        unstable_part = torch.empty_like(vals)
+        unstable_part = torch.zeros_like(vals)
         unstable_part[thetas_>min_lim] = (samples[thetas_>min_lim][..., 0] * (samples[thetas_>min_lim][..., 1]**(1 + nonzero_theta))) \
                 ** (-nonzero_theta / (1 + nonzero_theta))
+        assert torch.all(unstable_part==unstable_part)
         if unstable_part.numel() > 0:
             unstable_part = unstable_part.reshape(*samples.shape[:-1])
             mask = (thetas_>min_lim) & (unstable_part != float("Inf"))
             vals[mask] = (1 - samples[mask][..., 1]**(-thetas_[mask]) + unstable_part[mask])** (-1 / thetas_[mask])
             mask = (thetas_>min_lim) & (unstable_part == float("Inf"))
-            vals[mask] = 0. # (inf)^(-1/nonzero_theta) is still something very small
-        assert torch.all(vals==vals)
+            vals[mask] = 0 # (inf)^(-1/nonzero_theta) is still something very small
+        # now a few vals for big thetas can be Nan
+        # the only reason for that is small v=sample[...,1] and 0=unstable_part
+        # fix it with an approximation: (1-v^(-t)+0)^(-1/t) approx -v^(-t*-1/t) = -v
+        vals[vals!=vals] = -samples[...,1][vals!=vals]
+        if (self.rotation == '180°') or (self.rotation == '270°'):
+            vals = 1 - vals
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         return vals
 
     def ccdf(self, samples):
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         theta_ = self.theta.expand(samples.shape[:-1]) # prepend with sample dimensions
         vals = samples[..., 0].clone()
         vals[theta_!=0] = (samples[..., 1]**(-1 - theta_) 
@@ -331,6 +340,9 @@ class ClaytonCopula(SingleParamCopulaBase):
                                    ** (-1 - 1 / theta_))[theta_!=0]
         vals[vals<0] = 0
         vals[(theta_!=0) & (samples[...,0]==0)] = 0
+        if (self.rotation == '180°') or (self.rotation == '270°'):
+            vals = 1 - vals
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         return vals
 
     def log_prob(self, value, safe=True):
@@ -371,6 +383,7 @@ class GumbelCopula(SingleParamCopulaBase):
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
 
         def h(z,samples):
             x = -samples[...,1].log()
@@ -384,7 +397,7 @@ class GumbelCopula(SingleParamCopulaBase):
         x = -samples[...,1].log()
         z = x
         thetas_ = thetas.expand_as(z)
-        for _ in range(3):             #increase number of Newton-Raphson iteration if sampling fails
+        for _ in range(10):             #increase number of Newton-Raphson iteration if sampling or ccdf test fails
             z = z - h(z,samples)/hd(z)
             y = (z.pow(thetas) - x.pow(thetas)).pow(1/thetas)
 
@@ -392,9 +405,13 @@ class GumbelCopula(SingleParamCopulaBase):
         # assert torch.all(v>0)
         # assert torch.all(v<1)
         v = torch.clamp(v,0,1) # for theta>10 v is sometimes >1
+        if (self.rotation == '180°') or (self.rotation == '270°'):
+            v = 1 - v
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         return v
 
     def ccdf(self, samples):
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         vals = torch.zeros(samples.shape[:-1])
         theta_ = self.theta.expand(samples.shape[:-1]) # prepend with sample dimensions
 
@@ -403,7 +420,9 @@ class GumbelCopula(SingleParamCopulaBase):
         h1 = torch.pow(x,theta_) + torch.pow(y,theta_)
         h2 = 1.0 / theta_
         vals = torch.exp(x - torch.pow(h1,h2)+ (h2-1)*torch.log(h1) + (theta_ - 1)*torch.log(x)).clamp(0,1)
-
+        if (self.rotation == '180°') or (self.rotation == '270°'):
+            vals = 1 - vals
+        samples = self._SingleParamCopulaBase__rotate_input(samples)
         return vals
 
     def log_prob(self, value, safe=True):
@@ -652,7 +671,7 @@ class MixtureCopula(Distribution):
 
         for i,c in enumerate(self.copulas):
             if c.num_thetas == 0:
-                shape = samples[:, onehot[i],...].shape[:-1]
+                shape = samples[..., onehot[i],:].shape[:-1]
                 samples[..., onehot[i],:] = c(self.theta[self.theta!=self.theta]).sample(shape)
             else:
                 samples[..., onehot[i],:] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).sample(sample_shape)
@@ -680,22 +699,39 @@ class MixtureCopula(Distribution):
         Since ppcf for a mixture is hard to calculate,
         this function divides the samples into N subsets proportional to self.mix,
         and then returns ppcf_i(subset_i), where ppcf_i is a ppcf of the i-th copula.
+        Inputs:
+            Copula with thetas/mixes of shape copulas x inputs
+            Samples of shape: inputs x sample_size (any number of dimensions)
         '''
+        assert torch.all(samples==samples)
         assert self.mix.shape[0]==len(self.copulas)
-        assert self.mix.shape[1]==samples.shape[0] #compare sample dimensions
-
+        assert samples.shape[-1] == 2 #should be pairs
+        assert self.mix.shape[1]==samples.shape[0] #compare the number of inputs (X)
+        # sample size (samples[1:-1]) does not matter 
+        if samples.dim()>2:
+            shape = samples.shape[1:-1]+self.mix.shape
+            theta_ = self.theta.expand(shape)
+            mix_ = self.mix.expand(shape) # sample size x copulas x inputs
+            theta_= torch.einsum('...ij->ij...', theta_) # copulas x inputs x sample_size
+            mix_= torch.einsum('...ij->ij...', mix_)
+        else:
+            theta_ = self.theta
+            mix_ = self.mix
+        
         vals = torch.zeros_like(samples[...,0])
 
         onehot = torch.distributions.one_hot_categorical.OneHotCategorical(
-            probs=torch.einsum('i...->...i', self.mix)).sample()
-        onehot = torch.einsum('...i->i...', onehot) # now copulas x samples
+            probs=torch.einsum('i...->...i', mix_)).sample()
+        onehot = torch.einsum('...i->i...', onehot) # back to copulas x inputs x samples_size
         onehot = onehot.type(torch.bool)
-
+        
         for i,c in enumerate(self.copulas):
             if c.num_thetas == 0:
-                vals[..., onehot[i]] = samples[...,onehot[i],0]
+                vals[onehot[i]] = samples[...,0][onehot[i]]
             else:
-                vals[..., onehot[i]] = c(self.theta[i,onehot[i]], rotation=self.rotations[i]).ppcf(samples[...,onehot[i],:])
+                vals[onehot[i]] = c(theta_[i,...][onehot[i]], 
+                                               rotation=self.rotations[i]).ppcf(
+                                                samples[onehot[i],:])
         return vals
 
     def log_prob(self, value, safe=False):

@@ -230,29 +230,24 @@ class MixtureCopula_Likelihood(Likelihood):
                 Trained Gaussian Process distribution
             :attr:`target` (:class:`torch.Tensor`)
                 Values of :math:`y`.
-            :attr:`n` (:class:`int`)
-                Number of points in input space for logprob estimation
-            :attr:`length` (:class:`float`)
-                Length of the input space in physical units (seconds/cm/...). Provides scale for derivative in FI.
         Returns
-            `FI` (Fisher information)
             `MI` (Mutual information)
         '''
 
         with torch.no_grad():
+            N = target[...,0].numel() #number of data points. The last dimension is (2,) here.
             samples_shape = torch.Size([self.waic_samples])
-            f_samples = gp_distr.rsample(samples_shape) # [sample shape x GP variables x batch_shape (diff positions)]
+            f_samples = gp_distr.rsample(samples_shape) # [GP samples x GP variables x input shape]
             # from GP perspective it is [sample x batch x event] dims
             target = target.expand(samples_shape+target.shape)
             log_prob = self.get_copula(f_samples).log_prob(target).detach()
             pwaic = torch.var(log_prob,dim=0).sum()
             sum_prob = torch.exp(log_prob).sum(dim=0)
-            N = torch.ones_like(pwaic)*self.waic_samples
-            lpd=(sum_prob.log()-N.log()).sum() # sum_M log(1/N * sum^i_S p(y|theta_i)), where N is train_x.shape[0]
-        #torch.cuda.empty_cache() 
+            S = torch.ones_like(pwaic)*self.waic_samples
+            lpd=(sum_prob.log()-S.log()).sum() # sum_M log(1/N * sum^i_S p(y|theta_i)), where N is train_x.shape[0]
 
         if combine_terms:
-            return (lpd-pwaic) #=WAIC
+            return -(lpd-pwaic)/N #=WAIC
         else:
             return lpd,pwaic
 

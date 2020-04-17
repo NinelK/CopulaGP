@@ -80,7 +80,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	rbf = torch.zeros(conf.max_num_iter, device=device)
 	means = torch.zeros(conf.max_num_iter, device=device)
 	nans_detected = 0
-	WAIC = 1 #assume that the model will train well
+	WAIC = -1 #assume that the model will train well
 	
 	def train(train_x, train_y, num_iter=conf.max_num_iter):
 	    model.train()
@@ -107,7 +107,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	            if (0 < mean_p < conf.loss_tol2check_waic):
 	                WAIC = model.likelihood.WAIC(model(train_x),train_y)
-	                if (WAIC < 0):
+	                if (WAIC > 0):
 	                    logging.debug("Training does not look promissing!")
 	                    break	
 
@@ -148,11 +148,12 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 		assert isinstance(output_loss, str)
 		plot_loss(output_loss, losses.cpu().numpy(), rbf.cpu().numpy(), means.cpu().numpy())
 
-	if (WAIC > 0):
+	if (WAIC < 0): 
+	# if model got to the point where it was better than independence: recalculate final WAIC
 		WAIC = model.likelihood.WAIC(model(train_x),train_y)
 
 	t2 = time.time()
-	logging.info('WAIC={:.0f}, took {} sec'.format(WAIC,int(t2-t1)))
+	logging.info('WAIC={:.4f}, took {} sec'.format(WAIC,int(t2-t1)))
 
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):

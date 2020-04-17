@@ -15,7 +15,7 @@ def standard_loader(path,n1=None,n2=None):
 
 	assert data['X'].shape[0]==data['Y'].shape[0]
 
-	assert (data['X'].min()>0) & (data['X'].max()<1)
+	assert (data['X'].min()>=0) & (data['X'].max()<=1)
 	assert (data['Y'].min()>0) & (data['Y'].max()<1)
 
 	if n1 is None:

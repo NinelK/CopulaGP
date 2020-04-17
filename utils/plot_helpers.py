@@ -183,34 +183,38 @@ def _get_pearson(X: Tensor, Y: Tensor):
 
     return np.stack([x[2:-1]*160,p])
 
-def _code_names(code):
-    if isinstance(code, str):
+def _code_names(code, order):
+    if order is None:
         return code
-    elif isinstance(code, int):
-        if code>1:
-            return 'Neuron {}'.format(code)
-        elif code==1:
-            return 'Neuropil'
-        elif code==0:
-            return 'Background'
-        elif code==-1:
-            return 'Velocity'
-        elif code==-2:
-            return 'Licks'
-        elif code==-3:
-            return 'Reward'
-        elif code==-4:
-            return 'Early Reward'
-        elif code==-5:
-            return 'Late Reward'
-        else:
-            return 'Unknown code'
     else:
-        return 'Code not int or str'
+        print("Finish implementation: load order and pass it here, then parse")
+        # if isinstance(code, str):
+        #     return code
+        # elif isinstance(code, int):
+        #     if code>1:
+        #         return 'Neuron {}'.format(code)
+        #     elif code==1:
+        #         return 'Neuropil'
+        #     elif code==0:
+        #         return 'Background'
+        #     elif code==-1:
+        #         return 'Velocity'
+        #     elif code==-2:
+        #         return 'Licks'
+        #     elif code==-3:
+        #         return 'Reward'
+        #     elif code==-4:
+        #         return 'Early Reward'
+        #     elif code==-5:
+        #         return 'Late Reward'
+        #     else:
+        #         return 'Unknown code'
+        # else:
+        #     return 'Code not int or str'
 
 def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
-            name_x: str, name_y: str, filename: str,
-            device: torch.device):
+            name_x: str, name_y: str, filename: str, 
+            device: torch.device, order = None):
     '''
         The main plotting function that summarises the parameters if the model
         as well as compares simulated vs. real copula densities.
@@ -236,8 +240,8 @@ def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
 
     Y_sim = _generate_test_samples(model, test_x)
 
-    name_x = _code_names(name_x)
-    name_y = _code_names(name_y)
+    name_x = _code_names(name_x, order=order)
+    name_y = _code_names(name_y, order=order)
         
     Plot_MixModel_Param_MCMC(top_axes,model,test_x,testX*160,rho=_get_pearson(X,Y),title=' for {} vs {}'.format(name_x,name_y))
 

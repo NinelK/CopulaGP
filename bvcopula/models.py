@@ -102,7 +102,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         # Initialize lengthscale and outputscale to mean of priors
         self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
 
-    def MI(self, points, alpha=0.05, sem_tol=1e-3, mc_size=10000):
+    def MI(self, points, alpha=0.05, sem_tol=1e-3, f_size=5, mc_size=10000):
         '''
         Measure mutual information between variables 
         (=negative conditioned copula entropy)
@@ -129,7 +129,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         '''
         MIs = []
         with torch.no_grad():
-            fs = self(points).rsample(torch.Size([5])) #[samples_f, copulas, positions]
+            fs = self(points).rsample(torch.Size([f_size])) #[samples_f, copulas, positions]
         f_mean = self(points).mean.unsqueeze(0)
         # now add mean f to a set of f samples
         fs = torch.cat((fs,f_mean),0) #[samples_f + 1, copulas, positions]

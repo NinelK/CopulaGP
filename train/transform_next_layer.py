@@ -7,8 +7,6 @@ sys.path.insert(0, conf.path2code)
 
 import utils
 
-#to conf
-
 def transform2next_layer(exp_pref,layer,device):
 
 	path_models = f"{conf.path2outputs}/{exp_pref}"
@@ -51,9 +49,12 @@ def transform2next_layer(exp_pref,layer,device):
 	# next_layer.append(Y[:,-1])
 	assert len(next_layer)==NN
 
+	y = np.array(next_layer).T
+	assert np.all(y>=0) & np.all(y<=1)
+
 	data = {}
 	data['X'] = X
-	data['Y'] = np.array(next_layer).T
+	data['Y'] = y
 
 	with open(f"{conf.path2data}/{exp_pref}_layer{layer+1}.pkl","wb") as f:
 	    pkl.dump(data,f)

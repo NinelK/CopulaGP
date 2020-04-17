@@ -5,20 +5,7 @@ import bvcopula
 from utils import get_copula_name_string, Plot_Fit
 import os
 
-def evaluate(model,device):
-    # define uniform test set (optionally on GPU)
-    test_x = torch.linspace(0,1,100).to(device=device)
-    with torch.no_grad():
-        output = model(test_x)
-    gplink = model.likelihood.gplink_function
-    thetas, mixes = gplink(output.mean, normalized_thetas=False)
-
-    return thetas, mixes
-
-def important_copulas(model, device):
-    thetas, mixes = evaluate(model,device)
-    which = torch.torch.any(mixes>0.1,dim=1) # if higher than 10% somewhere -> significant
-    return which
+from .importance import important_copulas, reduce_model
    
 def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
     exp_pref: str, path_output: str, name_x: str, name_y: str,
@@ -45,88 +32,118 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
         torch.save(model.state_dict(),weights_filename)
         # plot results
         plot_res = '{}/res_{}.png'.format(path_output,name)
+        # # get variable order for real names
+        # with open(f"{path_models}/order_{exp_pref}.pkl","rb") as f:
+        #     order = pkl.load(f)
         Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
 
-    waic, _ = bvcopula.infer([bvcopula.FrankCopula_Likelihood()],train_x,train_y,device=device)
+    best_likelihoods = [bvcopula.FrankCopula_Likelihood()]
+    waic_min, model = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
+    plot_n_save(model)
 
-    if waic<conf.waic_threshold*X.shape[0]:
+    if waic_min>conf.waic_threshold:
         logging.info("These variables are independent")
-        return ([bvcopula.IndependenceCopula_Likelihood()], torch.tensor([0]))
+        return ([bvcopula.IndependenceCopula_Likelihood()], 0.0)
     else:
+
         (waic_gumbels, model_gumbels) = bvcopula.infer(conf.gumbel_likelihoods,train_x,train_y,device=device)
         (waic_claytons, model_claytons) = bvcopula.infer(conf.clayton_likelihoods,train_x,train_y,device=device)
-        
-        if waic_claytons>waic_gumbels:
-            which_leader = important_copulas(model_claytons,device)
-            which_follow = important_copulas(model_gumbels,device)
-            likelihoods_leader = conf.clayton_likelihoods[2:]
-            likelihoods_follow = conf.gumbel_likelihoods[2:]
-        else:
-            which_leader = important_copulas(model_gumbels,device)
-            which_follow = important_copulas(model_claytons,device)
-            likelihoods_leader = conf.gumbel_likelihoods[2:]
-            likelihoods_follow = conf.clayton_likelihoods[2:]
 
-        logging.info(which_leader)
-        logging.info(which_follow)
-        
-        symmetric_part = which_leader[:2] + which_follow[:2] # + = elementwise_or
-        assymetric_part = which_leader[2:] + which_follow[2:]
+        if waic_min >= min(waic_claytons,waic_gumbels):
 
-        def reduce(likelihoods,which):
-            assert len(likelihoods)==len(which)
-            idx = torch.arange(0,len(which))[which]
-            return [likelihoods[i] for i in idx]
-
-        waic_max = max(waic_claytons,waic_gumbels)
-        symmetric_likelihoods = reduce(conf.clayton_likelihoods[:2],symmetric_part)
-        #print("Symmetric: "+get_copula_name_string(symmetric_likelihoods))
-        best_likelihoods = conf.clayton_likelihoods[:2]+likelihoods_leader.copy()
-        count_swaps=0
-        for i in torch.arange(4)[assymetric_part]:
-            likelihoods = symmetric_likelihoods.copy()
-            if (count_swaps==0) and (i==torch.sum(assymetric_part).cpu()-1):
-                logging.info('No need to swap the last one, as we already tried that model')
+            if waic_claytons<waic_gumbels:
+                which_leader = important_copulas(model_claytons,device)
+                which_follow = important_copulas(model_gumbels,device)
+                likelihoods_leader = conf.clayton_likelihoods[2:]
+                likelihoods_follow = conf.gumbel_likelihoods[2:]
+                plot_n_save(model_claytons)
             else:
-                for j in torch.arange(4)[assymetric_part]:
-                    if i!=j:
-                        likelihoods.append(likelihoods_leader[j])
-                    else:
-                        likelihoods.append(likelihoods_follow[j])
-                (waic, model) = bvcopula.infer(likelihoods,train_x,train_y,device=device)
-                if waic>waic_max:
-                    logging.info("Swap "+get_copula_name_string([likelihoods_leader[i]])+"->"+get_copula_name_string([likelihoods_follow[i]]))
-                    likelihoods_leader[i] = likelihoods_follow[i]
-                    count_swaps+=1
-                    waic=waic_max
-                    best_likelihoods = likelihoods.copy()
-                    which_leader = important_copulas(model, device)
-                    plot_n_save(model)
+                which_leader = important_copulas(model_gumbels,device)
+                which_follow = important_copulas(model_claytons,device)
+                likelihoods_leader = conf.gumbel_likelihoods[2:]
+                likelihoods_follow = conf.clayton_likelihoods[2:]
+                plot_n_save(model_gumbels)
 
-        #print("Assymetric: "+get_copula_name_string(likelihoods_leader))
-   
-        if torch.any(which_leader==False):
-            best_likelihoods = reduce(best_likelihoods,which_leader)
-            logging.info("Re-running reduced model...")
-            (waic, model) = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
-            waic_max = waic
-            plot_n_save(model)
-        else:
-            logging.info('Nothing to reduce')
+            logging.info(which_leader)
+            logging.info(which_follow)
+            
+            symmetric_part = which_leader[:2] + which_follow[:2] # + = elementwise_or
+            assymetric_part = which_leader[2:] + which_follow[2:]
 
-        # Finally, check if Gaussian Copula is better than Frank
-        if symmetric_part[1]==True:
-            with_gauss = best_likelihoods.copy()
-            for i, c in enumerate(with_gauss):
-                if c.name=='Frank':
-                    with_gauss[i] = bvcopula.GaussianCopula_Likelihood()
-            #print('Trying Gauss: '+get_copula_name_string(with_gauss))
-            (waic, model) = bvcopula.infer(with_gauss,train_x,train_y,device=device)
-            if waic>waic_max:
-                logging.info('Gauss is better than Frank')
-                waic_max = waic
-                best_likelihoods = with_gauss
+            waic_min = min(waic_claytons,waic_gumbels)
+            symmetric_likelihoods = reduce_model(conf.clayton_likelihoods[:2],symmetric_part)
+            #print("Symmetric: "+get_copula_name_string(symmetric_likelihoods))
+            best_likelihoods = conf.clayton_likelihoods[:2]+likelihoods_leader.copy()
+            count_swaps=0
+            for iter,i in enumerate(torch.arange(4)[assymetric_part]):
+                likelihoods = symmetric_likelihoods.copy()
+                if (count_swaps==0) and (iter==torch.sum(assymetric_part).cpu()-1):
+                    logging.info('No need to swap the last one, as we already tried that model')
+                else:
+                    for j in torch.arange(4)[assymetric_part]:
+                        if i!=j:
+                            likelihoods.append(likelihoods_leader[j])
+                        else:
+                            likelihoods.append(likelihoods_follow[j])
+                    (waic, model) = bvcopula.infer(likelihoods,train_x,train_y,device=device)
+                    if waic<waic_min:
+                        logging.info("Swap "+get_copula_name_string([likelihoods_leader[i]])+"->"+get_copula_name_string([likelihoods_follow[i]]))
+                        likelihoods_leader[i] = likelihoods_follow[i]
+                        count_swaps+=1
+                        waic=waic_min
+                        best_likelihoods = likelihoods.copy()
+                        which_leader = important_copulas(model, device)
+                        plot_n_save(model)
+
+            #print("Assymetric: "+get_copula_name_string(likelihoods_leader))
+       
+            if torch.any(which_leader==False):
+                best_likelihoods = reduce_model(best_likelihoods,which_leader)
+                logging.info("Re-running reduced model...")
+                (waic, model) = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
+                waic_min = waic
                 plot_n_save(model)
+            else:
+                logging.info('Nothing to reduce')
+
+            # If Frank is still selected, check if Gaussian Copula is better than Frank
+            if symmetric_part[1]==True:
+                with_gauss = best_likelihoods.copy()
+                for i, c in enumerate(with_gauss):
+                    if c.name=='Frank':
+                        with_gauss[i] = bvcopula.GaussianCopula_Likelihood()
+                #print('Trying Gauss: '+get_copula_name_string(with_gauss))
+                (waic, model) = bvcopula.infer(with_gauss,train_x,train_y,device=device)
+                if waic<waic_min:
+                    logging.info('Gauss is better than Frank')
+                    waic_min = waic
+                    best_likelihoods = with_gauss
+                    plot_n_save(model)
+            elif len(best_likelihoods)>1:
+                # Gaussian is often confused with Clayton+Gumbel or Gumbel+(180-rotated-Gumbel)
+                # Check that this did not happen.
+                new_best = best_likelihoods #no need to copy here
+                for i in range(len(best_likelihoods)-1):
+                    for j in range(i,len(best_likelihoods)):
+                        if i!=j:
+                            logging.info(f"Trying to substitute 2 elements ({i} and {j}) with a Gauss...")
+                            likelihoods = [bvcopula.GaussianCopula_Likelihood()]
+                            for k in range(len(best_likelihoods)):
+                                if (k!=i) & (k!=j):
+                                    likelihoods = likelihoods + [best_likelihoods[k]]
+                            (waic, model) = bvcopula.infer(likelihoods,train_x,train_y,device=device)
+                            if waic<waic_min:
+                                waic_min = waic
+                                new_best = likelihoods.copy()
+                                plot_n_save(model)
+                best_likelihoods = new_best.copy()
+        else: # if Frank was better than all combinations -> Check Gaussian
+            waic, model = bvcopula.infer([bvcopula.GaussianCopula_Likelihood()],train_x,train_y,device=device)
+            if waic<waic_min:
+                best_likelihoods = [bvcopula.GaussianCopula_Likelihood()]
+                waic_min = waic
+                plot_n_save(model)
+
     
         print("Final model: "+get_copula_name_string(best_likelihoods))
         logging.info("Final model: "+get_copula_name_string(best_likelihoods))
@@ -139,5 +156,5 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
         target = '{}/best_{}.png'.format(path_output,exp_name)
         os.popen('cp {} {}'.format(source,target))
 
-        return best_likelihoods, waic_max
+        return best_likelihoods, waic_min.cpu().item()
     

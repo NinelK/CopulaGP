@@ -34,5 +34,5 @@ symmetric_likelihoods = [bvcopula.GaussianCopula_Likelihood(),
 # max number of copulas in a copula mixture
 max_mix = 6
 
-#below this waic data is independent
-waic_threshold = 0.005
+# above this waic data is independent
+waic_threshold = -0.005
