@@ -15,14 +15,14 @@ elements = [bvcopula.IndependenceCopula_Likelihood(),
 			]
 
 clayton_likelihoods = [bvcopula.IndependenceCopula_Likelihood(),
-				bvcopula.FrankCopula_Likelihood(),
+				bvcopula.GaussianCopula_Likelihood(),
 				bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
 				bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
 				bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
 				bvcopula.ClaytonCopula_Likelihood(rotation='270°'),]
 
 gumbel_likelihoods = [bvcopula.IndependenceCopula_Likelihood(),
-				bvcopula.FrankCopula_Likelihood(),
+				bvcopula.GaussianCopula_Likelihood(),
 				bvcopula.GumbelCopula_Likelihood(rotation='180°'),
 				bvcopula.GumbelCopula_Likelihood(rotation='270°'),
 				bvcopula.GumbelCopula_Likelihood(rotation='0°'),

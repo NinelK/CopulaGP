@@ -133,6 +133,9 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 		print("Model reduced to {}".format(utils.get_copula_name_string(reduced_likelihoods)))
 		waics[best_ind] = waic.cpu().numpy()
 		mixtures[best_ind] = reduced_likelihoods
+		# plot the result
+		plot_res = '{}/res_{}.png'.format(path_output,name)
+		utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
 
 	# copy the very best model 
 	if (utils.get_copula_name_string(mixtures[best_ind])!='Independence'):

@@ -16,6 +16,8 @@ def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
     NSamp=5000
     X = np.linspace(0.,1.,NSamp)
 
+    out_path = './tempH'
+
     if len(likelihoods)==1:
         assert mode=='thetas'
 
@@ -30,14 +32,24 @@ def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
     train_y = torch.tensor(Y).float().cuda(device=device)
 
     t1 = time.time()
-    selected, _ = select_model(X,Y,device,exp_name,
-                                                './temp','{}1'.format(mode[0]),'{}2'.format(mode[0]),
+    selected, waic_best = select_model(X,Y,device,exp_name,
+                                                out_path,'{}1'.format(mode[0]),'{}2'.format(mode[0]),
                                                 train_x=train_x,train_y=train_y)
     t2 = time.time()
     print(f"Took {(t2-t1)//60} min")
 
     # assert
-    print((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected)))
+    if ((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected))):
+        print('Pass')
+    else:
+        waic_correct, _ = bvcopula.infer(likelihoods,train_x,train_y,device=device)
+        if isinstance(waic_correct,torch.Tensor):
+            waic_correct = waic_correct.cpu().numpy()
+        print(f'Correct WAIC: {waic_correct:.4f}, best WAIC {waic_best:.4f}, diff: {(waic_best-waic_correct):.4f}')
+        if (waic_best-waic_correct)<0.05:
+            print('Pass')
+        else:
+            print('Fail')
 
 def test_Independence():
     model_selection('thetas', [bvcopula.IndependenceCopula_Likelihood()])
@@ -83,11 +95,11 @@ if __name__ == "__main__":
         model_selection(mode, [bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
                                     bvcopula.GumbelCopula_Likelihood(rotation='270°')])
 
+    for mode in ['mixes','thetas']:
+
         model_selection(mode, [bvcopula.GaussianCopula_Likelihood(),
                                     bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
                                     bvcopula.GumbelCopula_Likelihood(rotation='0°')])
-
-    for mode in ['mixes','thetas']:
 
         model_selection(mode, [bvcopula.FrankCopula_Likelihood(),
                                     bvcopula.ClaytonCopula_Likelihood(rotation='90°'),

@@ -37,7 +37,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
         #     order = pkl.load(f)
         Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
 
-    best_likelihoods = [bvcopula.FrankCopula_Likelihood()]
+    best_likelihoods = [bvcopula.GaussianCopula_Likelihood()]
     waic_min, model = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
     plot_n_save(model)
 
@@ -110,12 +110,12 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
             if symmetric_part[1]==True:
                 with_gauss = best_likelihoods.copy()
                 for i, c in enumerate(with_gauss):
-                    if c.name=='Frank':
-                        with_gauss[i] = bvcopula.GaussianCopula_Likelihood()
+                    if c.name=='Gaussian':
+                        with_gauss[i] = bvcopula.FrankCopula_Likelihood()
                 #print('Trying Gauss: '+get_copula_name_string(with_gauss))
                 (waic, model) = bvcopula.infer(with_gauss,train_x,train_y,device=device)
                 if waic<waic_min:
-                    logging.info('Gauss is better than Frank')
+                    logging.info('Frank is better than Gauss')
                     waic_min = waic
                     best_likelihoods = with_gauss
                     plot_n_save(model)
@@ -138,12 +138,28 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                                 plot_n_save(model)
                 best_likelihoods = new_best.copy()
         else: # if Frank was better than all combinations -> Check Gaussian
-            waic, model = bvcopula.infer([bvcopula.GaussianCopula_Likelihood()],train_x,train_y,device=device)
+            waic, model = bvcopula.infer([bvcopula.FrankCopula_Likelihood()],train_x,train_y,device=device)
             if waic<waic_min:
-                best_likelihoods = [bvcopula.GaussianCopula_Likelihood()]
+                best_likelihoods = [bvcopula.FrankCopula_Likelihood()]
                 waic_min = waic
                 plot_n_save(model)
 
+        # load model
+        name = '{}_{}'.format(exp_name,get_copula_name_string(best_likelihoods))
+        weights_filename = '{}/w_{}.pth'.format(path_output,name)
+        model = bvcopula.load_model(weights_filename, best_likelihoods, device)
+        # final reduce
+        which = important_copulas(model, device)
+        if torch.any(which==False):
+            print(which)
+            best_likelihoods = reduce_model(best_likelihoods,which)
+            (waic, model) = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
+            if waic>waic_min:
+                print('Reducing the model, even though the WAIC gets worse. See logs.')
+            waic_min = waic
+            plot_n_save(model)
+        else:
+            logging.info('Nothing to reduce')
     
         print("Final model: "+get_copula_name_string(best_likelihoods))
         logging.info("Final model: "+get_copula_name_string(best_likelihoods))

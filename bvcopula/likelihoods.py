@@ -260,7 +260,7 @@ class MixtureCopula_Likelihood(Likelihood):
         rotations = [lik.rotation for lik in self.likelihoods]
         return self.copula(thetas,mixes,copulas,rotations=rotations)
 
-    def stimMI(likelihood, S, F, alpha=0.05, sem_tol=1e-3,
+    def stimMI(self, S, F, alpha=0.05, sem_tol=1e-3,
         s_mc_size=200, r_mc_size=20, sR_mc_size=5000):
         '''
         Estimates the mutual information between the stimulus 
@@ -318,7 +318,7 @@ class MixtureCopula_Likelihood(Likelihood):
                 # Sample from p(s)
                 subset = torch.randperm(torch.numel(S))[:s_mc_size]
                 subset_S = S.view(-1)[subset]
-                copula = likelihood(F[...,subset]) #[f, stimuli(positions)]
+                copula = self(F[...,subset]) #[f, stimuli(positions)]
                 # Generate samples from p(r|s)*p(s)
                 samples = copula.rsample(sample_shape = torch.Size([r_mc_size]))
                 # these are samples for p(r|s) for each s
@@ -343,7 +343,7 @@ class MixtureCopula_Likelihood(Likelihood):
                 while torch.any(rR >= sem_tol): #relative error of p(r) = absolute error of log p(r)
                     new_subset = torch.randperm(torch.numel(S))[:sR_mc_size]
                     new_subset_S = S.view(-1)[new_subset]
-                    new_copula = likelihood(F[...,new_subset]) #[copulas, stimuli(positions)]
+                    new_copula = self(F[...,new_subset]) #[copulas, stimuli(positions)]
                     pRs = new_copula.log_prob(samples).exp() # [r from p(r),f,new_s] = [N,f,s]
                     kR += 1
                     # Monte-Carlo estimate of p(r)

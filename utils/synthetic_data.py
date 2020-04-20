@@ -30,8 +30,9 @@ def generate_mixes(likelihoods,n,device=torch.device('cpu')):
     m = len(likelihoods)
     mixes = torch.zeros(m,n,device=device)
     pi = 2*torch.asin(torch.tensor([1],device=device).float())
-    for i, lik in enumerate(likelihoods):
-        mixes[i] = (1+torch.sin(torch.linspace(0,1,n,device=device)*2*pi + i*pi/m))/2
+    for i in range(m):
+        mixes[i] = (1 + torch.sin(torch.linspace(0,1,n,device=device)*2*pi + 2*pi*i/m))/m
+    assert torch.all(torch.isclose(mixes.sum(dim=0),torch.ones_like(mixes[0])))
     return mixes
 
 def basic_thetas(likelihoods,n,device=torch.device('cpu')):

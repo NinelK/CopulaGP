@@ -6,6 +6,7 @@ iter_print = 100
 max_num_iter = 3000
 loss_tol = 0.0001 #the minimal change in loss that indicates convergence
 loss_tol2check_waic = 0.005
+waic_tol = 0.005 # maximal WAIC indistinguishable from 0
 
 # copula's theta ranges
 # here thetas are mainly constrained by the summation of probabilities in mixture model,

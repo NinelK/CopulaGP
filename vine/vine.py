@@ -19,7 +19,7 @@ class CVine():
         super(CVine, self).__init__()
         # for N variables there must be N-1 layers
         self.N = len(layers) + 1
-        # get the number of inputs in the 1st model
+        # get the inputs
         self.inputs = inputs
         for i,layer in enumerate(layers):
             assert len(layer) == self.N-1-i # check layer size
@@ -62,5 +62,42 @@ class CVine():
         
         return transformed_samples[::-1]
 
-    def log_prob():
-        pass
+    def log_prob(self, Y: torch.Tensor) -> torch.Tensor:
+
+        # DO NOT feed a triangular matrix from sample generation in here
+        # This creates extra information, because this matrix 'knows' 
+        # where each sample came from, from which copula in a mixture
+        # if isinstance(Y, list): # if a full triangular matrix of samples is given
+            
+        #     assert len(Y) == self.N
+        #     assert Y[0][...,0].shape == self.inputs.shape
+        #     assert Y[0].shape[-1] == self.N
+
+        #     log_prob = torch.zeros_like(Y[0][...,0])
+        #     for layer, copulas in enumerate(self.layers):
+        #         next_layer = []
+        #         for n, copula in enumerate(copulas):
+        #             #print(layer,layer+n+1, copula.copulas)
+        #             log_prob += copula.log_prob(Y[layer][:,[n+1,0]])
+
+        #     return log_prob
+
+        # elif isinstance(Y, torch.Tensor): # if only observable, 0-layer samples are given
+        # else:
+        #    raise ValueError("Samples type not supported")
+        
+        assert Y.shape[-2] == self.inputs.shape[0]
+        assert Y.shape[-1] == self.N
+        layers = [Y] # zero layer
+        log_prob = torch.zeros_like(Y[...,0])
+        for layer, copulas in enumerate(self.layers):
+            next_layer = []
+            for n, copula in enumerate(copulas):
+                #print(layer,layer+n+1, copula.copulas)
+                log_prob += copula.log_prob(layers[-1][...,[n+1,0]])
+                next_layer.append(copula.ccdf(layers[-1][...,[n+1,0]]))
+            layers.append(torch.stack(next_layer,dim=-1))
+
+        return log_prob
+
+       

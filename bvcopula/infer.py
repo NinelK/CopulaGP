@@ -107,7 +107,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	            if (0 < mean_p < conf.loss_tol2check_waic):
 	                WAIC = model.likelihood.WAIC(model(train_x),train_y)
-	                if (WAIC > 0):
+	                if (WAIC > conf.waic_tol):
 	                    logging.debug("Training does not look promissing!")
 	                    break	
 

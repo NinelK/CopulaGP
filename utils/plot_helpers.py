@@ -236,7 +236,7 @@ def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
     # define test set (optionally on GPU)
     NSamp = X.shape[0] #by defauls generate as many samples as in training set
     testX = np.linspace(0,1,NSamp)
-    test_x = torch.tensor(testX).float().cuda(device=device)
+    test_x = torch.tensor(testX).float().to(device=device)
 
     Y_sim = _generate_test_samples(model, test_x)
 

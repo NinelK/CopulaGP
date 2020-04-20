@@ -577,6 +577,7 @@ class MixtureCopula(Distribution):
             self.theta_sharing = torch.arange(0,len(copulas)).long()
         self.mix = mix
         self.copulas = copulas
+        assert self.mix.shape[0]==len(self.copulas)
         if rotations:
             self.rotations = rotations
         else:
@@ -682,8 +683,7 @@ class MixtureCopula(Distribution):
         '''
         
         '''
-        assert self.mix.shape[0]==len(self.copulas)
-        assert self.mix.shape[1]==samples.shape[0] #compare sample dimensions
+        assert self.mix.shape[1]==samples.shape[-2] #compare input dimensions
 
         vals = torch.zeros_like(samples[...,0])
 
