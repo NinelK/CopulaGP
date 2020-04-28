@@ -408,6 +408,7 @@ class GumbelCopula(SingleParamCopulaBase):
         if (self.rotation == '180°') or (self.rotation == '270°'):
             v = 1 - v
         samples = self._SingleParamCopulaBase__rotate_input(samples)
+        assert torch.all(v==v)
         return v
 
     def ccdf(self, samples):
@@ -420,9 +421,11 @@ class GumbelCopula(SingleParamCopulaBase):
         h1 = torch.pow(x,theta_) + torch.pow(y,theta_)
         h2 = 1.0 / theta_
         vals = torch.exp(x - torch.pow(h1,h2)+ (h2-1)*torch.log(h1) + (theta_ - 1)*torch.log(x)).clamp(0,1)
+
         if (self.rotation == '180°') or (self.rotation == '270°'):
             vals = 1 - vals
         samples = self._SingleParamCopulaBase__rotate_input(samples)
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value, safe=True):
@@ -692,6 +695,7 @@ class MixtureCopula(Distribution):
                 vals += self.mix[i] * samples[...,0]
             else:
                 vals += self.mix[i] * c(self.theta[i], rotation=self.rotations[i]).ccdf(samples)
+        vals = vals.clamp(0.001,0.999)
         return vals   
 
     def make_dependent(self, samples):

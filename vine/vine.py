@@ -29,6 +29,25 @@ class CVine():
         self.layers = layers
         # ADD CHECK ON WHICH DEVICE EACH MODEL IS?
         self.device = device
+
+    def create_subvine(self, input_idxs: torch.Tensor):
+        '''
+        Creates a CVine object, defined on the subset of inputs
+        input_idxs: torch.Tensor
+            indexes of the input elements to keep
+        '''
+        assert input_idxs.max() < self.inputs.numel()
+        new_layers = []
+        for layer in self.layers:
+            models = []
+            for model in layer:
+                copula_model = bvcopula.MixtureCopula(model.theta[...,input_idxs],
+                    model.mix[...,input_idxs],
+                    model.copulas,
+                    rotations=model.rotations)
+                models.append(copula_model)
+            new_layers.append(models)
+        return CVine(new_layers,self.inputs[input_idxs],device=self.device)
         
     @staticmethod
     def _layer_transform(upper,new,copulas):
@@ -60,31 +79,9 @@ class CVine():
             new_layer = self._layer_transform(upper,samples[...,self.N-upper.shape[-1]-1],copulas)
             transformed_samples.append(new_layer)
         
-        return transformed_samples[::-1]
+        return transformed_samples[-1]
 
     def log_prob(self, Y: torch.Tensor) -> torch.Tensor:
-
-        # DO NOT feed a triangular matrix from sample generation in here
-        # This creates extra information, because this matrix 'knows' 
-        # where each sample came from, from which copula in a mixture
-        # if isinstance(Y, list): # if a full triangular matrix of samples is given
-            
-        #     assert len(Y) == self.N
-        #     assert Y[0][...,0].shape == self.inputs.shape
-        #     assert Y[0].shape[-1] == self.N
-
-        #     log_prob = torch.zeros_like(Y[0][...,0])
-        #     for layer, copulas in enumerate(self.layers):
-        #         next_layer = []
-        #         for n, copula in enumerate(copulas):
-        #             #print(layer,layer+n+1, copula.copulas)
-        #             log_prob += copula.log_prob(Y[layer][:,[n+1,0]])
-
-        #     return log_prob
-
-        # elif isinstance(Y, torch.Tensor): # if only observable, 0-layer samples are given
-        # else:
-        #    raise ValueError("Samples type not supported")
         
         assert Y.shape[-2] == self.inputs.shape[0]
         assert Y.shape[-1] == self.N
@@ -101,3 +98,105 @@ class CVine():
         return log_prob
 
        
+    def stimMI(self, alpha=0.05, sem_tol=1e-2, 
+          s_mc_size=200, r_mc_size=50, sR_mc_size=5000):
+        '''
+        Estimates the mutual information between the stimulus 
+        (GP conditioning variable) and the response (observable variables
+        modelled with copula mixture) with the Robbins-Monro algorithm.
+        Parameters
+        ----------
+        alpha : float, optional
+            Significance level of the entropy estimate.  (Default: 0.05)
+        sem_tol : float, optional
+            Maximum standard error as a stopping criterion.  (Default: 1e-3)
+        s_mc_size : integer, optional
+            Number of stimuli samples that are drawn from self.inputs 
+            on each iteration of the MI estimation.  (Default: 200)
+        r_mc_size : integer, optional
+            Number of response samples that are drawn from a copula model for 
+            a set of stimuli (size of s_mc_size) in each iteration of 
+            the MI estimation.  (Default: 50)
+        sR_mc_size : integer, optional            
+            Number of stimuli samples that are drawn from self.inputs
+            on each iteration of the p(R) estimation. (Default: 5000)
+        Returns
+        -------
+        ent : float
+            Estimate of the MI in bits.
+        sem : float
+            Standard error of the MI estimate in bits.
+        '''
+        # Gaussian confidence interval for sem_tol and level alpha
+        conf = torch.erfinv(torch.tensor([1. - alpha])).to(self.device)
+        sem = torch.ones(2).to(self.device)*float('inf')
+        Hrs = torch.zeros(1).to(self.device) # sum of conditional entropies 
+        Hr = torch.zeros(1).to(self.device) # entropy of p(r)
+        var_sum = torch.zeros_like(sem)
+        log2 = torch.tensor([2.]).log().to(self.device)
+        k = 0
+        inputs = self.inputs.numel()
+        if inputs<sR_mc_size:
+            r_mc_size *= int(sR_mc_size/inputs)
+            sem_tol_pr = sem_tol*int(sR_mc_size/inputs)
+            sR_mc_size = inputs
+        else:
+            sem_tol_pr = sem_tol
+        N = r_mc_size*s_mc_size
+        with torch.no_grad():
+            while torch.any(sem >= sem_tol):
+                # Sample from p(s) (we can't fit all samples S into memory for this method)
+                subset = torch.randperm(inputs)[:s_mc_size]
+                subvine = self.create_subvine(subset)
+                # Generate samples from p(r|s)*p(s)
+                samples = subvine.sample(torch.Size([r_mc_size])) # samples (MC) x responses (MC) x variables
+                samples = torch.einsum("ij...->ji...",samples) # responses (MC) x samples(MC) x variables
+                # these are samples for p(r|s) for each s
+                # size [responses(samples), stimuli(inputs), variables] = [r,s,v]
+                logpRgS = subvine.log_prob(samples) / log2 # dim=-2 aligns with the number of inputs in subvine
+                assert torch.all(logpRgS==logpRgS)
+                assert torch.all(logpRgS.abs()!=float("inf"))
+                logpRgS = logpRgS.reshape(-1) # [N]
+
+                # marginalise s (get p(r)) and reshape
+                samples = samples.reshape(-1,samples.shape[-1]) # (samples * Xs) x variables = [r*s, v]
+                samples = samples.unsqueeze(dim=-2) # (samples * Xs) x 1 x 2 = [r*s, 1, v]
+                samples = samples.expand([N,sR_mc_size,samples.shape[-1]]) # (samples * Xs) x Xs x 2
+
+                # now find E[p(r|s)] under p(s) with MC
+                rR = torch.ones(N).to(self.device)*float('inf')
+                pR = torch.zeros(N).to(self.device)
+                var_sumR = torch.zeros(N).to(self.device)
+                kR = 0
+                # print(f"Start calculating p(r) {k}")
+                while torch.any(rR >= sem_tol_pr): #relative error of p(r) = absolute error of log p(r)
+                    new_subset = torch.randperm(inputs)[:sR_mc_size] # permute samples & inputs
+                    new_subvine = self.create_subvine(new_subset)
+                    pRs = new_subvine.log_prob(samples).exp()
+                    kR += 1
+                    # Monte-Carlo estimate of p(r)
+                    pR += (pRs.mean(dim=-1) - pR) / kR
+                    # Estimate standard error
+                    var_sumR += ((pRs - pR.unsqueeze(-1)) ** 2).sum(dim=-1)
+                    semR = conf * (var_sumR / (kR * sR_mc_size * (kR * sR_mc_size - 1))).pow(.5) 
+                    rR = semR/pR #relative error
+                    # if kR%100 == 0:
+                    #     print(rR/sem_tol_pr)
+                # print(f"Finished in {kR} steps")
+
+                logpR = pR.log() / log2 #[N,f]
+                k += 1
+                if k>100:
+                    print('MC integral failed to converge')
+                    break
+                # Monte-Carlo estimate of MI
+                #MI += (log2p.mean(dim=0) - MI) / k # mean over sample dimensions -> [f]
+                Hrs += (logpRgS.mean(dim=0) - Hrs) / k # negative sum H(r|s) * p(s)
+                Hr += (logpR.mean(dim=0) - Hr) / k # negative entropy H(r)
+                # Estimate standard error
+                var_sum[0] += ((logpRgS - Hrs) ** 2).sum(dim=0)
+                var_sum[1] += ((logpR - Hr) ** 2).sum(dim=0)
+                sem = conf * (var_sum / (k * N * (k * N - 1))).pow(.5)
+                # print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
+                #     {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
+        return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5), Hr, sem[1] #2nd arg is an error of sum

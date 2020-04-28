@@ -1,6 +1,7 @@
 import torch
 from bvcopula import MixtureCopula
 from bvcopula import conf
+from select_copula.conf import elements
 
 def generate_thetas(likelihoods,n,device=torch.device('cpu')):
     m = len(likelihoods)
@@ -70,3 +71,19 @@ def create_model(mode,likelihoods,n,device=torch.device('cpu')):
     else:
         raise('Unknown model generation mode')
     return copula_model
+
+# generate a random vine
+
+def _get_random_mixture(max_el=5):
+    m = 1+torch.randint(max_el,(1,))
+    return [elements[i] for i in torch.randperm(len(elements))[:m]]
+
+def get_random_vine(N, x, max_el=5, device=torch.device('cpu')):
+    from vine import CVine
+    layers = []
+    for i in range(N-1):
+        layer = []
+        for j in range(N-i-1):
+            layer.append(create_model('thetas',_get_random_mixture(max_el=max_el),x.numel(),device=device))
+        layers.append(layer)
+    return CVine(layers,x,device=device)

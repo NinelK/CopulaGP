@@ -39,4 +39,27 @@ def revised_mi(x,y,k=5,q=float('inf')):
         ans_xy += (dx+dy)*np.log(knn_dis[i])/N
         ans_x += -np.log(len(tree_x.query_ball_point(x[i],knn_dis[i]+1e-15,p=q))-1)/N+dx*np.log(knn_dis[i])/N
         ans_y += -np.log(len(tree_y.query_ball_point(y[i],knn_dis[i]+1e-15,p=q))-1)/N+dy*np.log(knn_dis[i])/N		
-    return ans_x+ans_y-ans_xy
+    return (ans_x+ans_y-ans_xy)/np.log(2), ans_y/np.log(2)
+
+from torch import Size
+def analytic_MI(vine, half_bin=200, step=100, sample_size=Size([10])):
+    '''
+    Analytically estimates MI between inputs and variables
+    (sampled from vine copula model).
+    Uses Pearson's correlation coefficient on binarized data. 
+    Only works for 2D variables. 
+    '''
+    import numpy as np
+    N = vine.inputs.numel()
+    y = vine.sample(sample_size).cpu().numpy()
+    p = np.zeros((N//step,2))
+    for j in range(len(p)):
+        start = np.clip(step * j - half_bin,0,N)
+        end = np.clip(step * j + half_bin,0,N)
+        p[j,0] = np.corrcoef(*y[start:end].reshape(-1,y.shape[-1]).T)[0,1]
+        p[j,1] = end-start
+    assert end==N
+    Hs = np.sum((-np.log(1-p[:,0]**2)/2/np.log(2))*p[:,1]/p[:,1].sum())
+    p_all = np.corrcoef(*y.reshape(-1,y.shape[-1]).T)[0,1]
+    H = (-np.log(1-p_all**2)/2/np.log(2))
+    return (Hs-H, H)

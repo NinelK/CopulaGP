@@ -37,22 +37,24 @@ def heuristic_element_order(samples):
     order = score.argsort()[::-1]
     return order
 
-animal = sys.argv[1]#'ST263'
-dayN = sys.argv[2]
-day_name = f"Day{dayN}"
-exp_pref = f"{animal}_{day_name}"
+if __name__ == "__main__":
+    
+    animal = sys.argv[1]#'ST263'
+    dayN = sys.argv[2]
+    day_name = f"Day{dayN}"
+    exp_pref = f"{animal}_{day_name}"
 
-path = '/home/nina/VRData/Processing/pkls'
-path_models = '/home/nina/models'
+    path = '/home/nina/VRData/Processing/pkls'
+    path_models = '/home/nina/models'
 
-#samples = utils.load_neurons_only(path,exp_pref) #load only neurons
-samples = utils.load_samples(path,exp_pref)
+    #samples = utils.load_neurons_only(path,exp_pref) #load only neurons
+    samples = utils.load_samples(path,exp_pref)
 
-order = heuristic_element_order(samples)
+    order = heuristic_element_order(samples)
 
-with open(f"{path_models}/order_{exp_pref}.pkl","wb") as f:
-    pkl.dump(order,f)
+    with open(f"{path_models}/order_{exp_pref}.pkl","wb") as f:
+        pkl.dump(order,f)
 
-#print(order)
+    print(order)
 
 

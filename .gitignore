@@ -1,5 +1,6 @@
 *.pyc
 *.png
+*.pkl
 logs
 .ipynb_checkpoints/
 figures/
