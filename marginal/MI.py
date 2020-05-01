@@ -39,7 +39,7 @@ def revised_mi(x,y,k=5,q=float('inf')):
         ans_xy += (dx+dy)*np.log(knn_dis[i])/N
         ans_x += -np.log(len(tree_x.query_ball_point(x[i],knn_dis[i]+1e-15,p=q))-1)/N+dx*np.log(knn_dis[i])/N
         ans_y += -np.log(len(tree_y.query_ball_point(y[i],knn_dis[i]+1e-15,p=q))-1)/N+dy*np.log(knn_dis[i])/N		
-    return (ans_x+ans_y-ans_xy)/np.log(2), ans_y/np.log(2)
+    return (ans_x+ans_y-ans_xy)/np.log(2), (ans_xy-ans_x)/np.log(2)
 
 from torch import Size
 def analytic_MI(vine, half_bin=200, step=100, sample_size=Size([10])):

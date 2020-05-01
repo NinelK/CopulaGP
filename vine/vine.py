@@ -99,7 +99,7 @@ class CVine():
 
        
     def stimMI(self, alpha=0.05, sem_tol=1e-2, 
-          s_mc_size=200, r_mc_size=50, sR_mc_size=5000):
+          s_mc_size=200, r_mc_size=50, sR_mc_size=5000, v=False):
         '''
         Estimates the mutual information between the stimulus 
         (GP conditioning variable) and the response (observable variables
@@ -168,21 +168,23 @@ class CVine():
                 pR = torch.zeros(N).to(self.device)
                 var_sumR = torch.zeros(N).to(self.device)
                 kR = 0
-                # print(f"Start calculating p(r) {k}")
+                if v:
+                    print(f"Start calculating p(r) {k}")
                 while torch.any(rR >= sem_tol_pr): #relative error of p(r) = absolute error of log p(r)
                     new_subset = torch.randperm(inputs)[:sR_mc_size] # permute samples & inputs
                     new_subvine = self.create_subvine(new_subset)
-                    pRs = new_subvine.log_prob(samples).exp()
+                    pRs = new_subvine.log_prob(samples).clamp(-float("inf"),88.).exp()
                     kR += 1
                     # Monte-Carlo estimate of p(r)
                     pR += (pRs.mean(dim=-1) - pR) / kR
                     # Estimate standard error
-                    var_sumR += ((pRs - pR.unsqueeze(-1)) ** 2).sum(dim=-1)
+                    var_sumR += ((pRs - pR.unsqueeze(-1)) ** 2).clamp(0,1e2).sum(dim=-1)
                     semR = conf * (var_sumR / (kR * sR_mc_size * (kR * sR_mc_size - 1))).pow(.5) 
                     rR = semR/pR #relative error
-                    # if kR%100 == 0:
-                    #     print(rR/sem_tol_pr)
-                # print(f"Finished in {kR} steps")
+                    if v & (kR%100 == 0):
+                        print(rR.max()/sem_tol_pr)
+                if v:
+                    print(f"Finished in {kR} steps")
 
                 logpR = pR.log() / log2 #[N,f]
                 k += 1
@@ -197,6 +199,7 @@ class CVine():
                 var_sum[0] += ((logpRgS - Hrs) ** 2).sum(dim=0)
                 var_sum[1] += ((logpR - Hr) ** 2).sum(dim=0)
                 sem = conf * (var_sum / (k * N * (k * N - 1))).pow(.5)
-                # print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
-                #     {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
-        return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5), Hr, sem[1] #2nd arg is an error of sum
+                if v:
+                    print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
+                        {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
+        return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5), Hrs, sem[1] #2nd arg is an error of sum
