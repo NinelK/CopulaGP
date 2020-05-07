@@ -24,7 +24,7 @@ class CVine():
         for i,layer in enumerate(layers):
             assert len(layer) == self.N-1-i # check layer size
             for model in layer:
-                assert self.inputs.shape[0]== model.theta.shape[-1]	#check the number of inputs
+                assert (self.inputs.shape[0]== model.mix.shape[-1])
                 assert (model.__class__ == bvcopula.distributions.MixtureCopula)
         self.layers = layers
         # ADD CHECK ON WHICH DEVICE EACH MODEL IS?
@@ -97,6 +97,59 @@ class CVine():
 
         return log_prob
 
+    def entropy(self, alpha=0.05, sem_tol=1e-3, mc_size=10000, v=False):
+        '''
+        Estimates the entropy of the mixture of copulas 
+        with the Robbins-Monro algorithm.
+        Parameters
+        ----------
+        alpha : float, optional
+            Significance level of the entropy estimate.  (Default: 0.05)
+        sem_tol : float, optional
+            Maximum standard error as a stopping criterion.  (Default: 1e-3)
+        mc_size : integer, optional
+            Number of samples that are drawn in each iteration of the Monte
+            Carlo estimation.  (Default: 10000)
+        v : bool, default = False
+            Verbose mode
+        Returns
+        -------
+        ent : float
+            Estimate of the entropy in bits.
+        sem? : float
+            Standard error of the entropy estimate in bits.
+        '''
+
+        # Gaussian confidence interval for sem_tol and level alpha
+        conf = torch.erfinv(torch.tensor([1. - alpha],device=self.device))
+        inputs = self.inputs.numel()
+        sem = torch.ones(inputs,device=self.device)*float('inf')
+        ent = torch.zeros(inputs,device=self.device) #theta here must have dims: copula x batch dims
+        var_sum = torch.zeros(inputs,device=self.device)
+        log2 = torch.tensor([2.],device=self.device).log()
+        k = 0
+        with torch.no_grad():
+            while torch.any(sem >= sem_tol):
+                # Generate samples
+                samples = self.sample(torch.Size([mc_size])) # inputs (MC) x samples (MC) x variables
+                samples = torch.einsum("ij...->ji...",samples) # samples (MC) x inputs (MC) x variables
+                logp = self.log_prob(samples) # [sample dim, batch dims]
+                assert torch.all(logp==logp)
+                assert torch.all(logp.abs()!=float("inf")) #otherwise make masked tensor below
+                log2p = logp / log2 #maybe should check for inf 2 lines earlier
+                k += 1
+                # Monte-Carlo estimate of entropy
+                ent += (-log2p.mean(dim=0) - ent) / k # mean over samples dimension
+                # Estimate standard error
+                var_sum += ((-log2p - ent) ** 2).sum(dim=0)
+                sem = conf * (var_sum / (k * mc_size * (k * mc_size - 1))).pow(.5)
+                if v & (k%10==0):
+                    print (sem.max()/sem_tol)
+                if k>1000:
+                    print('Failed to converge')
+                    return 0
+        return ent#, sem
+
        
     def stimMI(self, alpha=0.05, sem_tol=1e-2, 
           s_mc_size=200, r_mc_size=50, sR_mc_size=5000, v=False):
@@ -120,6 +173,8 @@ class CVine():
         sR_mc_size : integer, optional            
             Number of stimuli samples that are drawn from self.inputs
             on each iteration of the p(R) estimation. (Default: 5000)
+        v : bool, default = False
+            Verbose mode
         Returns
         -------
         ent : float
@@ -149,8 +204,8 @@ class CVine():
                 subset = torch.randperm(inputs)[:s_mc_size]
                 subvine = self.create_subvine(subset)
                 # Generate samples from p(r|s)*p(s)
-                samples = subvine.sample(torch.Size([r_mc_size])) # samples (MC) x responses (MC) x variables
-                samples = torch.einsum("ij...->ji...",samples) # responses (MC) x samples(MC) x variables
+                samples = subvine.sample(torch.Size([r_mc_size])) # inputs (MC) x responses (MC) x variables
+                samples = torch.einsum("ij...->ji...",samples) # responses (MC) x inputs (MC) x variables
                 # these are samples for p(r|s) for each s
                 # size [responses(samples), stimuli(inputs), variables] = [r,s,v]
                 logpRgS = subvine.log_prob(samples) / log2 # dim=-2 aligns with the number of inputs in subvine
@@ -161,7 +216,7 @@ class CVine():
                 # marginalise s (get p(r)) and reshape
                 samples = samples.reshape(-1,samples.shape[-1]) # (samples * Xs) x variables = [r*s, v]
                 samples = samples.unsqueeze(dim=-2) # (samples * Xs) x 1 x 2 = [r*s, 1, v]
-                samples = samples.expand([N,sR_mc_size,samples.shape[-1]]) # (samples * Xs) x Xs x 2
+                samples = samples.expand([N,sR_mc_size,samples.shape[-1]]) # (samples * Xs) x Xs x v
 
                 # now find E[p(r|s)] under p(s) with MC
                 rR = torch.ones(N).to(self.device)*float('inf')
@@ -174,18 +229,24 @@ class CVine():
                     new_subset = torch.randperm(inputs)[:sR_mc_size] # permute samples & inputs
                     new_subvine = self.create_subvine(new_subset)
                     pRs = new_subvine.log_prob(samples).clamp(-float("inf"),88.).exp()
+                    assert torch.all(pRs==pRs)
                     kR += 1
                     # Monte-Carlo estimate of p(r)
                     pR += (pRs.mean(dim=-1) - pR) / kR
+                    assert torch.all(pR==pR)
                     # Estimate standard error
                     var_sumR += ((pRs - pR.unsqueeze(-1)) ** 2).clamp(0,1e2).sum(dim=-1)
                     semR = conf * (var_sumR / (kR * sR_mc_size * (kR * sR_mc_size - 1))).pow(.5) 
                     rR = semR/pR #relative error
                     if v & (kR%100 == 0):
                         print(rR.max()/sem_tol_pr)
+                    if kR>1000:
+                        print('p(r) failed to converge')
+                        break
                 if v:
                     print(f"Finished in {kR} steps")
 
+                assert torch.all(pR==pR)
                 logpR = pR.log() / log2 #[N,f]
                 k += 1
                 if k>100:
@@ -202,4 +263,5 @@ class CVine():
                 if v:
                     print(f"{Hrs.mean().item():.3},{Hr.mean().item():.3},{(Hrs.mean()-Hr.mean()).item():.3},\
                         {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
+        assert torch.all(Hr==Hr)
         return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5), Hrs, sem[1] #2nd arg is an error of sum

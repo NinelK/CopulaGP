@@ -20,9 +20,9 @@ def transform_coord(x,y,axes):
     wy = (axes[1][f_y]-y)/(axes[1][f_y]-axes[1][f_y-1])
     return (f_y - wy),(f_x - wx)
 
-def fast_signal2uniform(input,condition,numPointsPerSigma=20):
+def fast_signal2uniform(Y,X,numPointsPerSigma=20):
 
-    pOfYGivenX,axes = fastKDE.conditional(input,condition,numPointsPerSigma=numPointsPerSigma)
+    pOfYGivenX,axes = fastKDE.conditional(Y,X,numPointsPerSigma=numPointsPerSigma)
 
     #make CDF from PDF
     cOfYGivenX = np.empty_like(pOfYGivenX)
@@ -31,19 +31,20 @@ def fast_signal2uniform(input,condition,numPointsPerSigma=20):
         
     f = interpolate2d_masked_array(cOfYGivenX)
     #transform data points as CDF(x)
-    s_tr = np.zeros_like(input)
-    for i, (x,y) in enumerate(zip(condition,input)):
+    s_tr = np.zeros_like(Y)
+    for i, (x,y) in enumerate(zip(X,Y)):
         s_tr[i] = f(*transform_coord(x,y,axes))
 
     return s_tr
 
-def zeroinflated_signal2uniform(input,condition,numPointsPerSigma=50):
+def zeroinflated_signal2uniform(Y,X,numPointsPerSigma=50):
 
-    transformed = np.empty_like(input)
-    zeros = len(input[input==0])
-    part_zero = zeros/len(input)
-    transformed[input!=0] = part_zero + (1-part_zero)*fast_signal2uniform(input[input!=0],condition[input!=0],numPointsPerSigma=numPointsPerSigma)
-    transformed[input==0] = np.random.rand(zeros)*part_zero
+    transformed = np.empty_like(Y)
+    zeros = len(Y[Y==0])
+    part_zero = zeros/len(Y)
+    transformed[Y!=0] = part_zero + (1-part_zero)*fast_signal2uniform(Y[Y!=0],condition[Y!=0],
+        numPointsPerSigma=numPointsPerSigma)
+    transformed[Y==0] = np.random.rand(zeros)*part_zero
 
     return transformed
 

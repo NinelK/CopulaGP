@@ -3,7 +3,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch.nn.functional as F
 
-def train_MINE(y, H=20, n_epoch=2000, device = torch.device("cuda:1")):
+def train_MINE(y, H=20, lr=0.01, batches=10, n_epoch=2000, device = torch.device("cuda:1")):
 
     data_size = y.shape[0]
     
@@ -20,12 +20,15 @@ def train_MINE(y, H=20, n_epoch=2000, device = torch.device("cuda:1")):
             return h2  
     
     model = Net().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     plot_loss = []
-    x_sample = Variable(torch.linspace(0.,1.,data_size).unsqueeze(-1).to(device), requires_grad = True)   
-    y_sample = Variable(torch.from_numpy(y).type(torch.FloatTensor).to(device), requires_grad = True)
+    x_sample = Variable(torch.cat(rep*[torch.linspace(0.,1.,data_size).unsqueeze(-1).to(device)]), 
+                        requires_grad = True)   
+    y_sample = Variable(torch.cat(rep*[torch.from_numpy(y).type(torch.FloatTensor).to(device)]), 
+                       requires_grad = True)
     for epoch in range(n_epoch):
-        y_shuffle = y_sample[torch.randperm(y_sample.shape[0])]
+        y_shuffle = y_sample[torch.cat([torch.randperm(data_size) for _ in range(batches)])]
+
 
         pred_xy = model(x_sample, y_sample)
         pred_x_y = model(x_sample, y_shuffle)

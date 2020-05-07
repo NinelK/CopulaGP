@@ -123,7 +123,8 @@ class IndependenceCopula(Distribution):
     
     def __init__(self, theta, rotation=None, validate_args=None):
         if theta is None:
-            raise ValueError("Theta has to be provided anyway. Should be empty for independence copula, but will indentify the device where samples must be stored.")
+            raise ValueError("Theta has to be provided anyway. Should be empty for independence copula, \
+                but will indentify the device where samples must be stored.")
         elif theta.shape != torch.Size([0]):
             raise ValueError("Theta should be empty for independence copula.")
         else:
@@ -184,6 +185,7 @@ class GaussianCopula(SingleParamCopulaBase):
             nrvs = normal.Normal(0,1).icdf(samples) #keep it samples size here, to multiply with the right thetas
             vals[neqz] = normal.Normal(0,1).cdf((nrvs[..., 0] - theta_ * nrvs[..., 1]) 
                                   / torch.sqrt(1 - theta_**2))[neqz]
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value, safe=False):
@@ -696,6 +698,7 @@ class MixtureCopula(Distribution):
             else:
                 vals += self.mix[i] * c(self.theta[i], rotation=self.rotations[i]).ccdf(samples)
         vals = vals.clamp(0.001,0.999)
+        assert torch.all(vals==vals)
         return vals   
 
     def make_dependent(self, samples):
@@ -710,13 +713,15 @@ class MixtureCopula(Distribution):
         assert torch.all(samples==samples)
         assert self.mix.shape[0]==len(self.copulas)
         assert samples.shape[-1] == 2 #should be pairs
+        if (len(self.copulas)==1) & (self.copulas[0].num_thetas==0): #if it is only independence
+            return samples[...,0]
         assert self.mix.shape[1]==samples.shape[0] #compare the number of inputs (X)
         # sample size (samples[1:-1]) does not matter 
         if samples.dim()>2:
             shape = samples.shape[1:-1]+self.mix.shape
             theta_ = self.theta.expand(shape)
-            mix_ = self.mix.expand(shape) # sample size x copulas x inputs
             theta_= torch.einsum('...ij->ij...', theta_) # copulas x inputs x sample_size
+            mix_ = self.mix.expand(shape) # sample size x copulas x inputs
             mix_= torch.einsum('...ij->ij...', mix_)
         else:
             theta_ = self.theta

@@ -53,8 +53,8 @@ def student_logprob(t,rho,df):
     D = det(rho,n)
     tSt = (rho * (t.sum(axis=-1))**2 - (1+(n-1)*rho)*(t**2).sum(axis=-1) )/ ((n-1)*rho**2 - (n-2)*rho-1)
     #devide by almost D, except that (1-rho)**1, not (1-rho)**(n-1)
-    C = gamma(n/2) / (beta(df/2,n/2)*np.sqrt((np.pi*df)**n * D))
-    return np.log(C) - ((df+n)/2) * np.log(1 + tSt/df)
+    C = np.log(gamma(n/2)) - np.log(beta(df/2,n/2)) - 0.5*(n*np.log(np.pi*df)+np.log(D))
+    return C - ((df+n)/2) * np.log(1 + tSt/df)
 
 def student_rvs(Nvar,rhos,dfs,n):
     NSamp = rhos.shape[0]
