@@ -96,7 +96,7 @@ class CVine():
     def sample(self, sample_size = torch.Size([])):
         # create uniform samples
         samples_shape = self.inputs.shape + sample_size + torch.Size([self.N])
-        samples = torch.empty(size=samples_shape, device=self.device).uniform_(1e-3, 1. - 1e-3) #torch.rand(shape) torch.rand in (0,1]
+        samples = torch.empty(size=samples_shape, device=self.device).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
         
         transformed_samples = [samples[...,-1:]]
         for copulas in self.layers[::-1]:
