@@ -171,20 +171,25 @@ class GaussianCopula(SingleParamCopulaBase):
         return vals
 
     def ccdf(self, samples):
-        assert torch.all((self.theta>-1) & ((self.theta<1))) #undefined at the boundary of the interval
         vals = torch.ones_like(samples[...,0])*1/2 #for samples on the edge cdf=1/2
         theta_ = self.theta.expand(vals.shape)
         # Avoid subtraction of infinities
         neqz = torch.any(samples > 0.0, dim=-1) & torch.any(samples < 1.0, dim=-1)
         if self.theta.is_cuda:
             get_cuda_device = theta_.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
-            vals[neqz] = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf( \
+            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),
+                torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
+            vals[neqz] = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),
+                torch.ones(1).cuda(device=get_cuda_device)).cdf( \
                 (nrvs[..., 0] - theta_ * nrvs[..., 1]) / torch.sqrt(1 - theta_**2))[neqz]
         else:
             nrvs = normal.Normal(0,1).icdf(samples) #keep it samples size here, to multiply with the right thetas
             vals[neqz] = normal.Normal(0,1).cdf((nrvs[..., 0] - theta_ * nrvs[..., 1]) 
                                   / torch.sqrt(1 - theta_**2))[neqz]
+        identical = (self.theta==1) & (nrvs[..., 0]==self.theta.sign()*nrvs[..., 1])
+        if torch.any(identical):
+            vals[identical] = torch.empty(size=torch.Size(identical.sum()), 
+                                        device=get_cuda_device).uniform_(1e-4, 1. - 1e-4) 
         assert torch.all(vals==vals)
         return vals
 
@@ -741,7 +746,9 @@ class MixtureCopula(Distribution):
                 vals[onehot[i]] = c(theta_[i,...][onehot[i]], 
                                                rotation=self.rotations[i]).ppcf(
                                                 samples[onehot[i],:])
-        return vals
+        assert torch.all(vals<=1)
+        assert torch.all(vals>=0)
+        return vals.clamp(0.001,0.999)
 
     def log_prob(self, value, safe=False):
 

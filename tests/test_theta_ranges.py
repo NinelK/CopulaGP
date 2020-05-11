@@ -39,10 +39,3 @@ class TestExtremeThetas(unittest.TestCase):
 
 		check_symmetry(bvcopula.GumbelCopula(torch.full([bin_size**2],1.).float()))
 		check_symmetry(bvcopula.GumbelCopula(torch.full([bin_size**2],conf.Gumbel_Theta_Sampling_Max).float()))
-
-	def test_inference(self):
-		'''
-		Tests that for extreme values of thetas (those, which are specified for inference),
-		the GP algorithm and copula mixture model infer the same thetas as were generated.
-		'''
-		pass

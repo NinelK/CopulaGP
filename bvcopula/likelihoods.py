@@ -221,6 +221,13 @@ class MixtureCopula_Likelihood(Likelihood):
             self.theta_sharing = theta_sharing
         else:
             self.theta_sharing = torch.arange(0,len(likelihoods)).long()
+        self.num_copulas = len(self.likelihoods)
+        self.num_indep_thetas = self.theta_sharing.max() + 1
+        self.f_size = self.num_copulas + self.num_indep_thetas - 1
+        # f dimensions are [f_samples dim x GP variables dim x theta dim]
+        # theta dimensions will be [copulas dim x f samples dim x theta dim], where
+        # f samples dim is essentially an extra batch dimension
+        # note that f samples dim may be empty    
 
     def WAIC(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True):
         '''
@@ -425,13 +432,7 @@ class MixtureCopula_Likelihood(Likelihood):
         which parameterizes the distribution in :attr:`forward` method as well as the
         log likelihood of this distribution defined in :attr:`expected_log_prob`.
         """
-        num_copulas = len(self.likelihoods)
-        num_indep_thetas = self.theta_sharing.max() + 1
-        # f dimensions are [f_samples dim x GP variables dim x theta dim]
-        # theta dimensions will be [copulas dim x f samples dim x theta dim], where
-        # f samples dim is essentially an extra batch dimension
-        # note that f samples dim may be empty
-        assert num_copulas + num_indep_thetas - 1==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
+        assert self.f_size==f.shape[-2] #independent thetas + mixing concentrations - 1 (dependent)
         # WARNING: we assume here that there is 1 theta dim. Need to rethink it if there will be multiparametric copulas. 
 
         lr_ratio = .5 # lr_mix / lr_thetas
@@ -449,13 +450,13 @@ class MixtureCopula_Likelihood(Likelihood):
                 thetas.append(theta)
                 prob = torch.ones_like(f[...,0,:])
                 for j in range(i):
-                    p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    p0 = (self.num_copulas-j-1)/(self.num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
                     f0 = base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(p0) 
-                    prob = prob*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,j+num_indep_thetas,:]+f0)
-                if i!=(num_copulas-1):
-                    p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    prob = prob*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,j+self.num_indep_thetas,:]+f0)
+                if i!=(self.num_copulas-1):
+                    p0 = (self.num_copulas-i-1)/(self.num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
                     f0 = base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(p0) 
-                    prob = prob*(1.0-base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,i+num_indep_thetas,:]+f0))
+                    prob = prob*(1.0-base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,i+self.num_indep_thetas,:]+f0))
 
                 mix.append(prob)
         else:
@@ -467,13 +468,13 @@ class MixtureCopula_Likelihood(Likelihood):
                 prob = torch.ones_like(f[...,0,:])
 
                 for j in range(i):
-                    p0 = (num_copulas-j-1)/(num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    p0 = (self.num_copulas-j-1)/(self.num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
                     f0 = base_distributions.Normal(0,1).icdf(p0) 
-                    prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+num_indep_thetas,:]+f0)
-                if i!=(num_copulas-1):
-                    p0 = (num_copulas-i-1)/(num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                    prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+self.num_indep_thetas,:]+f0)
+                if i!=(self.num_copulas-1):
+                    p0 = (self.num_copulas-i-1)/(self.num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
                     f0 = base_distributions.Normal(0,1).icdf(p0) 
-                    prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+num_indep_thetas,:]+f0))
+                    prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+self.num_indep_thetas,:]+f0))
 
                 mix.append(prob)
 
@@ -484,9 +485,51 @@ class MixtureCopula_Likelihood(Likelihood):
         assert torch.all(stack_mix==stack_mix)
         return stack_thetas, stack_mix
 
+    def fit(self, samples, f0 = None, n_epoch=200, lr=0.01):
+        '''
+        Using GPLink function as a parametrisation for copula parameters, 
+        directly fit parameters of the corresponding copula to the data. 
+        No GP involved. Use with caution (check plot_loss), 
+        convergence rate differs from bvcopula/infer.py
+        Parameters:
+        ----------
+        samples: Tensor
+            The data
+        f0: Tensor, optional
+            The starting parameters in f-space (before GPLink)
+        n_epoch: int
+            Number of epochs
+        lr: float
+            Learning rate
+        Returns:
+        ----------
+        best_copula: MixtureCopula
+            A MixtureCopula model with the optimal parameters
+        '''
+        device = samples.device
+        if f0 is None:
+            f0 = torch.zeros((self.f_size,1),device=device)
+        assert device == f0.device
+        f = torch.autograd.Variable(f0, requires_grad = True) 
+        optimizer = torch.optim.Adam([f], lr=lr)
+        plot_loss = torch.zeros((n_epoch),device=device)
+        for epoch in range(n_epoch):
+            copula = self(f)
+            loss = - copula.log_prob(samples).mean()
+            if (loss<torch.min(plot_loss)) or (epoch==0):
+                best_copula = self(f.detach())
+            plot_loss[epoch] = loss.data
+            loss.backward()
+            grad = f.grad.data
+            if torch.nonzero(grad!=grad).numel()!=0:
+                print('NaN grad in f, fixing...')
+                grad[grad!=grad] = 0
+            optimizer.step()
+        return best_copula#, plot_loss
+
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
         thetas, mix = self.gplink_function(function_samples)
-        return MixtureCopula(thetas, 
+        return self.copula(thetas, 
                              mix, 
                              [lik.copula for lik in self.likelihoods], 
                              rotations=[lik.rotation for lik in self.likelihoods],

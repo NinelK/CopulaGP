@@ -22,9 +22,9 @@ def train_MINE(y, H=20, lr=0.01, batches=10, n_epoch=2000, device = torch.device
     model = Net().to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     plot_loss = []
-    x_sample = Variable(torch.cat(rep*[torch.linspace(0.,1.,data_size).unsqueeze(-1).to(device)]), 
+    x_sample = Variable(torch.cat(batches*[torch.linspace(0.,1.,data_size).unsqueeze(-1).to(device)]), 
                         requires_grad = True)   
-    y_sample = Variable(torch.cat(rep*[torch.from_numpy(y).type(torch.FloatTensor).to(device)]), 
+    y_sample = Variable(torch.cat(batches*[torch.from_numpy(y).type(torch.FloatTensor).to(device)]), 
                        requires_grad = True)
     for epoch in range(n_epoch):
         y_shuffle = y_sample[torch.cat([torch.randperm(data_size) for _ in range(batches)])]

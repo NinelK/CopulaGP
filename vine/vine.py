@@ -48,6 +48,31 @@ class CVine():
                 models.append(copula_model)
             new_layers.append(models)
         return CVine(new_layers,self.inputs[input_idxs],device=self.device)
+
+    def truncate(self, Ncut: int): 
+        '''
+        Creates a truncated vine, with the models in 
+        the last Ncut layers replaced with Independence.
+        Parameters
+        ----------
+        Ncut: int
+            Number of layers to truncate
+        Returns
+        ----------
+        truncated: CVine
+            Truncated vine
+        '''
+        N = self.inputs.numel()
+        L = len(self.layers)
+        assert (Ncut<=L) & (Ncut>=0)
+        indep = bvcopula.MixtureCopula(torch.empty(1,0,device=self.device),
+                        torch.ones(1,N,device=self.device),
+                        [bvcopula.IndependenceCopula])
+        truncated_layers = [[model for model in layer] for layer in self.layers]
+        for i in range(1,Ncut+1):
+            for j in range(i):
+                truncated_layers[-i][j] = indep
+        return CVine(truncated_layers,self.inputs,device=self.device)
         
     @staticmethod
     def _layer_transform(upper,new,copulas):
@@ -71,7 +96,7 @@ class CVine():
     def sample(self, sample_size = torch.Size([])):
         # create uniform samples
         samples_shape = self.inputs.shape + sample_size + torch.Size([self.N])
-        samples = torch.empty(size=samples_shape, device=self.device).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
+        samples = torch.empty(size=samples_shape, device=self.device).uniform_(1e-3, 1. - 1e-3) #torch.rand(shape) torch.rand in (0,1]
         
         transformed_samples = [samples[...,-1:]]
         for copulas in self.layers[::-1]:
