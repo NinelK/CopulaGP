@@ -188,8 +188,8 @@ class GaussianCopula(SingleParamCopulaBase):
                                   / torch.sqrt(1 - theta_**2))[neqz]
         identical = (self.theta==1) & (nrvs[..., 0]==self.theta.sign()*nrvs[..., 1])
         if torch.any(identical):
-            vals[identical] = torch.empty(size=torch.Size(identical.sum()), 
-                                        device=get_cuda_device).uniform_(1e-4, 1. - 1e-4) 
+            size = torch.Size([identical[identical].numel()])
+            vals[identical] = torch.empty(size=size,device=get_cuda_device).uniform_(0., 1.)
         assert torch.all(vals==vals)
         return vals
 

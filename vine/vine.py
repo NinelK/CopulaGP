@@ -172,7 +172,7 @@ class CVine():
                     print (sem.max()/sem_tol)
                 if k>1000:
                     print('Failed to converge')
-                    return 0
+                    return ent #0
         return ent#, sem
 
        

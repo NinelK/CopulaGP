@@ -18,7 +18,7 @@ from scipy.stats import sem as SEM
 from benchmarks import train4entropy
 
 NSamp=10000
-device = torch.device('cuda:1')
+device = torch.device('cuda:0')
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
 
@@ -46,12 +46,14 @@ likelihoodU =  [bvcopula.GaussianCopula_Likelihood(),
 # 				bvcopula.GaussianCopula_Likelihood(),
 #                 bvcopula.ClaytonCopula_Likelihood(rotation='180°')]
 
-filename = "MI_rtGaussH_dump.pkl"
-mc_size = 4000
-sem_tol = 0.01
+filename = "rtGaussH.pkl"
+mc_size = 2000
+sem_tol_base = 0.1
 Rps = 1
 
-for Nvar in [2,10]:
+for Nvar in [5]:
+
+	sem_tol = sem_tol_base * Nvar
 
 	if Nvar<=5:
 		v = False
@@ -59,21 +61,24 @@ for Nvar in [2,10]:
 		v = True
 
 	for repetition in range(Rps):
+
+		res = {}
+		res['Nvar'] = Nvar
+		res['NSamp'] = NSamp
+
 		print(f"Nvar={Nvar}, {repetition+1}/{Rps}")
 
 		t0 = time.time()
 
 		#try to brute force the true value, if dimensionality still permits
-		true_integral = 0
 		copula_layers = [[lin_gauss for j in range(Nvar-1-i)] for i in range(Nvar-1)]
 		vine = CVine(copula_layers,train_x,device=device)
-		if Nvar<=5:
-			subvine = vine.create_subvine(torch.arange(0,NSamp,10))
-			a = True
-			while a:
-				CopulaGP = subvine.stimMI(s_mc_size=1000, r_mc_size=10, sem_tol=sem_tol, v=v)
-				a = CopulaGP[1].item()!=CopulaGP[1].item()
-			true_integral = CopulaGP[0].item()
+		subvine = vine.create_subvine(torch.arange(0,NSamp,10))
+		a = True
+		while a:
+			CopulaGP = subvine.stimMI(s_mc_size=1000, r_mc_size=10, sem_tol=sem_tol, v=v)
+			a = CopulaGP[1].item()!=CopulaGP[1].item()
+		res['true_integral'] = CopulaGP[0].item()
 
 		t01 = time.time()
 
@@ -83,6 +88,9 @@ for Nvar in [2,10]:
 		new_y = y.copy()
 		new_y += np.repeat(y.prod(axis=-1).reshape(NSamp,1),Nvar,axis=-1)**(1/Nvar)
 		transformed_y = (np.argsort(new_y.flatten()).argsort()/new_y.size).reshape(new_y.shape)
+		res['y'] = y
+		res['new_y'] = new_y
+		res['transformed_y'] = transformed_y
 
 		#now estimate
 		# train conditional & unconditional CopulaGP 
@@ -91,59 +99,60 @@ for Nvar in [2,10]:
 		_, eU = train4entropy(train_x,y,likelihoodTU,
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v,shuffle=True)
 		eT = vine.entropy(sem_tol=sem_tol, mc_size=mc_size, v=v)
+		res['gauss_eC'] = eC.cpu().numpy()
+		res['gauss_eU'] = eU.cpu().numpy()
+		res['gauss_eT'] = eT.cpu().numpy()
 
 		t1 = time.time()
 		print(f"True value estimated in {(t1-t0)//60} min (int {(t01-t0)//60} min, est {(t1-t01)//60} min)")
-		trueMI = [true_integral,(eU-eT).mean().item(),(eU-eC).mean().item()]
-		print(trueMI)
-		del(vine,subvine)
 
 		# run classic estimators
-		KSG = MI.BI_KSG(x.reshape((*x.shape,1)),new_y,)
-		Mixed_KSG = MI.Mixed_KSG(x,new_y)
-		KSG_T = MI.BI_KSG(x.reshape((*x.shape,1)),transformed_y,)
-		Mixed_KSG_T = MI.Mixed_KSG(x,transformed_y)
+		res['gauss_BI-KSG'] = MI.BI_KSG(x.reshape((*x.shape,1)),y,)[0]
+		res['gauss_KSG'] = MI.Mixed_KSG(x,y)[0]
+		res['new_BI-KSG'] = MI.BI_KSG(x.reshape((*x.shape,1)),new_y,)[0]
+		res['new_KSG'] = MI.Mixed_KSG(x,new_y)[0]
+		res['BI-KSG'], res['BI-KSG_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),transformed_y,)
+		res['KSG'], res['KSG_H'] = MI.Mixed_KSG(x,transformed_y)
+
+		print(f"{res['true_integral']:.3f}, {(eU-eT).mean().item():.3f} ({eU.std().item():.3f}), \
+{(eU-eC).mean().item():.3f} ({eU.std().item():.3f}), {res['gauss_BI-KSG']:.3f}, {res['gauss_KSG']:.3f}")
 
 		t2 = time.time()
-
-		# run neural network estimators
-		MINE = []
-		for H in [50,100,200,500,1000]: #H=1000 100% overfits
-			mi = np.nan
-			while mi!=mi:
-				mi = MI.train_MINE(new_y,H=H,lr=0.01,device=device).item()/np.log(2)
-			MINE.append(mi)
-		t3 = time.time()
 
 		# train conditional & unconditional CopulaGP 
 		vine, eC = train4entropy(train_x,transformed_y,likelihoodC,
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v)
 		_, eU = train4entropy(train_x,transformed_y,likelihoodU,
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v,shuffle=True)
+		res['eC'] = eC.cpu().numpy()
+		res['eU'] = eU.cpu().numpy()
 
 		#estimate Hr - Hrs
 		estimated = (eU-eC).mean().item()
+		res['estimated'] = estimated
 		#integrate a conditional copula
-		integrated = 0
-		if Nvar<=5:
-			subvine = vine.create_subvine(torch.arange(0,NSamp,50))
-			CopulaGP = subvine.stimMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
-			integrated = CopulaGP[0].item()
+		subvine = vine.create_subvine(torch.arange(0,NSamp,50))
+		CopulaGP = subvine.stimMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
+		res['integrated'] = CopulaGP[0].item()
 
-		del(vine,subvine)
+		t3 = time.time()
+
+		# run neural network estimators
+		for H in [100,200,500]: #H=1000 100% overfits
+			mi = np.nan
+			while mi!=mi:
+				mi = MI.train_MINE(new_y,H=H,lr=0.01,device=device).item()/np.log(2)
+			res[f'MINE{H}'] = mi
+			mi = np.nan
+			while mi!=mi:
+				mi = MI.train_MINE(y,H=H,lr=0.01,device=device).item()/np.log(2)
+			res[f'gauss_MINE{H}'] = mi
 
 		t4 = time.time()
-		print(f"Took: {(t4-t1)//60} min ({int(t2-t1)} sec, {(t3-t2)//60} min, {(t4-t3)//60} min)")
+		print(f"Took: {(t4-t0)//60} min")
 
-		res = [[Nvar,NSamp],
-				[trueMI,  KSG[0], Mixed_KSG[0]],
-			[[integrated, estimated, KSG_T[0], Mixed_KSG_T[0]], MINE],
-			[-eC.mean().item(),-KSG_T[1], -Mixed_KSG_T[1]],
-			[y,transformed_y]]
-
-		print(res[1])
-		print(res[2])
-		print(res[3])
+		print(f"MI: {res['integrated']:.3f}, {res['estimated']:.3f} ({eU.std().item():.3f}), {res['BI-KSG']:.3f}, {res['KSG']:.3f}, {res['MINE100']:.3f}")
+		print(f"H:, {-eC.mean().item():.3f}, {-res['BI-KSG_H']:.3f}")
 
 		results_file = f"{home}/benchmarks/{filename}"
 		if os.path.exists(results_file):

@@ -30,9 +30,10 @@ likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
 				bvcopula.GumbelCopula_Likelihood(rotation='0°'),
 				bvcopula.GaussianCopula_Likelihood()]
 
-mc_size = 4000
-sem_tol=0.01
-Rps = 1
+filename = "MI_student_dump3.pkl"
+mc_size = 2000
+sem_tol=0.02
+Rps = 3
 
 #define functions
 Frhos = lambda NN: np.ones(NN)*0.7
@@ -51,7 +52,7 @@ for Nvar in [10]:
 
 	print('Integrating true MI:')
 	t1 = time.time()
-	trueMI = integrate_student(Nvar,Frhos,Fdfs,sem_tol=sem_tol*Nvar/2,verbose=v)
+	trueMI = integrate_student(Nvar,Frhos,Fdfs,sem_tol=sem_tol,verbose=v)
 	t2 = time.time()
 	print(f'Took {(t2-t1)//60} min {(t2-t1)%60:.0f} sec')
 
@@ -107,7 +108,6 @@ for Nvar in [10]:
 		print(res[1])
 		print(res[2])
 
-		filename = "MI_student_dump.pkl"
 		results_file = f"{home}/benchmarks/{filename}"
 		if os.path.exists(results_file):
 			with open(results_file,'rb') as f:
