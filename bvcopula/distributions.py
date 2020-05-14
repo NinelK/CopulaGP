@@ -230,8 +230,8 @@ class GaussianCopula(SingleParamCopulaBase):
         assert torch.all(log_prob==log_prob)
 
         #now add inf were it is appropriate (will be ignored in integration anyway)
-        log_prob[(thetas >= 1.)  & ((value[..., 0] - value[..., 1]).abs() < conf.Gauss_diag)]      = float("Inf") # u==v
-        log_prob[(thetas <= -1.) & ((value[..., 0] - 1 + value[..., 1]).abs() < conf.Gauss_diag)]  = float("Inf") # u==1-v
+        log_prob[(thetas >= 1.)  & ((value[..., 0] - value[..., 1]).abs() <= conf.Gauss_diag)]      = float("Inf") # u==v
+        log_prob[(thetas <= -1.) & ((value[..., 0] - 1 + value[..., 1]).abs() <= conf.Gauss_diag)]  = float("Inf") # u==1-v
 
         # now put everything out of range to -inf (which was most likely Nan otherwise)
         log_prob[mask_theta & ~mask_samples] = -float("Inf") 
@@ -423,6 +423,8 @@ class GumbelCopula(SingleParamCopulaBase):
         vals = torch.zeros(samples.shape[:-1])
         theta_ = self.theta.expand(samples.shape[:-1]) # prepend with sample dimensions
 
+        assert torch.all(samples>0)
+        
         x = -samples[...,1].log()
         y = -samples[...,0].log()
         h1 = torch.pow(x,theta_) + torch.pow(y,theta_)
@@ -760,20 +762,29 @@ class MixtureCopula(Distribution):
         assert self.mix.shape[0]==len(self.copulas)
         #assert self.theta_sharing.shape[0]==len(self.copulas)
 
+        value_=(value.clone()).clamp(0.001,0.999)
+
         if self._validate_args:
             sum_mixes = self.mix.sum(dim=0)
             assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
        
-        for i, c in enumerate(self.copulas):
-            if c.num_thetas == 0:
-                add = c(self.theta[self.theta!=self.theta]).log_prob(value)
+        if len(self.copulas)>1:
+            for i, c in enumerate(self.copulas):
+                if c.num_thetas == 0:
+                    add = c(self.theta[self.theta!=self.theta]).log_prob(value_)
+                else:
+                    add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value_,safe=safe).clamp(-100.,88.)
+                    #-100 to 88 is a range of x such that torch.exp(x).log()!=+-inf
+                prob += self.mix[i]*torch.exp(add)
+                #TODO is it possible to vectorize this part?
+                log_prob = prob.log()
+        else:
+            #if these is just 1 copula, no need to do log(exp(p))
+            if self.copulas[0].num_thetas == 0:
+                log_prob = self.copulas[0](self.theta[self.theta!=self.theta]).log_prob(value_)
             else:
-                add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value,safe=safe).clamp(-100.,88.)
-                #-100 to 88 is a range of x such that torch.exp(x).log()!=+-inf
-            prob += self.mix[i]*torch.exp(add)
-            #TODO is it possible to vectorize this part?
-        log_prob = prob.log()
-    
+                log_prob = self.copulas[0](self.theta[0], rotation=self.rotations[0]).log_prob(value_,safe=safe).clamp(-100.,88.)
+
         assert torch.all(log_prob==log_prob)
         #assert torch.all(log_prob!=float("inf")) #can be -inf though
 

@@ -24,16 +24,16 @@ x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
 
 likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
-                bvcopula.GumbelCopula_Likelihood(rotation='0°'),
+                # bvcopula.GumbelCopula_Likelihood(rotation='0°'),
                 bvcopula.GumbelCopula_Likelihood(rotation='180°')] 
 likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
 				bvcopula.GumbelCopula_Likelihood(rotation='0°'),
 				bvcopula.GaussianCopula_Likelihood()]
 
-filename = "MI_student_dump3.pkl"
+filename = "StudentH_8up.pkl"
 mc_size = 2000
-sem_tol=0.02
-Rps = 3
+sem_tol=0.015
+Rps = 5
 
 #define functions
 Frhos = lambda NN: np.ones(NN)*0.7
@@ -42,7 +42,7 @@ Fdfs = lambda NN: np.exp(5*np.linspace(0,1,NN))+1
 rhos = Frhos(NSamp)
 dfs = Fdfs(NSamp)
 
-for Nvar in [10]:
+for Nvar in [8,9,10]:
 	HRgS = utils.student_H(rhos,dfs,Nvar)/np.log(2)
 
 	if Nvar<=5:
@@ -57,6 +57,13 @@ for Nvar in [10]:
 	print(f'Took {(t2-t1)//60} min {(t2-t1)%60:.0f} sec')
 
 	for repetition in range(Rps):
+
+		res = {}
+		res['Nvar'] = Nvar
+		res['NSamp'] = NSamp
+		res['true_HRgS'] = HRgS
+		res['true_integral'] = trueMI
+
 		print(f"Nvar={Nvar}, {repetition+1}/{Rps}")
 
 		t1 = time.time()
@@ -65,23 +72,21 @@ for Nvar in [10]:
 		y0 = np.zeros_like(y)
 		for i in range(y.shape[0]):
 		    y0[i] = t.cdf(y[i],df=dfs[i])
+		res['y'] = y
+		res['y0'] = y0
 
 		# run classic estimators
-		KSG = MI.BI_KSG(x.reshape((*x.shape,1)),y,)
-		Mixed_KSG = MI.Mixed_KSG(x,y)
-		KSG_T = MI.BI_KSG(x.reshape((*x.shape,1)),y0,)
-		Mixed_KSG_T = MI.Mixed_KSG(x,y0)
-
-		t2 = time.time()
+		res['BI-KSG_N'], res['BI-KSG_N_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),y,)
+		res['KSG_N'], res['KSG_N_H'] = MI.Mixed_KSG(x,y)
+		res['BI-KSG'], res['BI-KSG_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),y0,)
+		res['KSG'], res['KSG_H'] = MI.Mixed_KSG(x,y0)
 
 		# run neural network estimators
-		MINE = []
-		for H in [50,100,200,500,1000]: #H=1000 100% overfits
+		for H in [100,200,500]: #H=1000 100% overfits
 			mi = np.nan
 			while mi!=mi:
 				mi = MI.train_MINE(y0,H=H,lr=0.01,device=device).item()/np.log(2)
-			MINE.append(mi)
-		t3 = time.time()
+			res[f'MINE{H}'] = mi
 
 		#now estimate
 		# train conditional & unconditional CopulaGP 
@@ -89,24 +94,18 @@ for Nvar in [10]:
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v)
 		_, eU = train4entropy(train_x,y0,likelihoodU,
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v,shuffle=True)
+		res['eC'] = eC
+		res['eU'] = eU
 
 		#estimate Hr - Hrs
-		estimated = (eU-eC).mean().item()
+		res['estimated'] = (eU-eC).mean().item()
 		#integrate a conditional copula
 		subvine = vine.create_subvine(torch.arange(0,NSamp,50))
 		CopulaGP = subvine.stimMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
-		integrated = CopulaGP[0].item()
+		res['integrated'] = CopulaGP[0].item()
 
-		t4 = time.time()
-		print(f"Took: {(t4-t1)//60} min ({int(t2-t1)} sec, {(t3-t2)//60} min, {(t4-t3)//60} min)")
-
-		res = [[Nvar,NSamp],
-			[trueMI[[0,2]],[KSG[0],Mixed_KSG[0]],[integrated, estimated, KSG_T[0], Mixed_KSG_T[0]], MINE], #MI
-			[HRgS.mean(),-eC.mean().item(), -KSG_T[1], -Mixed_KSG_T[1]],
-			[y,y0]]
-
-		print(res[1])
-		print(res[2])
+		t2 = time.time()
+		print(f"Took: {(t2-t1)//60} min")
 
 		results_file = f"{home}/benchmarks/{filename}"
 		if os.path.exists(results_file):
