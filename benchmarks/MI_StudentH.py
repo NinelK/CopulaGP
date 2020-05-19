@@ -30,7 +30,7 @@ likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
 				bvcopula.GumbelCopula_Likelihood(rotation='0°'),
 				bvcopula.GaussianCopula_Likelihood()]
 
-filename = "StudentH_8up.pkl"
+filename = "StudentH_10.pkl"
 mc_size = 2000
 sem_tol=0.015
 Rps = 5
@@ -42,7 +42,7 @@ Fdfs = lambda NN: np.exp(5*np.linspace(0,1,NN))+1
 rhos = Frhos(NSamp)
 dfs = Fdfs(NSamp)
 
-for Nvar in [8,9,10]:
+for Nvar in [10]:
 	HRgS = utils.student_H(rhos,dfs,Nvar)/np.log(2)
 
 	if Nvar<=5:
@@ -94,8 +94,8 @@ for Nvar in [8,9,10]:
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v)
 		_, eU = train4entropy(train_x,y0,likelihoodU,
 			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v,shuffle=True)
-		res['eC'] = eC
-		res['eU'] = eU
+		res['eC'] = eC.cpu().numpy()
+		res['eU'] = eU.cpu().numpy()
 
 		#estimate Hr - Hrs
 		res['estimated'] = (eU-eC).mean().item()
