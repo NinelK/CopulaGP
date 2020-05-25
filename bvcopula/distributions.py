@@ -103,10 +103,9 @@ class SingleParamCopulaBase(Distribution):
         if sample_shape == torch.Size([]):   # not sure what to do with 1 sample
             shape = torch.Size([1]) + shape
             
-        samples = torch.empty(size=shape).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            samples = samples.cuda(device=get_cuda_device)
+        samples = torch.empty(size=shape, device = self.theta.device).uniform_(1e-4, 1. - 1e-4) 
+        #torch.rand(shape) torch.rand in (0,1]
+
         samples[...,0] = self.ppcf(samples)
         #samples = self._SingleParamCopulaBase__rotate_input(samples) 
         return samples
@@ -127,21 +126,16 @@ class IndependenceCopula(Distribution):
                 but will indentify the device where samples must be stored.")
         elif theta.shape != torch.Size([0]):
             raise ValueError("Theta should be empty for independence copula.")
-        else:
-            if theta.is_cuda:
-                self.cuda_device = theta.get_device()
-            else:
-                self.cuda_device = None
+
         batch_shape, event_shape = torch.Size([]), torch.Size([2])
         super(IndependenceCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
 
     def rsample(self, sample_shape=torch.Size([])):
         shape = self._extended_shape(sample_shape) # now it is theta_size (batch) x sample_size x 2 (event)
             
-        samples = torch.empty(size=shape).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
-        if self.cuda_device is not None:
-            samples = samples.cuda(device=self.cuda_device)
-
+        samples = torch.empty(size=shape,device=self.theta.device).uniform_(1e-4, 1. - 1e-4) 
+        #torch.rand(shape) torch.rand in (0,1]
+        
         return samples
 
     def ccdf(self, samples):
@@ -159,15 +153,14 @@ class GaussianCopula(SingleParamCopulaBase):
     
     def ppcf(self, samples):
         assert torch.all(self.theta.abs()<=1.0)
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
-            vals = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                                 nrvs[..., 1] * self.theta)
-        else:    
-            nrvs = normal.Normal(0,1).icdf(samples)
-            vals = normal.Normal(0,1).cdf(nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
-                                 nrvs[..., 1] * self.theta) 
+        
+        nrvs = normal.Normal(torch.zeros(1, device=self.theta.device),
+                    torch.ones(1, device=self.theta.device)).icdf(samples)
+        vals = normal.Normal(torch.zeros(1, device=self.theta.device),
+                    torch.ones(1, device=self.theta.device)).cdf(
+                    nrvs[..., 0] * torch.sqrt(1 - self.theta**2) + 
+                             nrvs[..., 1] * self.theta)
+        
         return vals
 
     def ccdf(self, samples):
@@ -175,21 +168,17 @@ class GaussianCopula(SingleParamCopulaBase):
         theta_ = self.theta.expand(vals.shape)
         # Avoid subtraction of infinities
         neqz = torch.any(samples > 0.0, dim=-1) & torch.any(samples < 1.0, dim=-1)
-        if self.theta.is_cuda:
-            get_cuda_device = theta_.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),
-                torch.ones(1).cuda(device=get_cuda_device)).icdf(samples)
-            vals[neqz] = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),
-                torch.ones(1).cuda(device=get_cuda_device)).cdf( \
-                (nrvs[..., 0] - theta_ * nrvs[..., 1]) / torch.sqrt(1 - theta_**2))[neqz]
-        else:
-            nrvs = normal.Normal(0,1).icdf(samples) #keep it samples size here, to multiply with the right thetas
-            vals[neqz] = normal.Normal(0,1).cdf((nrvs[..., 0] - theta_ * nrvs[..., 1]) 
-                                  / torch.sqrt(1 - theta_**2))[neqz]
+        
+        nrvs = normal.Normal(torch.zeros(1, device=self.theta.device),
+            torch.ones(1, device=self.theta.device)).icdf(samples)
+        vals[neqz] = normal.Normal(torch.zeros(1, device=self.theta.device),
+            torch.ones(1, device=self.theta.device)).cdf( \
+            (nrvs[..., 0] - theta_ * nrvs[..., 1]) / torch.sqrt(1 - theta_**2))[neqz]
+    
         identical = (self.theta==1) & (nrvs[..., 0]==self.theta.sign()*nrvs[..., 1])
         if torch.any(identical):
             size = torch.Size([identical[identical].numel()])
-            vals[identical] = torch.empty(size=size,device=get_cuda_device).uniform_(0., 1.)
+            vals[identical] = torch.empty(size=size,device=self.theta.device).uniform_(0., 1.)
         assert torch.all(vals==vals)
         return vals
 
@@ -207,12 +196,8 @@ class GaussianCopula(SingleParamCopulaBase):
         else:
             thetas = theta_
 
-        # Check CUDA and make a Normal distribution
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            nrvs = normal.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(value)
-        else:
-            nrvs = normal.Normal(0,1).icdf(value)
+        nrvs = normal.Normal(torch.zeros(1, device=self.theta.device),
+            torch.ones(1, device=self.theta.device)).icdf(value)
         
         mask_theta = (thetas < 1.) & (thetas > -1.)
         m = 1e-6
@@ -620,16 +605,13 @@ class MixtureCopula(Distribution):
         '''
 
         # Gaussian confidence interval for sem_tol and level alpha
-        if self.theta.is_cuda:
-            device = self.theta.get_device()
-        else:
-            device = torch.device('cpu')
-        conf = torch.erfinv(torch.tensor([1. - alpha],device=device))
+        
+        conf = torch.erfinv(torch.tensor([1. - alpha],device=self.theta.device))
         batch_shape = self.batch_shape[1:] #first dm is number of copulas, discard it
-        sem = torch.ones(batch_shape,device=device)*float('inf')
-        ent = torch.zeros(batch_shape,device=device) #theta here must have dims: copula x batch dims
-        var_sum = torch.zeros(batch_shape,device=device)
-        log2 = torch.tensor([2.],device=device).log()
+        sem = torch.ones(batch_shape,device=self.theta.device)*float('inf')
+        ent = torch.zeros(batch_shape,device=self.theta.device) #theta here must have dims: copula x batch dims
+        var_sum = torch.zeros(batch_shape,device=self.theta.device)
+        log2 = torch.tensor([2.],device=self.theta.device).log()
         k = 0
         with torch.no_grad():
             while torch.any(sem >= sem_tol):
@@ -666,12 +648,10 @@ class MixtureCopula(Distribution):
     
     def rsample(self, sample_shape=torch.Size([1])):
         shape = self._extended_shape(sample_shape) # now it is sample_size x copulas(batch) x thetas(batch) x 2 (event)    
-        samples = torch.zeros(size=(sample_shape + self._batch_shape[1:] + self._event_shape))  # no copula dimension
         
-        if self.theta.is_cuda:
-            get_cuda_device = self.theta.get_device()
-            samples = samples.cuda(device=get_cuda_device)
-
+        samples = torch.zeros(size=(sample_shape + self._batch_shape[1:] + self._event_shape), 
+                            device=self.theta.device)  # no copula dimension
+        
         assert self.mix.shape[0]==len(self.copulas)
         #assert self.theta_sharing.shape[0]==len(self.copulas)
         #gplink already returns thetas for each copula

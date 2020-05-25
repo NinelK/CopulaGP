@@ -85,8 +85,8 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	def train(train_x, train_y, num_iter=conf.max_num_iter):
 	    model.train()
 
-	    p = 0.
-	    nans = 0
+	    p = torch.zeros(1,device=device)
+	    nans = torch.zeros(1,device=device)
 	    for i in range(num_iter):
 	        optimizer.zero_grad()
 	        output = model(train_x)

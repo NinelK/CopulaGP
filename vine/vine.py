@@ -41,10 +41,16 @@ class CVine():
         for layer in self.layers:
             models = []
             for model in layer:
-                copula_model = bvcopula.MixtureCopula(model.theta[...,input_idxs],
-                    model.mix[...,input_idxs],
-                    model.copulas,
-                    rotations=model.rotations)
+                if model.theta.numel()>0:
+                    copula_model = bvcopula.MixtureCopula(model.theta[...,input_idxs],
+                        model.mix[...,input_idxs],
+                        model.copulas,
+                        rotations=model.rotations)
+                else:
+                    #it is Independence
+                    copula_model = bvcopula.MixtureCopula(model.theta,
+                        model.mix[...,input_idxs],
+                        model.copulas)
                 models.append(copula_model)
             new_layers.append(models)
         return CVine(new_layers,self.inputs[input_idxs],device=self.device)
@@ -223,6 +229,8 @@ class CVine():
         else:
             sem_tol_pr = sem_tol
         N = r_mc_size*s_mc_size
+        max_log = 50.
+        #88./(torch.tensor([sR_mc_size]).float().log()).item()
         with torch.no_grad():
             while torch.any(sem >= sem_tol):
                 # Sample from p(s) (we can't fit all samples S into memory for this method)
@@ -253,7 +261,7 @@ class CVine():
                 while torch.any(rR >= sem_tol_pr): #relative error of p(r) = absolute error of log p(r)
                     new_subset = torch.randperm(inputs)[:sR_mc_size] # permute samples & inputs
                     new_subvine = self.create_subvine(new_subset)
-                    pRs = new_subvine.log_prob(samples).clamp(-float("inf"),88.).exp()
+                    pRs = new_subvine.log_prob(samples).clamp(-float("inf"),max_log).exp()
                     assert torch.all(pRs==pRs)
                     kR += 1
                     # Monte-Carlo estimate of p(r)
@@ -274,7 +282,7 @@ class CVine():
                 assert torch.all(pR==pR)
                 logpR = pR.log() / log2 #[N,f]
                 k += 1
-                if k>100:
+                if k>50:
                     print('MC integral failed to converge')
                     break
                 # Monte-Carlo estimate of MI

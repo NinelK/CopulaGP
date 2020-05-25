@@ -185,12 +185,9 @@ class GaussianCopula_Flow_Likelihood(Likelihood):
         which parameterizes the distribution in :attr:`forward` method as well as the
         log likelihood of this distribution defined in :attr:`expected_log_prob`.
         """
-        if f.is_cuda:
-            get_cuda_device = f.get_device()
-            return (2*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(f) - 1)
-        else:
-            return (2*base_distributions.Normal(0,1).cdf(f) - 1)
-    
+        return (2*base_distributions.Normal(torch.zeros(1, device=f.device),
+            torch.ones(1, device=f.device)).cdf(f) - 1)
+        
     @staticmethod
     def corr_mat(X: Tensor) -> Tensor:
         """
@@ -306,18 +303,15 @@ class MixtureCopula_Likelihood(Likelihood):
         assert F.dim() == S.dim()+2 # +f and copula dimensions
         assert F.shape[-1] == S.shape[0]
         f_mc_size = F.shape[0] # samples are already passed to this function
-        if S.is_cuda:
-            device = S.get_device()
-            assert F.get_device()==device
-        else:
-            device = torch.device('cpu')
+        device = S.device
+        
         # Gaussian confidence interval for sem_tol and level alpha
-        conf = torch.erfinv(torch.tensor([1. - alpha])).to(device)
-        sem = torch.ones(2,f_mc_size).to(device)*float('inf')
-        Hrs = torch.zeros(f_mc_size).to(device) # sum of conditional entropies 
-        Hr = torch.zeros(f_mc_size).to(device) # entropy of p(r)
-        var_sum = torch.zeros(2,f_mc_size).to(device)
-        log2 = torch.tensor([2.]).log().to(device)
+        conf = torch.erfinv(torch.tensor([1. - alpha],device=device))
+        sem = torch.ones(2,f_mc_size, device=device)*float('inf')
+        Hrs = torch.zeros(f_mc_size, device=device) # sum of conditional entropies 
+        Hr = torch.zeros(f_mc_size, device=device) # entropy of p(r)
+        var_sum = torch.zeros(2,f_mc_size, device=device)
+        log2 = torch.tensor([2.],device=device).log()
         k = 0
         N = r_mc_size*s_mc_size
         with torch.no_grad():
@@ -342,9 +336,9 @@ class MixtureCopula_Likelihood(Likelihood):
                 samples = samples.unsqueeze(dim=-2) # (samples * Xs) x fs x 1 x 2 = [r*s, f, 1, 2]
                 samples = samples.expand([N,f_mc_size,sR_mc_size,2]) # (samples * Xs) x fs x Xs x 2
                 # now find E[p(r|s)] under p(s) with MC
-                rR = torch.ones(N,f_mc_size).to(device)*float('inf')
-                pR = torch.zeros(N,f_mc_size).to(device)
-                var_sumR = torch.zeros(N,f_mc_size).to(device)
+                rR = torch.ones(N,f_mc_size, device=device)*float('inf')
+                pR = torch.zeros(N,f_mc_size, device=device)
+                var_sumR = torch.zeros(N,f_mc_size, device=device)
                 kR = 0
                 # print(f"Start calculating p(r) {k}")
                 while torch.any(rR >= sem_tol): #relative error of p(r) = absolute error of log p(r)
@@ -439,44 +433,27 @@ class MixtureCopula_Likelihood(Likelihood):
 
         thetas, mix = [], []
         prob_rem = torch.ones_like(f[...,0,:]) #1-x1, x1(1-x2), x1x2(1-x3)...
-
-        if f.is_cuda:
-            get_cuda_device = f.get_device()
         
-            for i, lik in enumerate(self.likelihoods):
-                theta = lik.gplink_function(f[...,self.theta_sharing[i],:])
-                if normalized_thetas==True:
-                    theta = lik.normalize(theta)
-                thetas.append(theta)
-                prob = torch.ones_like(f[...,0,:])
-                for j in range(i):
-                    p0 = (self.num_copulas-j-1)/(self.num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
-                    f0 = base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(p0) 
-                    prob = prob*base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,j+self.num_indep_thetas,:]+f0)
-                if i!=(self.num_copulas-1):
-                    p0 = (self.num_copulas-i-1)/(self.num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
-                    f0 = base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).icdf(p0) 
-                    prob = prob*(1.0-base_distributions.Normal(torch.zeros(1).cuda(device=get_cuda_device),torch.ones(1).cuda(device=get_cuda_device)).cdf(lr_ratio*f[...,i+self.num_indep_thetas,:]+f0))
+        for i, lik in enumerate(self.likelihoods):
+            theta = lik.gplink_function(f[...,self.theta_sharing[i],:])
+            if normalized_thetas==True:
+                theta = lik.normalize(theta)
+            thetas.append(theta)
+            prob = torch.ones_like(f[...,0,:])
+            for j in range(i):
+                p0 = (self.num_copulas-j-1)/(self.num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                f0 = base_distributions.Normal(torch.zeros(1, device=f.device),
+                    torch.ones(1, device=f.device)).icdf(p0) 
+                prob = prob*base_distributions.Normal(torch.zeros(1, device=f.device),
+                    torch.ones(1, device=f.device)).cdf(lr_ratio*f[...,j+self.num_indep_thetas,:]+f0)
+            if i!=(self.num_copulas-1):
+                p0 = (self.num_copulas-i-1)/(self.num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
+                f0 = base_distributions.Normal(torch.zeros(1, device=f.device),
+                    torch.ones(1, device=f.device)).icdf(p0) 
+                prob = prob*(1.0-base_distributions.Normal(torch.zeros(1, device=f.device),
+                    torch.ones(1, device=f.device)).cdf(lr_ratio*f[...,i+self.num_indep_thetas,:]+f0))
 
-                mix.append(prob)
-        else:
-            for i, lik in enumerate(self.likelihoods):
-                theta = lik.gplink_function(f[...,self.theta_sharing[i],:])
-                if normalized_thetas==True:
-                    theta = lik.normalize(theta)
-                thetas.append(theta)
-                prob = torch.ones_like(f[...,0,:])
-
-                for j in range(i):
-                    p0 = (self.num_copulas-j-1)/(self.num_copulas-j)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
-                    f0 = base_distributions.Normal(0,1).icdf(p0) 
-                    prob = prob*base_distributions.Normal(0,1).cdf(lr_ratio*f[...,j+self.num_indep_thetas,:]+f0)
-                if i!=(self.num_copulas-1):
-                    p0 = (self.num_copulas-i-1)/(self.num_copulas-i)*torch.ones_like(f[...,0,:]) # 3/4, 2/3, 1/2
-                    f0 = base_distributions.Normal(0,1).icdf(p0) 
-                    prob = prob*(1.0-base_distributions.Normal(0,1).cdf(lr_ratio*f[...,i+self.num_indep_thetas,:]+f0))
-
-                mix.append(prob)
+            mix.append(prob)
 
         stack_thetas = torch.stack(thetas)
         stack_mix = torch.stack(mix)

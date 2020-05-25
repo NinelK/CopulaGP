@@ -6,7 +6,7 @@ import torch.nn.functional as F
 def train_MINE(y, x=None, H=20, lr=0.01, batches=10, n_epoch=2000, device = torch.device("cuda:1")):
 
     data_size = y.shape[0]
-    if x==None:
+    if x is None:
         x = torch.linspace(0.,1.,data_size)
     else:
         assert x.shape[0]==data_size
