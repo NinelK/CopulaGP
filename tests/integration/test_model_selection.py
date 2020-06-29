@@ -11,12 +11,12 @@ from select_copula import select_with_heuristics as select_model
 
 import pytest
 
-def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
+def model_selection(mode, likelihoods, device=torch.device('cuda:1')):
 
     NSamp=5000
     X = np.linspace(0.,1.,NSamp)
 
-    out_path = './tempH'
+    out_path = './temp'
 
     if len(likelihoods)==1:
         assert mode=='thetas'
@@ -79,22 +79,16 @@ if __name__ == "__main__":
         model_selection('thetas', [bvcopula.GumbelCopula_Likelihood(rotation=rot)])
 
     for mode in ['mixes','thetas']:
-
         model_selection(mode, [bvcopula.GumbelCopula_Likelihood(rotation='90°'),
                                     bvcopula.GaussianCopula_Likelihood()])
-
         model_selection(mode, [bvcopula.GaussianCopula_Likelihood(),
                                     bvcopula.ClaytonCopula_Likelihood(rotation='270°')])
-
-        model_selection(mode, [bvcopula.ClaytonCopula_Likelihood(rotation='90°'),
-                                    bvcopula.GumbelCopula_Likelihood(rotation='0°')])
-
-        model_selection(mode, [bvcopula.FrankCopula_Likelihood(),
-                                    bvcopula.GumbelCopula_Likelihood(rotation='180°')])
-
+        model_selection(mode, [bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+                                    bvcopula.FrankCopula_Likelihood()])
+        model_selection(mode, [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
+                                    bvcopula.ClaytonCopula_Likelihood(rotation='90°')])
         model_selection(mode, [bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
                                     bvcopula.GumbelCopula_Likelihood(rotation='270°')])
-
     for mode in ['mixes','thetas']:
 
         model_selection(mode, [bvcopula.GaussianCopula_Likelihood(),

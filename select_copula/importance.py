@@ -6,9 +6,10 @@ def evaluate(model,device):
     with no_grad():
         output = model(test_x)
     gplink = model.likelihood.gplink_function
-    _, mixes = gplink(output.rsample(Size([1000])))
-    lowest_mixes = mixes.mean(dim=1) - mixes.std(dim=1)
-    return lowest_mixes
+    # _, mixes = gplink(output.rsample(Size([1000])))
+    # lowest_mixes = mixes.mean(dim=1) - mixes.std(dim=1)
+    _, mixes = gplink(output.mean, normalized_thetas=False)
+    return mixes
 
 def important_copulas(model, device):
     mixes = evaluate(model,device)

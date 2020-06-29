@@ -126,14 +126,14 @@ class IndependenceCopula(Distribution):
                 but will indentify the device where samples must be stored.")
         elif theta.shape != torch.Size([0]):
             raise ValueError("Theta should be empty for independence copula.")
-
+        self.device = theta.device
         batch_shape, event_shape = torch.Size([]), torch.Size([2])
         super(IndependenceCopula, self).__init__(batch_shape, event_shape, validate_args=validate_args)
 
     def rsample(self, sample_shape=torch.Size([])):
         shape = self._extended_shape(sample_shape) # now it is theta_size (batch) x sample_size x 2 (event)
             
-        samples = torch.empty(size=shape,device=self.theta.device).uniform_(1e-4, 1. - 1e-4) 
+        samples = torch.empty(size=shape,device=self.device).uniform_(1e-4, 1. - 1e-4) 
         #torch.rand(shape) torch.rand in (0,1]
         
         return samples

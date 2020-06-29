@@ -90,7 +90,7 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
         self.likelihood = likelihood
         
         # Mean, covar
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, .2)
+        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.)
         mean_prior = None #gpytorch.priors.NormalPrior(0., .01)
         
         self.mean_module = gpytorch.means.ConstantMean(prior=mean_prior,batch_size=num_tasks)

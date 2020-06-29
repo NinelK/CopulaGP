@@ -39,6 +39,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
 
     best_likelihoods = [bvcopula.GaussianCopula_Likelihood()]
     waic_min, model = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
+    # print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic_min:.4f})")
     plot_n_save(model)
 
     if waic_min>conf.waic_threshold:
@@ -47,7 +48,9 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
     else:
 
         (waic_gumbels, model_gumbels) = bvcopula.infer(conf.gumbel_likelihoods,train_x,train_y,device=device)
+        # print(get_copula_name_string(conf.gumbel_likelihoods)+f" (WAIC = {waic_gumbels:.4f})")
         (waic_claytons, model_claytons) = bvcopula.infer(conf.clayton_likelihoods,train_x,train_y,device=device)
+        # print(get_copula_name_string(conf.clayton_likelihoods)+f" (WAIC = {waic_claytons:.4f})")
 
         if waic_min >= min(waic_claytons,waic_gumbels):
 
@@ -88,6 +91,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                     (waic, model) = bvcopula.infer(likelihoods,train_x,train_y,device=device)
                     if waic<waic_min:
                         logging.info("Swap "+get_copula_name_string([likelihoods_leader[i]])+"->"+get_copula_name_string([likelihoods_follow[i]]))
+                        # print("Swap "+get_copula_name_string([likelihoods_leader[i]])+"->"+get_copula_name_string([likelihoods_follow[i]]))
                         likelihoods_leader[i] = likelihoods_follow[i]
                         count_swaps+=1
                         waic=waic_min
@@ -100,11 +104,14 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
             if torch.any(which_leader==False):
                 best_likelihoods = reduce_model(best_likelihoods,which_leader)
                 logging.info("Re-running reduced model...")
+                # print("Re-running reduced model...")
                 (waic, model) = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
+                # print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic:.4f})")
                 waic_min = waic
                 plot_n_save(model)
             else:
                 logging.info('Nothing to reduce')
+                print("Nothing to reduce")
 
             # If Frank is still selected, check if Gaussian Copula is better than Frank
             if symmetric_part[1]==True:
@@ -116,6 +123,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                 (waic, model) = bvcopula.infer(with_gauss,train_x,train_y,device=device)
                 if waic<waic_min:
                     logging.info('Frank is better than Gauss')
+                    # print('Frank is better than Gauss')
                     waic_min = waic
                     best_likelihoods = with_gauss
                     plot_n_save(model)
@@ -127,6 +135,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                     for j in range(i,len(best_likelihoods)):
                         if i!=j:
                             logging.info(f"Trying to substitute 2 elements ({i} and {j}) with a Gauss...")
+                            # print(f"Trying to substitute 2 elements ({i} and {j}) with a Gauss...")
                             likelihoods = [bvcopula.GaussianCopula_Likelihood()]
                             for k in range(len(best_likelihoods)):
                                 if (k!=i) & (k!=j):
@@ -135,6 +144,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                             if waic<waic_min:
                                 waic_min = waic
                                 new_best = likelihoods.copy()
+                                # print(get_copula_name_string(new_best)+f" (WAIC = {waic:.4f})")
                                 plot_n_save(model)
                 best_likelihoods = new_best.copy()
         else: # if Frank was better than all combinations -> Check Gaussian
@@ -142,6 +152,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
             if waic<waic_min:
                 best_likelihoods = [bvcopula.FrankCopula_Likelihood()]
                 waic_min = waic
+                # print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic:.4f})")
                 plot_n_save(model)
 
         # load model
@@ -157,6 +168,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
             if waic>waic_min:
                 print('Reducing the model, even though the WAIC gets worse. See logs.')
             waic_min = waic
+            print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic:.4f})")
             plot_n_save(model)
         else:
             logging.info('Nothing to reduce')
