@@ -11,7 +11,7 @@ from select_copula import select_with_heuristics as select_model
 
 import pytest
 
-def model_selection(mode, likelihoods, device=torch.device('cuda:1')):
+def model_selection(mode, likelihoods, device=torch.device('cpu')):
 
     NSamp=5000
     X = np.linspace(0.,1.,NSamp)

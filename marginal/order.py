@@ -3,7 +3,7 @@ import numpy as np
 import pickle as pkl
 import sys
 sys.path.insert(0, '/home/nina/CopulaGP/')
-import utils
+from utils import load_samples
 
 def heuristic_element_order(samples):
     '''

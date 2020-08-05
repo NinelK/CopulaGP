@@ -10,7 +10,7 @@ import pytest
 from bvcopula import conf
 from numpy.testing import assert_allclose
 
-def extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=torch.device('cuda:0')):
+def extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=torch.device('cpu')):
 
     t1 = time.time()
 

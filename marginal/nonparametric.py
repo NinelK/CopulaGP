@@ -42,7 +42,7 @@ def zeroinflated_signal2uniform(Y,X,numPointsPerSigma=50):
     transformed = np.empty_like(Y)
     zeros = len(Y[Y==0])
     part_zero = zeros/len(Y)
-    transformed[Y!=0] = part_zero + (1-part_zero)*fast_signal2uniform(Y[Y!=0],condition[Y!=0],
+    transformed[Y!=0] = part_zero + (1-part_zero)*fast_signal2uniform(Y[Y!=0],X[Y!=0],
         numPointsPerSigma=numPointsPerSigma)
     transformed[Y==0] = np.random.rand(zeros)*part_zero
 
