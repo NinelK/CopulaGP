@@ -4,6 +4,7 @@ import time
 from torch import Tensor
 from matplotlib import pyplot as plt
 import logging
+from gpytorch.mlls import VariationalELBO
 
 import bvcopula
 import utils
@@ -28,53 +29,29 @@ def plot_loss(filename, losses, rbf, means):
 	fig.savefig(filename)
 	plt.close()
 
-def _get_theta_sharing(likelihoods, theta_sharing):
-	if theta_sharing is not None:
-		theta_sharing = theta_sharing
-		num_fs = len(likelihoods)+thetas_sharing.max().numpy() # indep_thetas + num_copulas - 1
-	else:
-		theta_sharing = torch.arange(0,len(likelihoods)).long()
-		num_fs = 2*len(likelihoods)-1
-	return theta_sharing, num_fs
-
-def _grid_size(num_copulas):
-	if num_copulas<8:
-		grid_size = conf.grid_size
-	else:
-		grid_size = int(conf.grid_size/int(np.log(num_copulas)/np.log(2)))
-		print(grid_size)
-	return grid_size
-
-def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
+def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 			theta_sharing=None,
 			output_loss = None):
-
-	theta_sharing, num_fs = _get_theta_sharing(likelihoods, theta_sharing)
 
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):
 			torch.cuda.empty_cache()
 
-	logging.info('Trying {}'.format(utils.get_copula_name_string(likelihoods)))
+	logging.info('Trying {}'.format(utils.get_copula_name_string(bvcopulas)))
 
 	# define the model (optionally on GPU)
-	model = bvcopula.Mixed_GPInferenceModel(
-			bvcopula.MixtureCopula_Likelihood(likelihoods, 
-								theta_sharing=theta_sharing), 
-                            num_fs,  
-                            prior_rbf_length=0.5, 
-                            grid_size=_grid_size(len(likelihoods))).to(device=device).float()
+	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device)
 
 	optimizer = torch.optim.Adam([
-	    {'params': model.mean_module.parameters()},
-	    {'params': model.variational_strategy.parameters()},
-	    {'params': model.covar_module.parameters(), 'lr': conf.hyper_lr}, #hyperparameters
+	    {'params': model.gp_model.mean_module.parameters()},
+	    {'params': model.gp_model.variational_strategy.parameters()},
+	    {'params': model.gp_model.covar_module.parameters(), 'lr': conf.hyper_lr}, #hyperparameters
 	], lr=conf.base_lr)
 
 	# train the model
 
-	mll = utils.VariationalELBO(model.likelihood, model, torch.ones_like(train_x.squeeze()), 
-                            num_data=train_y.size(0), particles=torch.Size([0]), combine_terms=True)
+	mll = VariationalELBO(model.likelihood, model.gp_model,
+                            num_data=train_y.size(0))
 
 	losses = torch.zeros(conf.max_num_iter, device=device)
 	rbf = torch.zeros(conf.max_num_iter, device=device)
@@ -83,13 +60,14 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	WAIC = -1 #assume that the model will train well
 	
 	def train(train_x, train_y, num_iter=conf.max_num_iter):
-	    model.train()
+	    model.gp_model.train()
+	    model.likelihood.train()
 
 	    p = torch.zeros(1,device=device)
 	    nans = torch.zeros(1,device=device)
 	    for i in range(num_iter):
 	        optimizer.zero_grad()
-	        output = model(train_x)
+	        output = model.gp_model(train_x)
 	        
 	        loss = -mll(output, train_y)  
 	 
@@ -106,7 +84,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	            mean_p = p/100
 
 	            if (0 < mean_p < conf.loss_tol2check_waic):
-	                WAIC = model.likelihood.WAIC(model(train_x),train_y)
+	                WAIC = model.likelihood.WAIC(model.gp_model(train_x),train_y)
 	                if (WAIC > conf.waic_tol):
 	                    logging.debug("Training does not look promissing!")
 	                    break	
@@ -117,28 +95,12 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 	            p = 0.
 
 	        # The actual optimization step
-	        loss.backward()
-	        covar_grad = model.variational_strategy.variational_distribution.chol_variational_covar.grad
-	        # strict
-	        # assert torch.all(covar_grad==covar_grad)
-	        #light
-	        if torch.any(covar_grad!=covar_grad):
-	            for n, par in model.named_parameters():
-	                grad = par.grad.data
-	                if torch.nonzero(grad!=grad).shape[0]!=0:
-	                    #print('NaN grad in {}'.format(n))
-	                    nans_detected = 1
-	                nans+=torch.nonzero(grad!=grad).shape[0]
-	                if torch.any(grad.abs()==float('inf')):
-	                    logging.warning("Grad inf... fixing...")
-	                    grad = torch.clamp(grad,-1.,1.)
-	                grad[grad!=grad] = 0.0
-	                par.grad.data = grad
+	        loss.backward(retain_graph=True)
 	        optimizer.step()
 
 	t1 = time.time()
 
-	if (len(likelihoods)!=1) | (likelihoods[0].name!='Independence'):
+	if (len(bvcopulas)!=1) or (bvcopulas[0].name!='Independence'):
 		train(train_x,train_y)
 
 	if nans_detected==1:
@@ -150,7 +112,7 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	if (WAIC < 0): 
 	# if model got to the point where it was better than independence: recalculate final WAIC
-		WAIC = model.likelihood.WAIC(model(train_x),train_y)
+		WAIC = model.likelihood.WAIC(model.gp_model(train_x),train_y)
 
 	t2 = time.time()
 	logging.info('WAIC={:.4f}, took {} sec'.format(WAIC,int(t2-t1)))
@@ -161,22 +123,15 @@ def infer(likelihoods, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	return WAIC, model
 
-def load_model(filename, likelihoods, device: torch.device, 
+def load_model(filename, bvcopulas, device: torch.device, 
 	theta_sharing=None):
 
-	theta_sharing, num_fs = _get_theta_sharing(likelihoods, theta_sharing)
-
-	logging.info('Loading {}'.format(utils.get_copula_name_string(likelihoods)))
+	logging.info('Loading {}'.format(utils.get_copula_name_string(bvcopulas)))
 
 	# define the model (optionally on GPU)
-	model = bvcopula.Mixed_GPInferenceModel(
-			bvcopula.MixtureCopula_Likelihood(likelihoods, 
-								theta_sharing=theta_sharing), 
-                            num_fs,  
-                            prior_rbf_length=0.5, 
-                            grid_size=_grid_size(len(likelihoods))).to(device=device)
+	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device)
 
-	model.load_state_dict(torch.load(filename, map_location=device))
-	model.eval()
+	model.gp_model.load_state_dict(torch.load(filename, map_location=device))
+	model.gp_model.eval()
 
 	return model

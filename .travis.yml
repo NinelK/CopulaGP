@@ -1,6 +1,6 @@
 language: python
 python:
-  - "3.6.8"
+  - "3.6.9"
 # command to install dependencies
 install:
     - pip install Cython==0.29.14

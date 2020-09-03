@@ -29,8 +29,7 @@ def available_elements(current_model):
 	return av_el
 
 def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: torch.device,
-	simple_model: bvcopula.Mixed_GPInferenceModel,
-	exp_name: str, path_output: str, name_x: str, name_y: str):
+	simple_model: list,	exp_name: str, path_output: str, name_x: str, name_y: str):
 
 	if type(simple_model) != list:
 		simple_model = [simple_model]
@@ -47,7 +46,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 		waic = float("Inf")
 		try:
 			waic, model = bvcopula.infer(likelihoods,train_x,train_y,device=device)
-			torch.save(model.state_dict(),weights_filename)
+			torch.save(model.gp_model.state_dict(),weights_filename)
 			files_created.append(weights_filename)
 		except ValueError as error:
 			logging.error(error)
@@ -122,14 +121,14 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 	weights_filename = '{}/w_{}.pth'.format(path_output,name)
 	model = bvcopula.load_model(weights_filename, mixtures[best_ind], device)
 	#reduce the model
-	important = important_copulas(model,device)
+	important = important_copulas(model)
 	reduced_likelihoods = reduce_model(mixtures[best_ind],important) 
 	if np.any(available_elements(reduced_likelihoods) != available_elements(mixtures[best_ind])):
 		logging.info("Model was reduced, getting new WAIC...")
 		waic, model = bvcopula.infer(reduced_likelihoods,train_x,train_y,device=device)
 		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(reduced_likelihoods))
 		weights_filename = '{}/w_{}.pth'.format(path_output,name)
-		torch.save(model.state_dict(),weights_filename)
+		torch.save(model.gp_model.state_dict(),weights_filename)
 		print("Model reduced to {}".format(utils.get_copula_name_string(reduced_likelihoods)))
 		waics[best_ind] = waic.cpu().numpy()
 		mixtures[best_ind] = reduced_likelihoods

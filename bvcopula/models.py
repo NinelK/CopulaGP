@@ -1,106 +1,60 @@
 import torch
 import gpytorch
 from torch import all, Size
-from .variational_strategies import GridInterpolationVariationalStrategy
+from gpytorch.distributions import MultitaskMultivariateNormal
+import math
+from .likelihoods import MixtureCopula_Likelihood
+from . import conf
 
-class GPInferenceModel(gpytorch.models.AbstractVariationalGP):
-    def __init__(self, train_x, likelihood):
-        # Define all the variational stuff
+class MultitaskGPModel(gpytorch.models.ApproximateGP):
+    def __init__(self, num_dim, grid_bounds=(0, 1), prior_rbf_length=0.5):
+
+        def _grid_size(num_dim):
+            if num_dim<8:
+                grid_size = conf.grid_size
+            else:
+                grid_size = int(conf.grid_size/int(math.log(num_dim)/math.log(2)))
+                print(grid_size)
+            return grid_size
+
         variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(
-            num_inducing_points=train_x.numel()
+            num_inducing_points=_grid_size(num_dim), batch_shape=torch.Size([num_dim])
         )
-        variational_strategy = gpytorch.variational.VariationalStrategy(
-            self, train_x, variational_distribution
-        )
-        
-        # Standard initializtation
-        super(GPInferenceModel, self).__init__(variational_strategy)
-        self.likelihood = likelihood
-        
-        # Mean, covar
-        self.mean_module = gpytorch.means.ConstantMean()
-        
-        #we specify prior here
-        prior_rbf_length = 0.5 
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) 
-        
-        self.covar_module = gpytorch.kernels.ScaleKernel(
-            gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior),
-        )
-        
-        # Initialize lengthscale and outputscale to mean of priors
-        self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
-        #self.covar_module.outputscale = outputscale_prior.mean
 
-    def forward(self, x):
-        mean = self.mean_module(x)  # Returns an n_data vec
-        covar = self.covar_module(x)
-        return gpytorch.distributions.MultivariateNormal(mean, covar)
-
-class KISS_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
-    def __init__(self, likelihood, prior_rbf_length=0.1, grid_size=128, grid_bounds=[(0, 1)]):
-        # Define all the variational stuff
-        variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(grid_size)
-        variational_strategy = gpytorch.variational.GridInterpolationVariationalStrategy(
-            self, grid_size, grid_bounds, variational_distribution
+        # Our base variational strategy is a GridInterpolationVariationalStrategy,
+        # which places variational inducing points on a Grid
+        # We wrap it with a IndependentMultitaskVariationalStrategy so that our output is a vector-valued GP
+        variational_strategy = gpytorch.variational.IndependentMultitaskVariationalStrategy(
+            gpytorch.variational.GridInterpolationVariationalStrategy(
+                self, grid_size=_grid_size(num_dim), grid_bounds=[grid_bounds],
+                variational_distribution=variational_distribution,
+            ), num_tasks=num_dim,
         )
-        
-        # Standard initializtation
-        super(KISS_GPInferenceModel, self).__init__(variational_strategy)
-        self.likelihood = likelihood
-        
-        # Mean, covar
-        self.mean_module = gpytorch.means.ConstantMean()
-        
+        super().__init__(variational_strategy)
+
         #we specify prior here
         lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.0) 
-        
+        # gpytorch.priors.SmoothedBoxPrior(
+        #             math.exp(-1), math.exp(1), sigma=0.1, transform=torch.exp
+        #         ),
+
         self.covar_module = gpytorch.kernels.ScaleKernel(
-            gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior),
+            gpytorch.kernels.RBFKernel(
+                lengthscale_prior=lengthscale_prior,
+                batch_shape=torch.Size([num_dim])
+            ),
+            batch_shape=torch.Size([num_dim])
         )
-        
-        # Initialize lengthscale and outputscale to mean of priors
-        self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
-        #self.covar_module.outputscale = outputscale_prior.mean
+        self.mean_module = gpytorch.means.ConstantMean(batch_shape=torch.Size([num_dim]))
+        self.grid_bounds = grid_bounds
 
     def forward(self, x):
-        mean = self.mean_module(x)  # Returns an n_data vec
-        covar = self.covar_module(x)
+        # The forward function should be written as if we were dealing with each output
+        # dimension in batch
+        mean = self.mean_module(x)  # Returns (num_indep_tasks=batch) x N matrix
+        covar = self.covar_module(x) # batch x N x N
         assert all(mean==mean)
         return gpytorch.distributions.MultivariateNormal(mean, covar)
-
-class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
-    def __init__(self, likelihood, num_tasks, prior_rbf_length=0.5, 
-                 grid_size = 128, grid_bonds = [(0, 1)]):
-        # Define all the variational stuff
-        variational_distribution = \
-        gpytorch.variational.CholeskyVariationalDistribution(grid_size, 
-                                                              batch_shape=Size([num_tasks]))
-        
-        variational_strategy = GridInterpolationVariationalStrategy(
-            self,
-            num_tasks,
-            grid_size, 
-            grid_bonds, 
-            variational_distribution
-        )
-        
-        # Standard initializtation
-        super(Mixed_GPInferenceModel, self).__init__(variational_strategy) 
-        self.likelihood = likelihood
-        
-        # Mean, covar
-        lengthscale_prior = gpytorch.priors.NormalPrior(prior_rbf_length, 1.)
-        mean_prior = None #gpytorch.priors.NormalPrior(0., .01)
-        
-        self.mean_module = gpytorch.means.ConstantMean(prior=mean_prior,batch_size=num_tasks)
-        self.covar_module = gpytorch.kernels.ScaleKernel(
-            gpytorch.kernels.RBFKernel(lengthscale_prior=lengthscale_prior, batch_size=num_tasks, ard_num_dims=1),
-            batch_size=num_tasks, ard_num_dims=None
-        )
-        
-        # Initialize lengthscale and outputscale to mean of priors
-        self.covar_module.base_kernel.lengthscale = lengthscale_prior.mean
 
     def MI(self, points, alpha=0.05, sem_tol=1e-3, f_size=5, mc_size=10000):
         '''
@@ -141,9 +95,40 @@ class Mixed_GPInferenceModel(gpytorch.models.AbstractVariationalGP):
 
         return (MI_mean,MIs.mean(dim=0),MIs.std(dim=0)) 
 
-    def forward(self, x):
-        mean = self.mean_module(x)  # Returns an n_data vec
-        covar = self.covar_module(x)
-        assert all(mean==mean)
-        mmn = gpytorch.distributions.MultitaskMultivariateNormal(mean, covar)
-        return mmn
+class Pair_CopulaGP():
+    def __init__(self, copulas: list, device='cpu'):
+
+        self.__likelihood = MixtureCopula_Likelihood(copulas,
+                particles=torch.Size([0])).to(device=device).float()
+
+        self.__gp_model = MultitaskGPModel(self.__likelihood.f_size, 
+            grid_bounds=(0, 1), prior_rbf_length=0.5).to(device=device).float()
+
+        self.__device = device
+
+    @property
+    def gp_model(self):
+        return self.__gp_model
+
+    @property
+    def likelihood(self):
+        return self.__likelihood
+
+    @property
+    def gplink(self):
+        return self.__likelihood.gplink_function
+
+    @property
+    def device(self):
+        return self.__device
+    #TODO: mb add setter for device, that relocates all parts of the model?
+
+# theta_sharing, num_fs = _get_theta_sharing(likelihoods, theta_sharing)
+# def _get_theta_sharing(likelihoods, theta_sharing):
+#     if theta_sharing is not None:
+#         theta_sharing = theta_sharing
+#         num_fs = len(likelihoods)+thetas_sharing.max().numpy() # indep_thetas + num_copulas - 1
+#     else:
+#         theta_sharing = torch.arange(0,len(likelihoods)).long()
+#         num_fs = 2*len(likelihoods)-1
+#     return theta_sharing, num_fs

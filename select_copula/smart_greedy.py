@@ -28,22 +28,6 @@ def available_elements(current_model):
 	    	av_el.append(el)
 	return av_el
 
-
-# def important_copulas(model: bvcopula.Mixed_GPInferenceModel, train_x: Tensor) -> Tensor:
-
-# 	if len(model.likelihood.likelihoods)<2:
-# 		return torch.tensor([True])
-# 	else:
-		    
-# 		model.eval()
-# 		with torch.no_grad():
-# 		    output = model(train_x)
-# 		gplink = model.likelihood.gplink_function
-# 		_, control = gplink(output.mean)
-# 		_, mixes = gplink(output.rsample(torch.Size([1000])))
-# 		lowest_mixes = torch.mean(mixes,dim=1) - torch.std(mixes,dim=1)
-# 		return (torch.mean(lowest_mixes,dim=1)>0.1).type(torch.bool)
-
 def reduce_model(likelihoods: list, importance: Tensor) -> list:
     assert len(likelihoods)==len(importance)
     reduced_model = []
@@ -53,8 +37,7 @@ def reduce_model(likelihoods: list, importance: Tensor) -> list:
     return reduced_model
 
 def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: torch.device,
-	simple_model: bvcopula.Mixed_GPInferenceModel,
-	exp_name: str, path_output: str, name_x: str, name_y: str,
+	simple_model: list,	exp_name: str, path_output: str, name_x: str, name_y: str,
 	reduce=True):
 
 	if type(simple_model) != list:
@@ -75,10 +58,10 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 		waic = float("Inf")
 		try:
 			waic, model = bvcopula.infer(likelihoods,train_x,train_y,device=device)#,output_loss=plot_loss)
-			#plot_fit(model, X, Y, name_x, name_y, plot_res, device=device)
-			torch.save(model.state_dict(),weights_filename)
+			#plot_fit(model, likelihoods, X, Y, name_x, name_y, plot_res, device=device)
+			torch.save(model.gp_model.state_dict(),weights_filename)
 			files_created.append(weights_filename)
-			important = important_copulas(model,device)
+			important = important_copulas(model)
 			if torch.any(important==False):
 				logging.info('Only {} were important'.format(utils.get_copula_name_string(reduce_model(likelihoods,important))))
 		except ValueError as error:
@@ -105,7 +88,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 			np.any(available_elements(reduced_likelihoods) != available_elements(simple_model)):
 			logging.info("Model was reduced, getting new WAIC...")
 			waic, model = bvcopula.infer(reduced_likelihoods,train_x,train_y,device=device)
-			torch.save(model.state_dict(),weights_filename)
+			torch.save(model.gp_model.state_dict(),weights_filename)
 			print("Model reduced to {}".format(utils.get_copula_name_string(reduced_likelihoods)))
 			waic = waic.cpu().numpy()
 			best_likelihoods = reduced_likelihoods

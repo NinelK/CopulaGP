@@ -7,16 +7,12 @@ Both greedy and heuristic algorithms perform well on synthetic data (see tests/i
 
 ## TODO
 
-- [x] Test make_dependent
-- [x] Sample from a C-vine
-- [ ] C-vine entropy (estimate with a given tolerance)
-- [x] Heuristics to speed up model selection
-- [x] Swap WAIC sign to match the original definition.
-
+- [ ] Attach proper training schedule
+- [ ] Rethink model saving and loading
 - [ ] Add unittests for marginal transforms
 - [ ] Add proper weight sharing to select_model to reduce memory usage
-- [ ] Add sharing for mixing parameters in a final model?
+		(can now be done with gpytorch 1.2 linear mixture models)
 - [ ] Implement Student-T copula
 	- [x] Sampling with 1D icdf
-- [ ] Marginals with normalizing flows 
+- [ ] Marginals with normalizing flows?
 

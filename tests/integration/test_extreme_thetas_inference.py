@@ -10,26 +10,25 @@ import pytest
 from bvcopula import conf
 from numpy.testing import assert_allclose
 
-def extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=torch.device('cpu')):
+def extreme_thetas_inference(X, bvc, true_thetas, atol=0., device=torch.device('cpu')):
 
     t1 = time.time()
 
-    copula_model = likelihood.copula(true_thetas) 
+    copula_model = bvc.copula(true_thetas) 
     Y = copula_model.sample().numpy().squeeze()
     from bvcopula import conf
     #convert numpy data to tensors (optionally on GPU)
     train_x = torch.tensor(X).float().to(device=device)
     train_y = torch.tensor(Y).float().to(device=device)
     
-    _, model = bvcopula.infer([likelihood], train_x, train_y, device)
+    _, model = bvcopula.infer([bvc], train_x, train_y, device)
         
-    model.eval()
+    model.gp_model.eval()
     with torch.no_grad():
-        output = model(train_x)
-    gplink = model.likelihood.gplink_function
-    thetas, _ = gplink(output.mean)
-    thetas_max,_ = gplink(output.mean+2*output.variance)  
-    thetas_min,_ = gplink(output.mean-2*output.variance)  
+        output = model.gp_model(train_x)
+    thetas, _ = model.gplink(output.mean)
+    thetas_max,_ = model.gplink(output.mean+2*output.variance)  
+    thetas_min,_ = model.gplink(output.mean-2*output.variance)  
 
     t2 = time.time()
 
@@ -60,7 +59,7 @@ def extreme_thetas_inference(X, likelihood, true_thetas, atol=0., device=torch.d
     else:
         return 0
 
-def try_copula(likelihood, minTh, midTh, maxTh, 
+def try_copula(bvc, minTh, midTh, maxTh, 
                 ex_atol, mid_atol):
 
     NSamp=2500
@@ -72,9 +71,9 @@ def try_copula(likelihood, minTh, midTh, maxTh,
     # max theta (can fail the test)
 
     success = 0
-    success+=extreme_thetas_inference(X, likelihood, torch.full([NSamp],minTh).float(),atol=ex_atol)
-    success+=extreme_thetas_inference(X, likelihood, torch.full([NSamp],midTh).float(),atol=mid_atol)
-    success+=extreme_thetas_inference(X, likelihood, torch.full([NSamp],maxTh).float(),atol=ex_atol)
+    success+=extreme_thetas_inference(X, bvc, torch.full([NSamp],minTh).float(),atol=ex_atol)
+    success+=extreme_thetas_inference(X, bvc, torch.full([NSamp],midTh).float(),atol=mid_atol)
+    success+=extreme_thetas_inference(X, bvc, torch.full([NSamp],maxTh).float(),atol=ex_atol)
 
     assert success==3
 

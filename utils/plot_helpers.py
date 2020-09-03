@@ -21,7 +21,8 @@ def Plot_Copula_Density(axes, X, Y, interval_ends, shade=False, color='C0', mrg=
                     alpha=0.7, color=color, n_levels=6)
         ax.set(title=name, xlim=(-mrg,1+mrg), ylim=(-mrg,1+mrg))
 
-def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
+def Plot_MixModel_Param(ax: list, model: bvcopula.Pair_CopulaGP,
+    test_x: Tensor, x : Tensor, rho=None,title=''):
     '''
         Plot Thetas and Mixing parameters of a trained GP-Copula model.
         May show strange confidence intervals due to gp_link transformaiton.
@@ -30,8 +31,10 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
         ----------
         ax : list of matplotlib.axes._subplots.AxesSubplot
             Two axes for plotting thetas and mixing parameters
-        model : Mixed_GPInferenceModel
-            Copula-GP model
+        model : MultitaskGPModel
+            GP model
+        likelihood: MixtureCopula_Likelihood
+            Mixture copula model
         test_x : Tensor
             Model input values. Normally scaled to range (0,1) and could be on GPU.
         x : numpy.array
@@ -56,24 +59,18 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
                 axis.fill_between(x, l.detach().cpu().numpy(),
                             u.detach().cpu().numpy(), color=line.get_color(), alpha=0.3)
 
-    model.eval()
+    model.gp_model.eval()
     with no_grad():
-        output = model(test_x)
-    gplink = model.likelihood.gplink_function
+        output = model.gp_model(test_x)
                 
-    thetas, mixes = gplink(output.mean, normalized_thetas=True)
+    thetas, mixes = model.gplink(output.mean, normalized_thetas=True)
     lower, upper = output.confidence_region() #thetas & mix together
-    thetas_low, mixes_low = gplink(lower, normalized_thetas=True)
-    thetas_upp, mixes_upp = gplink(upper, normalized_thetas=True)
-    
+    thetas_low, mixes_low = model.gplink(lower, normalized_thetas=True)
+    thetas_upp, mixes_upp = model.gplink(upper, normalized_thetas=True)
+
     likelihoods = model.likelihood.likelihoods
     copulas = [lik.name for lik in likelihoods]
     rotations = [lik.rotation for lik in likelihoods]
-
-    # thetas = bvcopula._normalize_thetas(thetas,copulas)
-    # thetas_low = bvcopula._normalize_thetas(thetas_low,copulas)
-    # thetas_upp = bvcopula._normalize_thetas(thetas_upp,copulas)
-
     plot_gps(thetas,thetas_low,thetas_upp,ax[0],skip_ind=True)
     plot_gps(mixes,mixes_low,mixes_upp,ax[1])
     
@@ -92,10 +89,28 @@ def Plot_MixModel_Param(ax,model,test_x,x,rho=None,title=''):
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
-def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=200):
+def Plot_MixModel_Param_MCMC(ax: list, model: bvcopula.Pair_CopulaGP,
+    test_x: Tensor, x : Tensor,
+    rho=None,title='',particles=200):
     '''
         Plot Thetas and Mixing parameters of a trained GP-Copula model.
         MCMC_version
+        Parameters
+        ----------
+        ax : list of matplotlib.axes._subplots.AxesSubplot
+            Two axes for plotting thetas and mixing parameters
+        model : MultitaskGPModel
+            GP model
+        likelihood: MixtureCopula_Likelihood
+            Mixture copula model
+        test_x : Tensor
+            Model input values. Normally scaled to range (0,1) and could be on GPU.
+        x : numpy.array
+            Corresponding labels for the input values. 
+        rho : numpy.array
+            (x,rho) for Pearson's rho plot. Useful to compare with theta parameters.
+        particles: int
+            Number of particles for MCMC
     '''
     from torch import no_grad, Size
     from numpy import mean, std
@@ -115,17 +130,15 @@ def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=200):
                 stdev = std(sampled[i].cpu().numpy(),axis=0)
                 axis.fill_between(x, sm-2*stdev, sm+2*stdev, color=line.get_color(), alpha=0.3)
             
-    model.eval()
+    model.gp_model.eval()
     with no_grad():
-        output = model(test_x)
-    gplink = model.likelihood.gplink_function
-    thetas, mixes = gplink(output.rsample(Size([particles])), normalized_thetas=True)
+        output = model.gp_model(test_x)
+    thetas, mixes = model.gplink(output.rsample(Size([particles])), normalized_thetas=True)
     #MC sampling is better here, at least for mixing, since gplink function is non-monotonic for them
 
     likelihoods = model.likelihood.likelihoods
     copulas = [lik.name for lik in likelihoods]
     rotations = [lik.rotation for lik in likelihoods]
-
     plot_gps(thetas,ax[0],skip_ind=True)
     plot_gps(mixes,ax[1])
     
@@ -144,22 +157,15 @@ def Plot_MixModel_Param_MCMC(ax,model,test_x,x,rho=None,title='',particles=200):
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
-def _generate_test_samples(model: bvcopula.Mixed_GPInferenceModel, test_x: Tensor) -> Tensor:
+def _generate_test_samples(model: bvcopula.Pair_CopulaGP, test_x: Tensor) -> Tensor:
     
     with torch.no_grad():
-        output = model(test_x)
+        output = model.gp_model(test_x)
 
     #generate some samples
-    model.eval()
+    model.gp_model.eval()
     with torch.no_grad(), num_likelihood_samples(1):
-        gplink = model.likelihood.gplink_function
-        likelihoods = model.likelihood.likelihoods
-        copulas = [lik.copula for lik in likelihoods]
-        rotations = [lik.rotation for lik in likelihoods]
-        thetas, mixes = gplink(output.mean)
-        test_y = model.likelihood.copula(thetas,mixes,
-                    copulas, rotations=rotations,
-                    theta_sharing=model.likelihood.theta_sharing).rsample()
+        test_y = model.likelihood.get_copula(output.mean).rsample()
         Y_sim = test_y.cpu().detach().numpy()
 
     return Y_sim
@@ -212,7 +218,8 @@ def _code_names(code, order):
         # else:
         #     return 'Code not int or str'
 
-def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
+def Plot_Fit(model: bvcopula.Pair_CopulaGP,
+            X: Tensor, Y: Tensor,
             name_x: str, name_y: str, filename: str, 
             device: torch.device, order = None):
     '''
@@ -243,7 +250,8 @@ def Plot_Fit(model: bvcopula.Mixed_GPInferenceModel, X: Tensor, Y: Tensor,
     name_x = _code_names(name_x, order=order)
     name_y = _code_names(name_y, order=order)
         
-    Plot_MixModel_Param_MCMC(top_axes,model,test_x,testX*160,rho=_get_pearson(X,Y),title=' for {} vs {}'.format(name_x,name_y))
+    Plot_MixModel_Param_MCMC(top_axes,model,
+        test_x,testX*160,rho=_get_pearson(X,Y),title=' for {} vs {}'.format(name_x,name_y))
 
     bottom_axes[0].set_ylabel(name_y)
     bottom_axes[0].set_xlabel(name_x)

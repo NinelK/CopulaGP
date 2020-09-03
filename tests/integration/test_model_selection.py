@@ -28,8 +28,8 @@ def model_selection(mode, likelihoods, device=torch.device('cpu')):
 
     Y = copula_model.sample().numpy().squeeze()
 
-    train_x = torch.tensor(X).float().cuda(device=device)
-    train_y = torch.tensor(Y).float().cuda(device=device)
+    train_x = torch.tensor(X).float().to(device=device)
+    train_y = torch.tensor(Y).float().to(device=device)
 
     t1 = time.time()
     selected, waic_best = select_model(X,Y,device,exp_name,

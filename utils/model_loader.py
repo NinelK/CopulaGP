@@ -38,7 +38,7 @@ def get_likelihoods(summary_path,n1,n2=None):
 def get_model(weights_file,likelihoods,device):
 	'''
 	Loads the weights of the best selected model and returns
-	the bvcopula.Mixed_GPInferenceModel object
+	the bvcopula.MultitaskGPModel object
 	Parameters
 	----------
 	weights_file: str

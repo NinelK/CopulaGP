@@ -25,17 +25,13 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
         train_y = torch.tensor(Y).float().to(device=device)
 
     def plot_n_save(model):
-        likelihoods = model.likelihood.likelihoods
         # save weights
-        name = '{}_{}'.format(exp_name,get_copula_name_string(likelihoods))
+        name = '{}_{}'.format(exp_name,get_copula_name_string(model.likelihood.likelihoods))
         weights_filename = '{}/w_{}.pth'.format(path_output,name)
-        torch.save(model.state_dict(),weights_filename)
+        torch.save(model.gp_model.state_dict(),weights_filename)
         # plot results
         plot_res = '{}/res_{}.png'.format(path_output,name)
-        # # get variable order for real names
-        # with open(f"{path_models}/order_{exp_pref}.pkl","rb") as f:
-        #     order = pkl.load(f)
-        Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
+        Plot_Fit(model,X,Y,name_x,name_y,plot_res,device=device)
 
     best_likelihoods = [bvcopula.GaussianCopula_Likelihood()]
     waic_min, model = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
@@ -55,14 +51,14 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
         if waic_min >= min(waic_claytons,waic_gumbels):
 
             if waic_claytons<waic_gumbels:
-                which_leader = important_copulas(model_claytons,device)
-                which_follow = important_copulas(model_gumbels,device)
+                which_leader = important_copulas(model_claytons)
+                which_follow = important_copulas(model_gumbels)
                 likelihoods_leader = conf.clayton_likelihoods[2:]
                 likelihoods_follow = conf.gumbel_likelihoods[2:]
                 plot_n_save(model_claytons)
             else:
-                which_leader = important_copulas(model_gumbels,device)
-                which_follow = important_copulas(model_claytons,device)
+                which_leader = important_copulas(model_gumbels)
+                which_follow = important_copulas(model_claytons)
                 likelihoods_leader = conf.gumbel_likelihoods[2:]
                 likelihoods_follow = conf.clayton_likelihoods[2:]
                 plot_n_save(model_gumbels)
@@ -96,7 +92,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                         count_swaps+=1
                         waic=waic_min
                         best_likelihoods = likelihoods.copy()
-                        which_leader = important_copulas(model, device)
+                        which_leader = important_copulas(model)
                         plot_n_save(model)
 
             #print("Assymetric: "+get_copula_name_string(likelihoods_leader))
@@ -160,9 +156,8 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
         weights_filename = '{}/w_{}.pth'.format(path_output,name)
         model = bvcopula.load_model(weights_filename, best_likelihoods, device)
         # final reduce
-        which = important_copulas(model, device)
+        which = important_copulas(model)
         if torch.any(which==False):
-            print(which)
             best_likelihoods = reduce_model(best_likelihoods,which)
             (waic, model) = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
             if waic>waic_min:
