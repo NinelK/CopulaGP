@@ -10,11 +10,10 @@ class MultitaskGPModel(gpytorch.models.ApproximateGP):
     def __init__(self, num_dim, grid_bounds=(0, 1), prior_rbf_length=0.5):
 
         def _grid_size(num_dim):
-            if num_dim<8:
+            if num_dim<4:
                 grid_size = conf.grid_size
             else:
                 grid_size = int(conf.grid_size/int(math.log(num_dim)/math.log(2)))
-                print(grid_size)
             return grid_size
 
         variational_distribution = gpytorch.variational.CholeskyVariationalDistribution(

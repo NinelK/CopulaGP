@@ -18,7 +18,7 @@ def transform2next_layer(exp_pref,layer,device):
 	    model_list=pkl.load(f)
 	layer_width = model_list.shape[0]
 	# Now load the inputs
-	X,Y = utils.standard_loader(f"{conf.path2data}/{exp_pref}_layer{layer}.pkl")
+	X,Y = utils.standard_loader(f"{conf.path2data}/{exp_pref}/{exp_pref}_layer{layer}.pkl")
 	NN = Y.shape[-1]-1
 	assert layer_width==NN
 
@@ -38,7 +38,7 @@ def transform2next_layer(exp_pref,layer,device):
 	            samples = torch.tensor(Y[:,[n,0]]).float().squeeze().to(device) # order!
 
 	            with torch.no_grad():
-	                f_samples = model(S).mean#rsample(torch.Size([10]))
+	                f_samples = model.gp_model(S).mean#rsample(torch.Size([10]))
 
 	            copula = model.likelihood.get_copula(f_samples)
 
@@ -56,7 +56,7 @@ def transform2next_layer(exp_pref,layer,device):
 	data['X'] = X
 	data['Y'] = y
 
-	with open(f"{conf.path2data}/{exp_pref}_layer{layer+1}.pkl","wb") as f:
+	with open(f"{conf.path2data}/{exp_pref}/{exp_pref}_layer{layer+1}.pkl","wb") as f:
 	    pkl.dump(data,f)
 
 	print('Transform finished and saved.')

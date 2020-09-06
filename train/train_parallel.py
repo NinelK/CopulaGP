@@ -12,7 +12,7 @@ import utils
 import select_copula
 import train
 
-gpu_id_list = range(2)
+gpu_id_list = range(4)
 unique_id_list = np.random.randint(0,10000,len(gpu_id_list)) #TODO: make truely unique
 #[i//2 for i in range(8*2)]  # 2 workers on each GPU
 
@@ -76,16 +76,18 @@ def train_next_layer(exp_pref, layer, batch = 1):
 		try:
 			os.mkdir(f'{conf.path2outputs}/{exp_pref}')
 		except FileExistsError as error:
-			print(error)
+			print(f"Error:{error}")
 
 	try:
 		os.mkdir(f'{conf.path2outputs}/{exp_pref}/layer{layer}')
 	except FileExistsError as error:
-		print(error)
+		print(f"Error:{error}")
 
 	pool = multiprocessing.Pool(len(gpu_id_list))
 
-	X,Y = utils.standard_loader(f"{conf.path2data}/{exp_pref}_layer{layer}.pkl")
+	X,Y = utils.standard_loader(f"{conf.path2data}/{exp_pref}/{exp_pref}_layer{layer}.pkl")
+	#Y = Y0[...,1:]
+	#print(Y0.shape,Y.shape)
 	NN = Y.shape[-1]-1
 
 	# batch = int(np.ceil(NN/len(gpu_id_list)/repeats))
@@ -103,7 +105,7 @@ def train_next_layer(exp_pref, layer, batch = 1):
 
 	# for 3plets
 	if layer == 1:
-		X,Y = utils.standard_loader(f"{conf.path2data}/{exp_pref}_layer0.pkl")
+		X,Y = utils.standard_loader(f"{conf.path2data}/{exp_pref}/{exp_pref}_layer0.pkl")
 		res = pool.apply_async(worker, (X, Y[:,2], Y[:,1].reshape(-1,1), [-1], -1, f"{i+1}/{len(batches)}", exp_pref, layer, ))
 
 	pool.close()
