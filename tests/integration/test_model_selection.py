@@ -7,11 +7,16 @@ import utils
 import select_copula
 import bvcopula
 # from select_copula import select_copula_model as select_model
-from select_copula import select_with_heuristics as select_model
+# from select_copula import select_with_heuristics as select_model
+from select_copula import select_light as select_model
 
 import pytest
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.manual_seed(0)
+np.random.seed(0)
 
-def model_selection(mode, likelihoods, device=torch.device('cpu')):
+def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
 
     NSamp=5000
     X = np.linspace(0.,1.,NSamp)
@@ -36,7 +41,7 @@ def model_selection(mode, likelihoods, device=torch.device('cpu')):
                                                 out_path,'{}1'.format(mode[0]),'{}2'.format(mode[0]),
                                                 train_x=train_x,train_y=train_y)
     t2 = time.time()
-    print(f"Took {(t2-t1)//60} min")
+    print(f"Took {int(t2-t1)} sec")
 
     # assert
     if ((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected))):

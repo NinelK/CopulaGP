@@ -7,7 +7,7 @@ Both greedy and heuristic algorithms perform well on synthetic data (see tests/i
 
 ## TODO
 
-- [ ] Attach proper training schedule
+- [ ] When PredictiveLL mll is working better, try it again
 - [ ] Rethink model saving and loading
 - [ ] Add unittests for marginal transforms
 - [ ] Add proper weight sharing to select_model to reduce memory usage

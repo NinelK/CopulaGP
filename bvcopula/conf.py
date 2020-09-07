@@ -1,12 +1,14 @@
 #learning rates
-grid_size = 128
-base_lr = 1e-2
-hyper_lr = 1e-3
+grid_size = 60 # the size used for model selection
+# fine_grid_size = 120 # the size used for final model
+base_lr = 0.05
+hyper_lr = 0.02
 iter_print = 100
-max_num_iter = 3000
-loss_tol = 0.0001 #the minimal change in loss that indicates convergence
-loss_tol2check_waic = 0.005
+max_num_iter = 500
+loss_tol = 0.005 #the minimal change in loss that indicates convergence
+loss_tol2check_waic = 0.05
 waic_tol = 0.005 # maximal WAIC indistinguishable from 0
+loss_av = 25 # average over this number x 2 of epochs is used for early stopping
 
 # copula's theta ranges
 # here thetas are mainly constrained by the summation of probabilities in mixture model,
@@ -39,4 +41,5 @@ Gauss_diag = 1e-5 # how far from diagonal the point can be to be considered as u
 
 
 # waic parameters
-waic_samples = 1200
+waic_samples = 500
+waic_resamples = 3 #how many times to repeat

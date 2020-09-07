@@ -5,6 +5,8 @@ from torch import Tensor
 from matplotlib import pyplot as plt
 import logging
 from gpytorch.mlls import VariationalELBO
+from gpytorch.settings import num_likelihood_samples
+import gc
 
 import bvcopula
 import utils
@@ -30,8 +32,7 @@ def plot_loss(filename, losses, rbf, means):
 	plt.close()
 
 def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
-			theta_sharing=None,
-			output_loss = None):
+			theta_sharing=None,	output_loss=None, grid_size=None):
 
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):
@@ -40,7 +41,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	logging.info('Trying {}'.format(utils.get_copula_name_string(bvcopulas)))
 
 	# define the model (optionally on GPU)
-	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device)
+	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device,grid_size=grid_size)
 
 	optimizer = torch.optim.Adam([
 	    {'params': model.gp_model.mean_module.parameters()},
@@ -53,9 +54,8 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	mll = VariationalELBO(model.likelihood, model.gp_model,
                             num_data=train_y.size(0))
 
-	losses = torch.zeros(conf.max_num_iter, device=device)
-	rbf = torch.zeros(conf.max_num_iter, device=device)
-	means = torch.zeros(conf.max_num_iter, device=device)
+	losses, rbf, means = [], [], []
+
 	nans_detected = 0
 	WAIC = -1 #assume that the model will train well
 	
@@ -63,25 +63,29 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	    model.gp_model.train()
 	    model.likelihood.train()
 
+	    loss_gpu = torch.zeros(num_iter,device=device)
+
 	    p = torch.zeros(1,device=device)
 	    nans = torch.zeros(1,device=device)
 	    for i in range(num_iter):
 	        optimizer.zero_grad()
 	        output = model.gp_model(train_x)
 	        
-	        loss = -mll(output, train_y)  
+	        with num_likelihood_samples(30):
+	        	loss = -mll(output, train_y)  
 	 
-	        losses[i] = loss.detach()
-	        #rbf[i] = model.covar_module.base_kernel.lengthscale.detach()
-	        #means[i] = model.variational_strategy.variational_distribution.variational_mean\
-	        #		.detach()
-
-	        if len(losses)>100: 
-	            p += torch.abs(torch.mean(losses[i-50:i+1]) - torch.mean(losses[i-100:i-50]))
+	        if i>2*conf.loss_av: 
+	            p += (loss_gpu[i-conf.loss_av:i].mean() - loss_gpu[i-2*conf.loss_av:i-conf.loss_av].mean()).abs()
+	        loss_gpu[i] = loss.detach()
 
 	        if not (i + 1) % conf.iter_print:
+
+	            losses.append(loss.detach().cpu().numpy())
+	            rbf.append(model.gp_model.covar_module.base_kernel.lengthscale.detach().cpu().numpy().squeeze())
+	            means.append(model.gp_model.variational_strategy.base_variational_strategy._variational_distribution.variational_mean.detach().cpu().numpy())
 	            
-	            mean_p = p/100
+	            mean_p = p/conf.loss_av/2
+	            # print(f"{i}: {mean_p}")
 
 	            if (0 < mean_p < conf.loss_tol2check_waic):
 	                WAIC = model.likelihood.WAIC(model.gp_model(train_x),train_y)
@@ -95,7 +99,23 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	            p = 0.
 
 	        # The actual optimization step
-	        loss.backward(retain_graph=True)
+	        loss.backward()
+	        covar_grad = model.gp_model.variational_strategy.base_variational_strategy._variational_distribution.chol_variational_covar.grad
+	        # strict
+	        # assert torch.all(covar_grad==covar_grad)
+	        #light
+	        if torch.any(covar_grad!=covar_grad):
+	            for n, par in model.gp_model.named_parameters():
+	                grad = par.grad.data
+	                if torch.any(grad!=grad):
+	                    # print('NaN grad in {}'.format(n))
+	                    nans_detected = 1
+	                # nans+=torch.sum(grad!=grad)
+	                if torch.any(grad.abs()==float('inf')):
+	                    logging.warning("Grad inf... fixing...")
+	                    grad = torch.clamp(grad,-1.,1.)
+	                grad[grad!=grad] = 0.0
+	                par.grad.data = grad
 	        optimizer.step()
 
 	t1 = time.time()
@@ -108,7 +128,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	if output_loss is not None:
 		assert isinstance(output_loss, str)
-		plot_loss(output_loss, losses.cpu().numpy(), rbf.cpu().numpy(), means.cpu().numpy())
+		plot_loss(output_loss, losses, rbf, means)
 
 	if (WAIC < 0): 
 	# if model got to the point where it was better than independence: recalculate final WAIC
@@ -120,6 +140,8 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):
 			torch.cuda.empty_cache()
+
+	gc.collect()
 
 	return WAIC, model
 

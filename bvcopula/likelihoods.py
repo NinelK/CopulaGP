@@ -4,8 +4,7 @@ from typing import Any
 from gpytorch.likelihoods.likelihood import Likelihood, _OneDimensionalLikelihood
 from gpytorch.distributions import MultivariateNormal, base_distributions
 from gpytorch.utils.deprecation import _deprecate_kwarg_with_transform
-from gpytorch.utils.quadrature import GaussHermiteQuadrature1D
-from gpytorch.settings import num_gauss_hermite_locs
+from gpytorch.settings import num_likelihood_samples
 from torch.distributions.transformed_distribution import TransformedDistribution #for Flow
 
 from .distributions import IndependenceCopula, GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula, MixtureCopula
@@ -145,7 +144,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.3*f+1e-4).exp()
+        return (0.2*f+1e-4).exp()
         #maps (-inf, +inf) to [0,max]
 
     def normalize(self, theta: Tensor) -> Tensor:
@@ -164,7 +163,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.3*f+1e-4).exp() + 1.0
+        return (0.2*f+1e-4).exp() + 1.0
 
     def normalize(self, theta: Tensor) -> Tensor:
         if (self.rotation == '90°') | (self.rotation == '270°'):
@@ -229,25 +228,22 @@ class MixtureCopula_Likelihood(Likelihood):
         self.num_copulas = len(self.likelihoods)
         self.num_indep_thetas = self.theta_sharing.max() + 1
         self.f_size = self.num_copulas + self.num_indep_thetas - 1
-        self.quadrature = GaussHermiteQuadrature1D()
         self.particles = particles
-        # self.weights = weights
-        self.gh_locs = 20
         # f dimensions are [f_samples dim x GP variables dim]
         # theta dimensions will be [copulas dim x f samples dim], where
         # f samples dim = batch dimension
         # note that f samples dim may be empty    
 
-    def WAIC(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True):
+    def WAIC_(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True):
         '''
-            Computes WAIC
+            Estimates WAIC (accuracy depends on the number of particles: conf.waic_samples)
         Args:
             :attr:`gp_distr` (:class:`gpytorch.distributions.MultivariateNormal`)
                 Trained Gaussian Process distribution
             :attr:`target` (:class:`torch.Tensor`)
                 Values of :math:`y`.
         Returns
-            `MI` (Mutual information)
+            `WAIC` Widely applicable information criterion
         '''
 
         with torch.no_grad():
@@ -255,17 +251,24 @@ class MixtureCopula_Likelihood(Likelihood):
             samples_shape = torch.Size([conf.waic_samples])
             f_samples = gp_distr.rsample(samples_shape) # [GP samples x GP variables x input shape]
             # from GP perspective it is [sample x batch x event] dims
-            target = target.expand(samples_shape+target.shape)
             log_prob = self.get_copula(f_samples).log_prob(target).detach()
             pwaic = torch.var(log_prob,dim=0).sum()
-            sum_prob = torch.exp(log_prob).sum(dim=0)
             S = torch.ones_like(pwaic)*conf.waic_samples
-            lpd=(sum_prob.log()-S.log()).sum() # sum_M log(1/N * sum^i_S p(y|theta_i)), where N is train_x.shape[0]
+            lpd=(log_prob.logsumexp(dim=0)-S.log()).sum() # sum_M log(1/N * sum^i_S p(y|theta_i)), where N is train_x.shape[0]
 
         if combine_terms:
             return -(lpd-pwaic)/N #=WAIC
         else:
-            return lpd,pwaic
+            return lpd/N,pwaic/N
+
+    def WAIC(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True, waic_resamples=conf.waic_resamples):
+        if combine_terms == True:
+            WAIC = 0
+            for rep in range(waic_resamples):
+                WAIC += self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=True)/waic_resamples
+            return WAIC
+        else:
+            return self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=False)
 
     def get_copula(self, f):
         '''
@@ -384,57 +387,6 @@ class MixtureCopula_Likelihood(Likelihood):
                     {sem[0].max().item()/sem_tol:.3},{sem[1].max().item()/sem_tol:.3}") #balance convergence rates
         return (Hrs-Hr), (sem[0]**2+sem[1]**2).pow(.5), Hr, sem[1] #2nd arg is an error of sum
 
-    def expected_log_prob(self, target: Tensor, input: MultivariateNormal,
-                 *params: Any, **kwargs: Any) -> Tensor:
-        """
-        Computes the expected log likelihood (used for variational inference):
-        .. math::
-            \mathbb{E}_{f(x)} \left[ \log p \left( y \mid f(x) \right) \right]
-        Args:
-            :attr:`function_dist` (:class:`gpytorch.distributions.MultivariateNormal`)
-                Distribution for :math:`f(x)`.
-            :attr:`observations` (:class:`torch.Tensor`)
-                Values of :math:`y`.
-            :attr:`kwargs`
-        Returns
-            `torch.Tensor` (log probability)
-        """
-        # print("Exp_log_prob: ",target.shape,input.loc.numel(),self.f_size)
-        assert target[...,0].numel()*self.f_size==input.loc.numel(), \
-            "Number of GP points = (number of target points) x (number of GPs)"
-        #called during training
-        if self.particles > torch.Size([0]): #do MC
-            function_samples = input.rsample(self.particles)
-            thetas, mix = self.gplink_function(function_samples)
-            assert torch.all(thetas==thetas)
-            assert torch.all(mix==mix)
-            copula = MixtureCopula(thetas, 
-                               mix, 
-                               [lik.copula for lik in self.likelihoods], 
-                               rotations=[lik.rotation for lik in self.likelihoods],
-                               theta_sharing = self.theta_sharing)
-            print(thetas.shape,target.shape,len(self.likelihoods))
-            res = copula.log_prob(target).mean(0)
-            # if self.weights is not None:
-            #     res *= self.weights
-            assert res.dim()==1
-            assert torch.all(res==res)
-            # print("Log_prob:",res.min().item(),res.max().item(),res.mean().item())
-            return res
-        else: #use Gauss-Hermite quadrature
-            target_ = target.expand(torch.Size([self.gh_locs]) + target.shape)
-            def log_prob_lambda (function_samples):
-                logprob = self.forward(function_samples).log_prob(target_, safe=True)
-                #print(logprob.min(),logprob.max(),logprob.mean(),logprob.std())
-                return logprob
-            with num_gauss_hermite_locs(self.gh_locs):
-                log_prob = self.quadrature(log_prob_lambda, input)
-            # if self.weights is not None:
-            #     log_prob *= self.weights
-            # print("Log_prob:",log_prob.min().item(),log_prob.max().item(),log_prob.mean().item())
-            assert torch.all(log_prob==log_prob)
-            return log_prob
-
     def gplink_function(self, f: Tensor, normalized_thetas=False) -> Tensor:
         """
         GP link function transforms the GP latent variable `f` into :math:`\theta`,
@@ -521,6 +473,7 @@ class MixtureCopula_Likelihood(Likelihood):
         return best_copula#, plot_loss
 
     def forward(self, function_samples: Tensor, *params: Any, **kwargs: Any) -> MixtureCopula:
+        assert torch.all(function_samples==function_samples)
         thetas, mix = self.gplink_function(function_samples)
         return self.copula(thetas, 
                              mix, 

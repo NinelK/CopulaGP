@@ -143,7 +143,7 @@ def select_with_heuristics(X: torch.Tensor, Y: torch.Tensor, device: torch.devic
                                 # print(get_copula_name_string(new_best)+f" (WAIC = {waic:.4f})")
                                 plot_n_save(model)
                 best_likelihoods = new_best.copy()
-        else: # if Frank was better than all combinations -> Check Gaussian
+        else: # if Gaussian was better than all combinations -> Check Frank
             waic, model = bvcopula.infer([bvcopula.FrankCopula_Likelihood()],train_x,train_y,device=device)
             if waic<waic_min:
                 best_likelihoods = [bvcopula.FrankCopula_Likelihood()]

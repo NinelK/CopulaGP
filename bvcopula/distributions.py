@@ -734,6 +734,10 @@ class MixtureCopula(Distribution):
 
     def log_prob(self, value, safe=False):
 
+        if self.theta.shape[1:]!=value.shape[:-1]:
+            if self.theta.shape[-len(value.shape[:-1]):]==value.shape[:-1]:
+                value = value.expand(self.theta.shape[1:-len(value.shape[:-1])] + value.shape)
+        
         if self._validate_args:
             self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
@@ -749,15 +753,16 @@ class MixtureCopula(Distribution):
             assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
        
         if len(self.copulas)>1:
+            probs = torch.zeros_like(self.theta)
             for i, c in enumerate(self.copulas):
                 if c.num_thetas == 0:
                     add = c(self.theta[self.theta!=self.theta]).log_prob(value_)
                 else:
                     add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value_,safe=safe).clamp(-100.,88.)
                     #-100 to 88 is a range of x such that torch.exp(x).log()!=+-inf
-                prob += self.mix[i]*torch.exp(add)
+                probs[i] += torch.log(self.mix[i]) + add
                 #TODO is it possible to vectorize this part?
-                log_prob = prob.log()
+            log_prob = probs.logsumexp(0)
         else:
             #if these is just 1 copula, no need to do log(exp(p))
             if self.copulas[0].num_thetas == 0:

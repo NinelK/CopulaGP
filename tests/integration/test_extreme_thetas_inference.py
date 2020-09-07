@@ -10,6 +10,11 @@ import pytest
 from bvcopula import conf
 from numpy.testing import assert_allclose
 
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.manual_seed(0)
+np.random.seed(0)
+
 def extreme_thetas_inference(X, bvc, true_thetas, atol=0., device=torch.device('cpu')):
 
     t1 = time.time()
@@ -79,7 +84,7 @@ def try_copula(bvc, minTh, midTh, maxTh,
 
 def test_gumbel():
     try_copula(bvcopula.GumbelCopula_Likelihood(),1.,1.+np.sqrt(conf.Gumbel_Theta_Max-1.),conf.Gumbel_Theta_Max,
-                .5, .5)
+                .7, .7)
 
 def test_clayton():
     try_copula(bvcopula.ClaytonCopula_Likelihood(),0.,np.sqrt(conf.Clayton_Theta_Max)-0.1,conf.Clayton_Theta_Max,
