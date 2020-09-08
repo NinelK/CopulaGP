@@ -7,6 +7,10 @@ Both greedy and heuristic algorithms perform well on synthetic data (see tests/i
 
 ## TODO
 
+- [ ] Review mixture distribution
+	- [ ] Check what needs value expansion now
+	- [ ] Maybe gather all batch shape of thetas expansions
+	- [ ] Review the range (-100,88)
 - [ ] When PredictiveLL mll is working better, try it again
 - [ ] Rethink model saving and loading
 - [ ] Add unittests for marginal transforms

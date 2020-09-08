@@ -573,6 +573,9 @@ class MixtureCopula(Distribution):
         else:
             self.theta_sharing = torch.arange(0,len(copulas)).long()
         self.mix = mix
+        sum_mixes = self.mix.sum(dim=0)
+        assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
+
         self.copulas = copulas
         assert self.mix.shape[0]==len(self.copulas)
         if rotations:
@@ -673,7 +676,7 @@ class MixtureCopula(Distribution):
 
     def ccdf(self, samples):
         '''
-        
+        Computes conditional cumulative density function
         '''
         assert self.mix.shape[1]==samples.shape[-2] #compare input dimensions
 
@@ -734,9 +737,21 @@ class MixtureCopula(Distribution):
 
     def log_prob(self, value, safe=False):
 
+        # theta size: (num_copulas) x (some_batch_dims) x (gp_inputs)
+        # value size: (some_batch_dims) x (gp_inputs) x 2
+        # if values have more leading batch dimensions (like in entropy estimate)
+        # it is ok and will work fine.
+        # If thetas have more lead batch dims: let us expand value dimensions.
         if self.theta.shape[1:]!=value.shape[:-1]:
             if self.theta.shape[-len(value.shape[:-1]):]==value.shape[:-1]:
                 value = value.expand(self.theta.shape[1:-len(value.shape[:-1])] + value.shape)
+            elif self.theta.shape[1:] == value.shape[-len(self.theta.shape[1:])-1:-1]:
+                pass
+            else:
+                if len(self.copulas)==1 and (self.copulas[0].num_thetas==0): #it is independent!
+                    return torch.zeros_like(value[...,0])
+                # otherwise raise error
+                raise ValueError(f"Thetas {self.theta.shape} and values {value.shape} GP input shapes do not match")
         
         if self._validate_args:
             self._validate_sample(value)
@@ -747,30 +762,26 @@ class MixtureCopula(Distribution):
         #assert self.theta_sharing.shape[0]==len(self.copulas)
 
         value_=(value.clone()).clamp(0.001,0.999)
-
-        if self._validate_args:
-            sum_mixes = self.mix.sum(dim=0)
-            assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
        
         if len(self.copulas)>1:
-            probs = torch.zeros_like(self.theta)
+            probs = torch.zeros(torch.Size([len(self.copulas)])+value.shape[:-1],device=self.theta.device)
             for i, c in enumerate(self.copulas):
                 if c.num_thetas == 0:
                     add = c(self.theta[self.theta!=self.theta]).log_prob(value_)
                 else:
-                    add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value_,safe=safe).clamp(-100.,88.)
-                    #-100 to 88 is a range of x such that torch.exp(x).log()!=+-inf
+                    add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value_,safe=safe).clamp(-100,88)
+                # print(self.mix[i].shape,add.shape,probs.shape)
                 probs[i] += torch.log(self.mix[i]) + add
-                #TODO is it possible to vectorize this part?
             log_prob = probs.logsumexp(0)
         else:
             #if these is just 1 copula, no need to do log(exp(p))
             if self.copulas[0].num_thetas == 0:
                 log_prob = self.copulas[0](self.theta[self.theta!=self.theta]).log_prob(value_)
             else:
-                log_prob = self.copulas[0](self.theta[0], rotation=self.rotations[0]).log_prob(value_,safe=safe).clamp(-100.,88.)
+                log_prob = self.copulas[0](self.theta[0], rotation=self.rotations[0]).log_prob(value_,safe=safe).clamp(-100,88)
+
 
         assert torch.all(log_prob==log_prob)
-        #assert torch.all(log_prob!=float("inf")) #can be -inf though
+        assert torch.all(log_prob!=float("inf")) #can be -inf though
 
         return log_prob

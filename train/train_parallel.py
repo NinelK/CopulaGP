@@ -39,7 +39,7 @@ def worker(X, Y0, Ys, idxs, NN, progress, exp_pref, layer):
 			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
 			(likelihoods, waic) = select_copula.select_with_heuristics(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
 			t_end = time.time()
-			print('Selection took {} min'.format(int((t_end-t_start)/60)))
+			print(f'Selection took {int((t_end-t_start)/60)} min')
 		except RuntimeError as error:
 			print(error)
 		finally:
@@ -47,7 +47,7 @@ def worker(X, Y0, Ys, idxs, NN, progress, exp_pref, layer):
 				print(utils.get_copula_name_string(likelihoods),waic)
 				# save textual info into model list
 				with open(out_dir+'_model_list.txt','a') as f:
-					f.write("{}-{} {}\t{:.0f}\t{}\n".format(layer,n+layer,utils.get_copula_name_string(likelihoods),waic,int(t_end-t_start)))
+					f.write(f"{layer}-{n+layer} {utils.get_copula_name_string(likelihoods)}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
 				
 				# save the layer
 				results_file = f"{out_dir}_{unique_id}_models.pkl"

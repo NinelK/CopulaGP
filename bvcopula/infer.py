@@ -9,7 +9,7 @@ from gpytorch.settings import num_likelihood_samples
 import gc
 
 import bvcopula
-import utils
+from utils import get_copula_name_string
 from . import conf
 
 def plot_loss(filename, losses, rbf, means):
@@ -38,7 +38,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 		with torch.cuda.device(device):
 			torch.cuda.empty_cache()
 
-	logging.info('Trying {}'.format(utils.get_copula_name_string(bvcopulas)))
+	logging.info('Trying {}'.format(get_copula_name_string(bvcopulas)))
 
 	# define the model (optionally on GPU)
 	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device,grid_size=grid_size)
@@ -148,7 +148,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 def load_model(filename, bvcopulas, device: torch.device, 
 	theta_sharing=None):
 
-	logging.info('Loading {}'.format(utils.get_copula_name_string(bvcopulas)))
+	logging.info('Loading {}'.format(get_copula_name_string(bvcopulas)))
 
 	# define the model (optionally on GPU)
 	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device)
