@@ -38,7 +38,10 @@ def transform2next_layer(exp_pref,layer,device):
 	            samples = torch.tensor(Y[:,[n,0]]).float().squeeze().to(device) # order!
 
 	            with torch.no_grad():
-	                f_samples = model.gp_model(S).mean#rsample(torch.Size([10]))
+	                f = model.gp_model(S).rsample(torch.Size([50]))
+	            f = torch.einsum('i...->...i', f)
+	            onehot = torch.rand(f.shape,device=f.device).argsort(dim = -1) == 0
+	            f_samples = f[onehot].reshape(f.shape[:-1])
 
 	            copula = model.likelihood.get_copula(f_samples)
 

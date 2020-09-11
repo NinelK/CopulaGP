@@ -7,48 +7,80 @@ from utils import get_model
 from . import CVine
 
 def load(models_lists: Callable[[], str], weight_files: Callable[[], str], 
-              train_x: torch.tensor) -> CVine:
+              train_x: torch.tensor, gp_particles = torch.Size([])) -> CVine:
+	'''
+	Loads a vine model
+	Parameters
+	----------
+	models_list: an str-valued function that returns paths
+				to bivariate model lists
+	weight_files: an str-valued function that returns paths
+				to bivariate model weights
+	train_x: (torch.Tensor)
+			the domain X, on which the conditional vine
+			p(Y|X) will be defined
+	gp_particles: (torch.Size, default=torch.Size([]))
+			the number of particles used for sampling from GPs.
+			If empty: the mean of GP is taken
+	Returns
+	--------
+	likelihoods: (list)
+			A list of copula trees [0,1,2,3....], 
+			each containing a list of bivariate copula 
+			models of length (N,N-1,N-2,N-3,...),
+			where bvcopula model is a mixture, 
+			represented as a list of copula likelihoods.
+			(so, 3-times nested list)
+			If only a few 
+	CVine: (bvcopula.CVine)
+			A vine model
+	'''
+	N_points = train_x.numel()
+	device = train_x.device
 
-    N_points = train_x.numel()
-    device = train_x.device
+	with open(models_lists(0),"rb") as f:
+	    results = pkl.load(f)
+	NN = len(results)+1
 
-    with open(models_lists(0),"rb") as f:
-        results = pkl.load(f)
-    NN = len(results)+1
+	copula_layers, likelihoods, fs_layers = [], [], []
+	for layer in range(0,NN-1):
+	    copulas, fs = [], []
+	    try:
+	        with open(models_lists(layer),"rb") as f:
+	            results = pkl.load(f)
+	    except FileNotFoundError as er:
+	#             print(f"Filling in the T{layer} with independence models")
+	        for n in range(NN-1-layer):
+	            copulas.append(MixtureCopula(torch.empty(1,0,device=device),
+	                        torch.ones(1,N_points,device=device),
+	                        [IndependenceCopula]))
+	            fs.append(None)
+	    else:
+	        likelihoods.append([a[0] for a in results])
+	        assert len(likelihoods[-1])==(NN-layer-1)
+	        for n,res in enumerate(results):
+	            if res[1]!='Independence':
+	                model = get_model(weight_files(layer,n), likelihoods[layer][n], device)
+	                with torch.no_grad():
+	                    if gp_particles == torch.Size([]):
+	                        f = model.gp_model(train_x).mean
+	                    else:
+	                        f0 = model.gp_model(train_x).rsample(gp_particles)
+	                        f0 = torch.einsum('i...->...i', f0)
+	                        onehot = torch.rand(f0.shape,device=f0.device).argsort(dim = -1) == 0
+	                        f = f0[onehot].reshape(f0.shape[:-1])
+	                    copula = model.likelihood.get_copula(f)
+	                    copulas.append(copula)
+	                    fs.append(f)
+	            else:
+	                copulas.append(MixtureCopula(torch.empty(1,0,device=device),
+	                        torch.ones(1,N_points,device=device),
+	                        [IndependenceCopula]))
+	                fs.append(None)
 
-    copula_layers, likelihoods, fs_layers = [], [], []
-    for layer in range(0,NN-1):
-        copulas, fs = [], []
-        try:
-            with open(models_lists(layer),"rb") as f:
-                results = pkl.load(f)
-        except FileNotFoundError as er:
-#             print(f"Filling in the T{layer} with independence models")
-            for n in range(NN-1-layer):
-                copulas.append(MixtureCopula(torch.empty(1,0,device=device),
-                            torch.ones(1,N_points,device=device),
-                            [IndependenceCopula]))
-                fs.append(None)
-        else:
-            likelihoods.append([a[0] for a in results])
-            assert len(likelihoods[-1])==(NN-layer-1)
-            for n,res in enumerate(results):
-                if res[1]!='Independence':
-                    model = get_model(weight_files(layer,n), likelihoods[layer][n], device)
-                    with torch.no_grad():
-                        f = model.gp_model(train_x).mean
-                        copula = model.likelihood.get_copula(f)
-                        copulas.append(copula)
-                        fs.append(f)
-                else:
-                    copulas.append(MixtureCopula(torch.empty(1,0,device=device),
-                            torch.ones(1,N_points,device=device),
-                            [IndependenceCopula]))
-                    fs.append(None)
-
-        copula_layers.append(copulas)
-        fs_layers.append(fs)
-    return likelihoods, CVine(copula_layers,train_x,device=device)
+	    copula_layers.append(copulas)
+	    fs_layers.append(fs)
+	return likelihoods, CVine(copula_layers,train_x,device=device)
 
 def WAICs(models_lists: Callable[[], str]) -> np.ndarray:
 	'''

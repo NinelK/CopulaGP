@@ -18,5 +18,5 @@ print(f'Starting {exp_pref} layer {layer}')
 
 train.train_next_layer(exp_pref, layer)
 train.merge_results(exp_pref, layer)
-NN = train.transform2next_layer(exp_pref,layer,'cpu')
+NN = train.transform2next_layer(exp_pref,layer,'cuda:0')
 print(f"NN = {NN}")
