@@ -1,5 +1,10 @@
 import bvcopula
 
+# recepie for Gauss-only copula:
+# 1. leave only Ind&Gauss in elements list
+# 2. set max_mix=1
+# 3. and voila!
+
 # elements to select from
 elements = [bvcopula.IndependenceCopula_Likelihood(),
 			bvcopula.GaussianCopula_Likelihood(),

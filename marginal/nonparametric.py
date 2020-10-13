@@ -39,6 +39,11 @@ def zero_level(Y,X,X_,resolution=64):
     Returns:
         the proportion of zero Ys for different X_
     '''
+
+    if np.all(Y!=0):
+        return np.zeros_like(X_)
+    if np.all(Y==0):
+        return np.ones_like(X_)
     
     bandwidth = np.ptp(X)/resolution 
     # can be cross-validated on a subset of points instead:
@@ -169,8 +174,11 @@ def zeroinflated_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=50):
     #     print('Y==Y_')
     # else:    
     #     nonzero_data = emp_uncond_cdf(fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma))
-    nonzero_data = fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma)
-    transformed[Y_!=0] = part_zero[Y_!=0] + (1-part_zero[Y_!=0])* nonzero_data
+    if np.any(Y!=0):
+        nonzero_data = fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma)
+        transformed[Y_!=0] = part_zero[Y_!=0] + (1-part_zero[Y_!=0])* nonzero_data
+    else:
+        transformed[Y_!=0] = 1
     # ^ here we are using nonzero part of (X,Y) to estimate CDF, and transform the nonzero Y_
     transformed[Y_==0] = np.random.rand(zeros)*part_zero[Y_==0]
 

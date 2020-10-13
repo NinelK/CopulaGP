@@ -72,7 +72,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 	utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
 
 	# remove all weights for all models, except for the best one
-	for file in files_created:
+	for file in files_created[1:]: # never delete independence
 		if file!=weights_filename:
 			logging.debug('Removing {}'.format(file))
 			os.remove(file)
@@ -137,7 +137,7 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 		utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
 
 	# copy the very best model 
-	if (utils.get_copula_name_string(mixtures[best_ind])!='Independence'):
+	if True: #(utils.get_copula_name_string(mixtures[best_ind])!='Independence'):
 		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(mixtures[best_ind]))
 		source = '{}/w_{}.pth'.format(path_output,name)
 		target = '{}/model_{}.pth'.format(path_output,exp_name)
