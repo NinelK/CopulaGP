@@ -61,50 +61,10 @@ class MultitaskGPModel(gpytorch.models.ApproximateGP):
         assert all(mean==mean)
         return gpytorch.distributions.MultivariateNormal(mean, covar)
 
-    def MI(self, points, alpha=0.05, sem_tol=1e-3, f_size=5, mc_size=10000):
-        '''
-        Measure mutual information between variables 
-        (=negative conditioned copula entropy)
-        Parameters
-        ----------
-        points: Tensor
-            Input points where MI (-entropy) is estimated.
-        alpha : float, optional
-            Significance level of the entropy estimate.  (Default: 0.05)
-        sem_tol : float, optional
-            Maximum standard error as a stopping criterion.  (Default: 1e-3)
-        mc_size : integer, optional
-            Number of samples that are drawn in each iteration of the Monte
-            Carlo estimation.  (Default: 10000)
-        Returns
-        -------
-        MI_mean : float
-            Estimate of the MI in bits for a copula, parameterised with a mean of GP.
-        MIs_mean : float
-            Estimate of the mean MI in bits for a copula, parameterised with a GP.
-        MIs_std : float
-            Estimate of the standard deviation of MI in bits for a copula, 
-            parameterised with a GP.
-        '''
-        MIs = []
-        with torch.no_grad():
-            fs = self(points).rsample(torch.Size([f_size])) #[samples_f, copulas, positions]
-        f_mean = self(points).mean.unsqueeze(0)
-        # now add mean f to a set of f samples
-        fs = torch.cat((fs,f_mean),0) #[samples_f + 1, copulas, positions]
-
-        copula = self.likelihood(fs)
-        MIs = copula.entropy()
-        MI_mean = MIs[-1]
-        MIs = MIs[:-1]
-
-        return (MI_mean,MIs.mean(dim=0),MIs.std(dim=0)) 
-
 class Pair_CopulaGP():
     def __init__(self, copulas: list, device='cpu', grid_size=None):
 
-        self.__likelihood = MixtureCopula_Likelihood(copulas,
-                particles=torch.Size([0])).to(device=device).float()
+        self.__likelihood = MixtureCopula_Likelihood(copulas).to(device=device).float()
 
         self.__gp_model = MultitaskGPModel(self.__likelihood.f_size, 
             grid_bounds=(0, 1), prior_rbf_length=0.5, grid_size=grid_size).to(device=device).float()
@@ -127,13 +87,3 @@ class Pair_CopulaGP():
     def device(self):
         return self.__device
     #TODO: mb add setter for device, that relocates all parts of the model?
-
-# theta_sharing, num_fs = _get_theta_sharing(likelihoods, theta_sharing)
-# def _get_theta_sharing(likelihoods, theta_sharing):
-#     if theta_sharing is not None:
-#         theta_sharing = theta_sharing
-#         num_fs = len(likelihoods)+thetas_sharing.max().numpy() # indep_thetas + num_copulas - 1
-#     else:
-#         theta_sharing = torch.arange(0,len(likelihoods)).long()
-#         num_fs = 2*len(likelihoods)-1
-#     return theta_sharing, num_fs

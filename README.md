@@ -19,4 +19,5 @@ Both greedy and heuristic algorithms perform well on synthetic data (see tests/i
 - [ ] Implement Student-T copula
 	- [x] Sampling with 1D icdf
 - [ ] Marginals with normalizing flows?
+- [ ] Fix validate args in distributions
 

@@ -566,12 +566,8 @@ class MixtureCopula(Distribution):
                        "mix": constraints.interval(0,1)} #TODO:write simplex constraint for leftmost dimention
     support = constraints.interval(0,1) # [0,1]
     
-    def __init__(self, theta, mix, copulas, rotations=None, theta_sharing = None, validate_args=None):
+    def __init__(self, theta, mix, copulas, rotations=None, validate_args=None):
         self.theta = theta
-        if theta_sharing is not None:
-            self.theta_sharing = theta_sharing
-        else:
-            self.theta_sharing = torch.arange(0,len(copulas)).long()
         self.mix = mix
         sum_mixes = self.mix.sum(dim=0)
         assert torch.allclose(sum_mixes,torch.ones_like(sum_mixes),atol=0.01)
@@ -645,7 +641,6 @@ class MixtureCopula(Distribution):
                                                 validate_args=False)
         new.copulas = self.copulas
         new.rotations = self.rotations
-        new.theta_sharing = self.theta_sharing
         new._validate_args = self._validate_args
         return new
     
@@ -656,7 +651,6 @@ class MixtureCopula(Distribution):
                             device=self.theta.device)  # no copula dimension
         
         assert self.mix.shape[0]==len(self.copulas)
-        #assert self.theta_sharing.shape[0]==len(self.copulas)
         #gplink already returns thetas for each copula
         #TODO: avoid returning identical thetas
         
@@ -759,7 +753,6 @@ class MixtureCopula(Distribution):
         prob = torch.zeros_like(value[...,0]) # by default
         
         assert self.mix.shape[0]==len(self.copulas)
-        #assert self.theta_sharing.shape[0]==len(self.copulas)
 
         value_=(value.clone()).clamp(0.001,0.999)
        

@@ -182,11 +182,11 @@ class CVine():
         return ent#, sem
 
        
-    def stimMI(self, alpha=0.05, sem_tol=1e-2, 
+    def inputMI(self, alpha=0.05, sem_tol=1e-2, 
           s_mc_size=200, r_mc_size=50, sR_mc_size=5000, v=False):
         '''
-        Estimates the mutual information between the stimulus 
-        (GP conditioning variable) and the response (observable variables
+        Estimates the mutual information between the GP inputs
+        and the outputs (observable variables
         modelled with copula mixture) with the Robbins-Monro algorithm.
         Parameters
         ----------
@@ -195,15 +195,15 @@ class CVine():
         sem_tol : float, optional
             Maximum standard error as a stopping criterion.  (Default: 1e-3)
         s_mc_size : integer, optional
-            Number of stimuli samples that are drawn from self.inputs 
-            on each iteration of the MI estimation.  (Default: 200)
+            Number of input samples that are drawn from S in each iteration 
+            of the MI estimation.  (Default: 200)
         r_mc_size : integer, optional
-            Number of response samples that are drawn from a copula model for 
-            a set of stimuli (size of s_mc_size) in each iteration of 
-            the MI estimation.  (Default: 50)
+            Number of output samples that are drawn from a copula model for 
+            a set of inputs (size of s_mc_size) in each iteration of 
+            the MI estimation.  (Default: 20)
         sR_mc_size : integer, optional            
-            Number of stimuli samples that are drawn from self.inputs
-            on each iteration of the p(R) estimation. (Default: 5000)
+            Number of input samples that are drawn from S in each iteration 
+            of the p(R) estimation. (Default: 5000)
         v : bool, default = False
             Verbose mode
         Returns
@@ -213,6 +213,9 @@ class CVine():
         sem : float
             Standard error of the MI estimate in bits.
         '''
+
+        # Notation here: X = S (stimuli), Y = R (response) 
+        
         # Gaussian confidence interval for sem_tol and level alpha
         conf = torch.erfinv(torch.tensor([1. - alpha])).to(self.device)
         sem = torch.ones(2).to(self.device)*float('inf')

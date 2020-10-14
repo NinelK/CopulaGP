@@ -118,16 +118,6 @@ def WAICs(models_lists: Callable[[], str]) -> np.ndarray:
 	return WAICs
 
 
-	# likelihoods: (list)
-	# 		A list of copula trees [0,1,2,3....], 
-	# 		each containing a list of bivariate copula 
-	# 		models of length (N,N-1,N-2,N-3,...),
-	# 		where bvcopula model is a mixture, 
-	# 		represented as a list of copula likelihoods.
-	# 		(so, 3-times nested list)
-	# 		If only a few 
-
-
 ####################################################
 # Train static copula
 #####################################################

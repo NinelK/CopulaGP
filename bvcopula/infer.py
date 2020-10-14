@@ -32,7 +32,7 @@ def plot_loss(filename, losses, rbf, means):
 	plt.close()
 
 def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
-			theta_sharing=None,	output_loss=None, grid_size=None):
+			output_loss=None, grid_size=None):
 
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):
@@ -145,8 +145,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 	return WAIC, model
 
-def load_model(filename, bvcopulas, device: torch.device, 
-	theta_sharing=None):
+def load_model(filename, bvcopulas, device: torch.device):
 
 	logging.info('Loading {}'.format(get_copula_name_string(bvcopulas)))
 
