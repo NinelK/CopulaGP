@@ -31,6 +31,7 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
         torch.save(model.gp_model.state_dict(),weights_filename)
         # plot results
         plot_res = '{}/res_{}.png'.format(path_output,name)
+        # print(X.shape,Y.shape,name_x,name_y,plot_res)
         Plot_Fit(model,X,Y,name_x,name_y,plot_res,device=device)
 
     def checkNreduce(waic,model,likelihoods,second_best_waic,second_best_lik):
@@ -39,24 +40,24 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
             likelihoods_new = reduce_model(likelihoods,which)
             if get_copula_name_string(likelihoods_new)!=get_copula_name_string(second_best_lik):
                 logging.info("Re-running reduced model...")
-                print("Re-running reduced model...")
+                # print("Re-running reduced model...")
                 (waic_new, model_new) = bvcopula.infer(likelihoods_new,train_x,train_y,device=device)
-                print(get_copula_name_string(likelihoods_new)+f" (WAIC = {waic:.4f})")
+                # print(get_copula_name_string(likelihoods_new)+f" (WAIC = {waic:.4f})")
                 plot_n_save(model_new)
                 return (waic_new,likelihoods_new)
             else:
                 logging.info("Reduced to the previous model.")
-                print("Reduced to the previous model.")
+                # print("Reduced to the previous model.")
                 return (second_best_waic,second_best_lik)
         else:
             logging.info('Nothing to reduce')
-            print("Nothing to reduce")
+            # print("Nothing to reduce")
             plot_n_save(model)
             return (waic,likelihoods)
 
     best_likelihoods = [bvcopula.GaussianCopula_Likelihood()]
     waic_min, model = bvcopula.infer(best_likelihoods,train_x,train_y,device=device)
-    print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic_min:.4f})")
+    # print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic_min:.4f})")
     plot_n_save(model)
 
     if waic_min>conf.waic_threshold:
@@ -64,7 +65,7 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
         return ([bvcopula.IndependenceCopula_Likelihood()], 0.0)
     else:
         (waic_claytons, model_claytons) = bvcopula.infer(conf.clayton_likelihoods,train_x,train_y,device=device)
-        print(get_copula_name_string(conf.clayton_likelihoods)+f" (WAIC = {waic_claytons:.4f})")
+        # print(get_copula_name_string(conf.clayton_likelihoods)+f" (WAIC = {waic_claytons:.4f})")
 
         if waic_min >= waic_claytons:
             
@@ -76,12 +77,12 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
             (waic, model) = bvcopula.infer(with_frank,train_x,train_y,device=device)
             if waic<waic_min:
                 logging.info('Frank added')
-                print('Frank added')
+                # print('Frank added')
                 waic_min, best_likelihoods = checkNreduce(waic,model,with_frank,
                                                 waic_min,best_likelihoods)
             else:
                 logging.info('Frank is not helping')
-                print('Frank is not helping')
+                # print('Frank is not helping')
             
         else: # if Gaussian was better than all combinations -> Check Frank
             waic, model = bvcopula.infer([bvcopula.FrankCopula_Likelihood()],train_x,train_y,device=device)
@@ -95,7 +96,7 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
         name = '{}_{}'.format(exp_name,get_copula_name_string(best_likelihoods))
         weights_filename = '{}/w_{}.pth'.format(path_output,name)
     
-        print("Final model: "+get_copula_name_string(best_likelihoods))
+        # print("Final model: "+get_copula_name_string(best_likelihoods))
         logging.info("Final model: "+get_copula_name_string(best_likelihoods))
 
         name = '{}_{}'.format(exp_name,get_copula_name_string(best_likelihoods))

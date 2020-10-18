@@ -37,6 +37,7 @@ class IndependenceCopula_Likelihood(Copula_Likelihood_Base):
         self.rotation = None
         self.isrotatable = False
         self.name = 'Independence'
+        assert self.name == type(self).__name__[:-17]
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -59,6 +60,7 @@ class GaussianCopula_Likelihood(Copula_Likelihood_Base):
         self.rotation = None
         self.isrotatable = False
         self.name = 'Gaussian'
+        assert self.name == type(self).__name__[:-17]
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -78,7 +80,8 @@ class StudentTCopula_Likelihood(Copula_Likelihood_Base):
         self.copula = StudentTCopula
         self.rotation = None
         self.isrotatable = False
-        self.name = 'Student T'
+        self.name = 'StudentT'
+        assert self.name == type(self).__name__[:-17]
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -91,6 +94,7 @@ class FrankCopula_Likelihood(Copula_Likelihood_Base):
         self.rotation = None
         self.isrotatable = False
         self.name = 'Frank'
+        assert self.name == type(self).__name__[:-17]
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -107,6 +111,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
         self.isrotatable = True
         self.rotation = rotation
         self.name = 'Clayton'
+        assert self.name == type(self).__name__[:-17]
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -126,6 +131,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
         self.isrotatable = True
         self.rotation = rotation
         self.name = 'Gumbel'
+        assert self.name == type(self).__name__[:-17]
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
@@ -153,10 +159,42 @@ class MixtureCopula_Likelihood(Likelihood):
         self.copula = MixtureCopula
         self.num_copulas = len(self.likelihoods)
         self.f_size = 2*self.num_copulas - 1 # first k -- copula params, next k-1 -- mixing coefs
+
         # f dimensions are [f_samples dim x GP variables dim]
         # theta dimensions will be [copulas dim x f samples dim], where
         # f samples dim = batch dimension
         # note that f samples dim may be empty    
+
+    def serialize(self):
+        copula_names=[]
+        for lik in self.likelihoods:
+            copula_names.append([lik.name,lik.rotation]) # e.g. ['Gaussian','None']
+        return copula_names
+
+    @classmethod
+    def deserialize(cls,lik_list, just_likelihoods = False):
+        allowed_likelihoods = [IndependenceCopula_Likelihood,
+                                GaussianCopula_Likelihood,
+                                FrankCopula_Likelihood,
+                                ClaytonCopula_Likelihood,
+                                GumbelCopula_Likelihood]
+        lookup_likelihoods = {}
+        for copula_type in allowed_likelihoods:
+            lookup_likelihoods[copula_type.__name__[:-17]] = copula_type
+        # use the beginning of each class name as a str token for serialization
+
+        likelihoods = []
+        for lik in lik_list:
+            # instantiate
+            inst = lookup_likelihoods[lik[0]]()
+            # set the rotation
+            if inst.isrotatable:
+                inst.rotation=lik[1]
+            likelihoods.append(inst)
+        if just_likelihoods:
+            return likelihoods
+        else:
+            return cls(likelihoods)
 
     def WAIC_(self, gp_distr: MultivariateNormal, target: Tensor, combine_terms=True):
         '''
@@ -227,13 +265,13 @@ class MixtureCopula_Likelihood(Likelihood):
                 f0 = base_distributions.Normal(torch.zeros(1, device=f.device),
                     torch.ones(1, device=f.device)).icdf(p0) 
                 prob = prob*base_distributions.Normal(torch.zeros(1, device=f.device),
-                    torch.ones(1, device=f.device)).cdf(conf.mix_lr_ratio*f[...,j+self.num_copula]+f0)
+                    torch.ones(1, device=f.device)).cdf(conf.mix_lr_ratio*f[...,j+self.num_copulas]+f0)
             if i!=(self.num_copulas-1):
                 p0 = (self.num_copulas-i-1)/(self.num_copulas-i)*torch.ones_like(f[...,0]) # 3/4, 2/3, 1/2
                 f0 = base_distributions.Normal(torch.zeros(1, device=f.device),
                     torch.ones(1, device=f.device)).icdf(p0) 
                 prob = prob*(1.0-base_distributions.Normal(torch.zeros(1, device=f.device),
-                    torch.ones(1, device=f.device)).cdf(conf.mix_lr_ratio*f[...,i+self.num_copula]+f0))
+                    torch.ones(1, device=f.device)).cdf(conf.mix_lr_ratio*f[...,i+self.num_copulas]+f0))
 
             mix.append(prob)
 

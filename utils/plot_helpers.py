@@ -173,9 +173,8 @@ def _generate_test_samples(model: bvcopula.Pair_CopulaGP, test_x: Tensor) -> Ten
 def _get_pearson(X: Tensor, Y: Tensor):
     from scipy.stats import pearsonr
 
-    X = X.squeeze()
-    assert np.isclose(X.max(),1.0,atol=1e-4)
-    assert np.isclose(X.min(),0.0,atol=1e-4)
+    # assert np.isclose(X.max(),1.0,atol=1e-4)
+    # assert np.isclose(X.min(),0.0,atol=1e-4)
     N = int(160/2.5)
     x = np.linspace(0,1,N)
     p = np.empty(N)
@@ -251,7 +250,8 @@ def Plot_Fit(model: bvcopula.Pair_CopulaGP,
     name_y = _code_names(name_y, order=order)
         
     Plot_MixModel_Param_MCMC(top_axes,model,
-        test_x,testX*160,rho=_get_pearson(X,Y),title=' for {} vs {}'.format(name_x,name_y))
+        test_x,testX*160,#rho=_get_pearson(X,Y),
+        title=' for {} vs {}'.format(name_x,name_y))
 
     bottom_axes[0].set_ylabel(name_y)
     bottom_axes[0].set_xlabel(name_x)

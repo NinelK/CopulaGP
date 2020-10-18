@@ -1,24 +1,67 @@
 import torch
 import bvcopula
 
+class VineGP():
+    '''
+    This is a data class for regular vines
+    '''
+    def __init__(self, models):
+        '''
+        Parameters
+        ----------
+        models: list
+            list of Pair_CopulaGP_data objects
+            containing pair copula data
+        '''
+        self._validate(models)
+        self.trees = models
+
+    @staticmethod
+    def _validate(models):
+        # depth = len(models)
+        N = len(models[0])
+        for tree in models:
+            assert N == len(tree)
+            for bvcopula in tree:
+                assert type(bvcopula) == bvcopula.Pair_CopulaGP_data
+            N -= 1
+
+    def serialize(self):
+        # return data
+        pass
+
+    def deserialize(self, data):
+        # self.trees = ...(data)
+        pass
+
+    def sample(self):
+        # go through the trees and do smth
+        pass
+
+    def create_cvine(self, inputs, device=torch.device('cpu')):
+        # static_trees = self.sample() # get copula models with no uncertainty in parameters
+        # return CVine(static_trees,inputs,device=device)
+        pass
+
 class CVine():
     '''
     This class represents copula C-Vine
-    Attributes
-    ----------
-    N: int
-        Number of variables
-    inputs: int
-        Input points
-    layers:
-        A list of layers. Each layer should contain N-1-i
-        MixtureCopula models, where i is the layer's number.
-        
     '''
     def __init__(self, layers, inputs, device=torch.device('cpu')):
+        '''
+        Attributes
+        ----------
+        N: int
+            Number of variables
+        inputs: int
+            Input points
+        layers:
+            A list of layers. Each layer should contain N-1-i
+            MixtureCopula models, where i is the layer's number.
+        '''
         super(CVine, self).__init__()
         # for N variables there must be N-1 layers
-        self.N = len(layers) + 1
+        self.N = len(layers[0])+1
         # get the inputs
         self.inputs = inputs
         for i,layer in enumerate(layers):
@@ -29,6 +72,27 @@ class CVine():
         self.layers = layers
         # ADD CHECK ON WHICH DEVICE EACH MODEL IS?
         self.device = device
+
+    @classmethod
+    def marginalize(cls,models_list,X,device=torch.device("cpu"),just_layers=False):
+        '''
+        This method takes a list of models (serialized),
+        sequentially initialises Pair Copula-GP
+        and marginalises the GP out
+        '''
+        # vine-type-indep
+        copula_layers = []
+        for layer in models_list:
+            copula_layer = []
+            for copula_mix in layer:
+                copulaGP = copula_mix.model_init(device)
+                copula = copulaGP.marginalize(X)
+                copula_layer.append(copula)
+            copula_layers.append(copula_layer)
+        if just_layers:
+            return copula_layers
+        else:
+            return cls(copula_layers,X,device) 
 
     def create_subvine(self, input_idxs: torch.Tensor):
         '''

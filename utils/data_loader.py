@@ -1,6 +1,12 @@
 import pickle as pkl
 import numpy as np
 
+def _validate_data(data):
+	assert data['X'].shape[0]==data['Y'].shape[0]
+
+	assert (data['X'].min()>=0) & (data['X'].max()<=1)
+	assert (data['Y'].min()>0) & (data['Y'].max()<1)
+
 def standard_loader(path,n1=None,n2=None):
 	'''
 	The simplest loader, that expects to get a pkl file
@@ -13,10 +19,7 @@ def standard_loader(path,n1=None,n2=None):
 	assert 'X' in data.keys()
 	assert 'Y' in data.keys()
 
-	assert data['X'].shape[0]==data['Y'].shape[0]
-
-	assert (data['X'].min()>=0) & (data['X'].max()<=1)
-	assert (data['Y'].min()>0) & (data['Y'].max()<1)
+	_validate_data(data)
 
 	if n1 is None:
 		return data['X'], data['Y']
@@ -24,6 +27,19 @@ def standard_loader(path,n1=None,n2=None):
 		assert n2 is not None
 		assert max(n1,n2)<data['Y'].shape[1]
 		return data['X'], data['Y'][:,[n1,n2]]
+
+def standard_saver(path, x, y):
+	# save layer
+	assert np.all(y>=0) & np.all(y<=1)
+
+	data = {}
+	data['X'] = x
+	data['Y'] = y
+	
+	_validate_data(data)
+
+	with open(path,"wb") as f:
+	    pkl.dump(data,f)
 
 def load_experimental_data(path,animal,day_name,n1,n2):
 	'''

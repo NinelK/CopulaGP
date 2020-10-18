@@ -3,6 +3,7 @@ import gpytorch
 from torch import all, Size
 from gpytorch.distributions import MultitaskMultivariateNormal
 import math
+from collections import OrderedDict
 from .likelihoods import MixtureCopula_Likelihood
 from . import conf
 
@@ -70,6 +71,7 @@ class Pair_CopulaGP():
             grid_bounds=(0, 1), prior_rbf_length=0.5, grid_size=grid_size).to(device=device).float()
 
         self.__device = device
+        self.__particles = 50
 
     @property
     def gp_model(self):
@@ -87,3 +89,68 @@ class Pair_CopulaGP():
     def device(self):
         return self.__device
     #TODO: mb add setter for device, that relocates all parts of the model?
+    #TODO: particle number setter
+
+    def cpu(self):
+        return self.serialize().model_init(device=torch.device('cpu'))
+
+    def marginalize(self,X: torch.Tensor):
+        '''
+        Marginalizes GP variable f out
+        To do this, samples N samples from GP.
+        For each input point, uses one of those N samples
+        to parameterize a copula.
+        Parameters
+        ----------
+        X: Tensor
+            inputs
+        Returns
+        -------
+        copula: MixtureCopula
+            copula defined on X with f 'integrated' out
+        '''
+
+        with torch.no_grad():
+            f = self.__gp_model(X).rsample(torch.Size([self.__particles])) #TODO particle num to conf
+        f = torch.einsum('i...->...i', f)
+        onehot = torch.rand(f.shape,device=self.__device).argsort(dim = -1) == 0
+        f_samples = f[onehot].reshape(f.shape[:-1])
+
+        return self.__likelihood.get_copula(f_samples) 
+
+    def serialize(self):
+        bvcopulas = self.__likelihood.serialize()    
+        state_dict = self.__gp_model.state_dict()
+        cpu_state_dict = OrderedDict({k: state_dict[k].cpu() for k in state_dict})
+        return Pair_CopulaGP_data(bvcopulas, cpu_state_dict)
+
+class Pair_CopulaGP_data():
+    '''
+    Data class for Pair Copula GP.
+    Intended for structured storage of the models.
+    '''
+    def __init__(self, bvcopulas, weights):
+        '''
+        Init
+        Parameters
+        ----------
+        bvcopulas: list
+            a list of serialised bvcopulas
+        weights: OrderedDict
+            serialized weights of the model
+        '''
+        if weights is None:
+            assert (len(bvcopulas) == 1) & (bvcopulas[0][0] == 'Independence')
+        self.bvcopulas = bvcopulas
+        self.weights = weights
+
+    def model_init(self, device):
+        '''
+        Spawns an instance of a Pair Copula GP model class,
+        that can be used for compulations
+        '''
+        likelihoods = MixtureCopula_Likelihood.deserialize(self.bvcopulas,just_likelihoods=True)
+        model = Pair_CopulaGP(likelihoods,device=device)
+        if self.weights!=None:
+            model.gp_model.load_state_dict(self.weights)
+        return model
