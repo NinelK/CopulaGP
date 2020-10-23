@@ -1,7 +1,6 @@
 from .data_loader import standard_loader, standard_saver, load_experimental_data, load_neurons_only, load_samples
-from .util import strrot, get_copula_name_string, get_vine_name
+from .util import get_copula_name_string, get_vine_name
 from .student import student_logprob, student_rvs, student_H
-
 
 import imp
 import warnings

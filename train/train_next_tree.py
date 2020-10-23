@@ -8,7 +8,6 @@ from torch import device, tensor, load
 from . import conf
 sys.path.insert(0, conf.path2code)
 
-from utils import get_copula_name_string
 import select_copula
 import train
 import bvcopula
@@ -34,14 +33,16 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 	try:
 		t_start = time.time()
 		if gauss:
-			likelihoods = [bvcopula.GaussianCopula_Likelihood()]
-			waic, model = bvcopula.infer(likelihoods,train_x,train_y,device=device(device_str)) 
-			waic = waic.item()
+			gauss = [bvcopula.GaussianCopula_Likelihood()]
+			waic, model = bvcopula.infer(gauss,train_x,train_y,device=device(device_str)) 
 			if waic>conf_select.waic_threshold:
-				likelihoods = [bvcopula.IndependenceCopula_Likelihood()]
+				store = bvcopula.Pair_CopulaGP_data([['Independence',None]], None)
+			else:
+				store = model.cpu().serialize()
 		else:
-			(likelihoods, waic) = select_copula.select_light(X,Y,device(device_str),
+			(store, waic) = select_copula.select_light(X,Y,device(device_str),
 							exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
+			model = store.model_init(device(device_str))
 			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
 		t_end = time.time()
 		print(f'Selection took {int((t_end-t_start)/60)} min')
@@ -50,31 +51,16 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 		# logging.error(error, exc_info=True)
 		return -1
 	finally:
-		print(f"{n0}-{n1}",get_copula_name_string(likelihoods),waic)
+		print(f"{n0}-{n1}",store.name_string,waic)
 		# save textual info into model list
 		with open(out_dir+'_model_list.txt','a') as f:
-			f.write(f"{n0}-{n1} {get_copula_name_string(likelihoods)}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
+			f.write(f"{n0}-{n1} {store.name_string}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
 
-		if get_copula_name_string(likelihoods)!='Independence':
-			if not gauss:
-				# serialize the mixture model 
-				mix_lik = bvcopula.MixtureCopula_Likelihood(likelihoods)
-				bvcopulas = mix_lik.serialize()	
-				# load weights
-				weights_file = f"{out_dir}/model_{exp_pref}_{n0}-{n1}.pth"
-				weights = load(weights_file, map_location="cpu")
-				# organise model + weights in a data store object
-				store = bvcopula.Pair_CopulaGP_data(bvcopulas, weights)
-				# define the model (optionally on GPU)
-				model = store.model_init(device(device_str))
-			else:
-				# trained model is still available, just serialize
-				store = model.cpu().serialize()
+		if store.name_string!='Independence':
 			model.gp_model.eval()
 			copula = model.marginalize(train_x) # marginalize the GP
 			y = copula.ccdf(train_y).cpu().numpy()
 		else:
-			store = bvcopula.Pair_CopulaGP_data([['Independence',None]], None)
 			y = Y1
 
 		return (store, waic, y)

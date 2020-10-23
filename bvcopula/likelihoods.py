@@ -228,9 +228,9 @@ class MixtureCopula_Likelihood(Likelihood):
             WAIC = 0
             for rep in range(waic_resamples):
                 WAIC += self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=True)/waic_resamples
-            return WAIC
+            return WAIC.cpu().item()
         else:
-            return self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=False)
+            return self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=False).cpu().item()
 
     def get_copula(self, f):
         '''

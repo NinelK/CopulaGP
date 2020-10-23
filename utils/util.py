@@ -1,10 +1,5 @@
-def strrot(rotation):
-	if rotation is not None:
-		return rotation
-	else:
-		return ''
-
 def get_copula_name_string(likelihoods):
+	strrot = lambda rotation: rotation if rotation is not None else ''
 	copula_names=''
 	for lik in likelihoods:
 		copula_names += lik.name+strrot(lik.rotation)

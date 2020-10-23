@@ -257,6 +257,7 @@ class FrankCopula(SingleParamCopulaBase):
                 / (torch.expm1(-theta_)
                    + torch.expm1(-theta_ * samples[..., 0])
                    * torch.expm1(-theta_ * samples[..., 1])))[theta_!=0]
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value, safe=True):
@@ -335,6 +336,7 @@ class ClaytonCopula(SingleParamCopulaBase):
         if (self.rotation == '180°') or (self.rotation == '270°'):
             vals = 1 - vals
         samples = self._SingleParamCopulaBase__rotate_input(samples)
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value, safe=True):

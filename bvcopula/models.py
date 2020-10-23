@@ -144,6 +144,18 @@ class Pair_CopulaGP_data():
         self.bvcopulas = bvcopulas
         self.weights = weights
 
+    @property
+    def name_string(self):
+        '''
+        Gets a string with the unique mixture name 
+        (incl. rotations)
+        '''
+        strrot = lambda rotation: rotation if rotation is not None else ''
+        copula_names=''
+        for lik in self.bvcopulas:
+            copula_names += lik[0]+strrot(lik[1])
+        return copula_names
+
     def model_init(self, device):
         '''
         Spawns an instance of a Pair Copula GP model class,

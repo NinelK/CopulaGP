@@ -52,7 +52,6 @@ def save_final():
 	with open(path_final,"wb") as f:
 		pkl.dump(d0.update(df),f)
 
-
 if args.start == 0:
 	to_save = {}
 	to_save['models'], to_save['waics'] = [],[]
@@ -67,3 +66,4 @@ for layer in range(args.start,layers):
 	save_checkpoint(X,Y,to_save,layer)
 
 save_final()
+print("Done")
