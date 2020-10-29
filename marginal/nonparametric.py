@@ -2,6 +2,10 @@ import numpy as np
 from fastkde import fastKDE
 import scipy.interpolate as intrp
 from sklearn.neighbors import KernelDensity
+import warnings
+
+def normalize_Y(Y_all,min,max):
+    return (Y_all - min)/(max-min)*0.998+0.001
 
 def interpolate2d_masked_array(masked_array2d):
     m = ~masked_array2d.mask.flatten()
@@ -92,6 +96,7 @@ def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20):
         `Y'` (:class:`np.array`)
             Transformed values :math:`Y'`.
     '''
+    warnings.filterwarnings("ignore", category=FutureWarning)
     if Y_ is None:
         assert X_ is None, "If Y_ is None, why X_ is not?"
         X_ = X
@@ -122,7 +127,6 @@ def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20):
             s_tr[i] = f(*transform_coord(x,y,axes))
 
     return emp_uncond_cdf(np.clip(s_tr,0,1))
-
 
 
 def zeroinflated_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=50):

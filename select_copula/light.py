@@ -11,10 +11,11 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
     exp_pref: str, path_output: str, name_x: str, name_y: str,
     train_x = None, train_y = None):
 
-    exp_name = f'{exp_pref}_{name_x}-{name_y}'
-    log_name = f'{path_output}/log_{device}_{exp_name}.txt'
-    logging.getLogger("matplotlib").setLevel(logging.WARNING)
-    logging.basicConfig(filename=log_name, filemode='w', level=logging.DEBUG, format='%(asctime)s %(message)s')
+    if exp_pref!='':
+        exp_name = f'{exp_pref}_{name_x}-{name_y}'
+        log_name = f'{path_output}/log_{device}_{exp_name}.txt'
+        logging.getLogger("matplotlib").setLevel(logging.WARNING)
+        logging.basicConfig(filename=log_name, filemode='w', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     logging.info(f'Selecting {name_x}-{name_y} on {device}')
 

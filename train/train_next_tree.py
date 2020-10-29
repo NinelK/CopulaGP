@@ -25,7 +25,7 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 	train_x = tensor(X).float().to(device=device(device_str))
 	train_y = tensor(Y).float().to(device=device(device_str))
 
-	print(f'Selecting {n0}-{n1} on {device_str}')
+	# print(f'Selecting {n0}-{n1} on {device_str}')
 	try:
 		t_start = time.time()
 		if gauss:
@@ -41,13 +41,13 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 			model = store.model_init(device(device_str))
 			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
 		t_end = time.time()
-		print(f'Selection took {int((t_end-t_start)/60)} min')
+		# print(f'Selection took {int((t_end-t_start)/60)} min')
 	except RuntimeError as error:
 		print(error)
 		# logging.error(error, exc_info=True)
 		return -1
 	finally:
-		print(f"{n0}-{n1}",store.name_string,waic)
+		print(f"{n0}-{n1} {store.name_string} {waic:.4} took {int((t_end-t_start)/60)} min")
 		# save textual info into model list
 		with open(out_dir+'_model_list.txt','a') as f:
 			f.write(f"{n0}-{n1} {store.name_string}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
@@ -62,8 +62,34 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 		return (store, waic, y)
 
 def train_next_tree(X: np.ndarray, Y: np.ndarray, 
-	exp: str, layer: int, devices: list, gauss=False):
+	layer: int, devices: list, gauss=False, exp = ''):
+	'''
+	Trains one vine copula tree
 
+	Parameters
+	----------
+	X : np.ndarray
+		Conditioning variable
+	Y : np.ndarray
+		Collection of data variables
+	exp : str (Default = '')
+		Name of the experiment.
+		If empty: do not save checkpoints
+		or logs.
+	layer : int 
+		Layer (a.k.a. tree) number
+	device_list : List[str]
+		A list of devices to be used for
+		training (in parallel)
+	gauss : bool (Default = False)
+		A flag that turns off model selection
+		and only trains gaussian copula models
+
+	Returns
+	-------
+	to_save : dict
+		Dictionary with keys={'models','waics'}
+	'''
 	for dev in devices:
 		assert (dev=='cpu') or (dev[:-2]=='cuda')
 
@@ -74,16 +100,17 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	global device_list
 	device_list = devices
 
-	if layer==0:
+	if exp!='':
+		if layer==0:
+			try:
+				os.mkdir(f'{conf.path2outputs}/logs')
+			except FileExistsError as error:
+				print(f"Error:{error}")
+
 		try:
-			os.mkdir(f'{conf.path2outputs}/logs')
+			os.mkdir(out_dir)
 		except FileExistsError as error:
 			print(f"Error:{error}")
-
-	try:
-		os.mkdir(out_dir)
-	except FileExistsError as error:
-		print(f"Error:{error}")
 
 	NN = Y.shape[-1]-1
 
