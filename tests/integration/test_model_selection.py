@@ -38,7 +38,7 @@ def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
 
     t1 = time.time()
     selected, waic_best = select_model(X,Y,device,exp_name,
-                                                out_path,'{}1'.format(mode[0]),'{}2'.format(mode[0]),
+                                                out_path,f'{mode[0]}1',f'{mode[0]}2',
                                                 train_x=train_x,train_y=train_y)
     t2 = time.time()
     print(f"Took {int(t2-t1)} sec")
@@ -118,4 +118,4 @@ if __name__ == "__main__":
     hours = int(total_time/60/60)
     minutes = int(total_time/60)%60
     seconds = (int(total_time)%(60))
-    print("All tests took {} h {} min {} s ({})".format(hours,minutes,seconds,int(total_time)))
+    print(f"All tests took {hours} h {minutes} min {seconds} s ({int(total_time)})")

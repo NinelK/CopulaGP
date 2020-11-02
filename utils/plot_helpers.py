@@ -14,7 +14,7 @@ def Plot_Copula_Density(axes, X, Y, interval_ends, shade=False, color='C0', mrg=
     '''
     import seaborn as sns
     assert len(interval_ends)-1 == len(axes)
-    titles = ["{}-{}".format(s,e) for s,e in zip(interval_ends[:-1],interval_ends[1:])]
+    titles = [f"{s}-{e}" for s,e in zip(interval_ends[:-1],interval_ends[1:])]
     for s,e,ax,name in zip(interval_ends[:-1],interval_ends[1:],axes.flatten(),titles):
         sns.kdeplot(*Y[(X[:]>=s) & (X[:]<e)].T, ax=ax, 
                     shade=shade,  shade_lowest=False, 
@@ -49,9 +49,9 @@ def Plot_MixModel_Param(ax: list, model: bvcopula.Pair_CopulaGP,
         for m,l,u,c,r in zip(mean,low,upp,copulas,rotations):
             F_mean = m.detach().cpu().numpy()
             if r==None:
-                label = '{}'.format(c)
+                label = f'{c}'
             else:
-                label = '{} {}'.format(c,r)
+                label = f'{c} {r}'
             if skip_ind & (c == 'Independence'):
                 axis.plot([],[]) #just skip 1 color to be even with mixing parameters
             else:
@@ -119,9 +119,9 @@ def Plot_MixModel_Param_MCMC(ax: list, model: bvcopula.Pair_CopulaGP,
     def plot_gps(sampled, axis, skip_ind=False):
         for i, (t,c,r) in enumerate(zip(sampled,copulas,rotations)):
             if r==None:
-                label = '{}'.format(c)
+                label = f'{c}'
             else:
-                label = '{} {}'.format(c,r)
+                label = f'{c} {r}'
             if skip_ind & (c == 'Independence'):
                 axis.plot([],[]) #just skip 1 color to be even with mixing parameters
             else:
@@ -197,7 +197,7 @@ def _code_names(code, order):
         #     return code
         # elif isinstance(code, int):
         #     if code>1:
-        #         return 'Neuron {}'.format(code)
+        #         return f'Neuron {code}'
         #     elif code==1:
         #         return 'Neuropil'
         #     elif code==0:
@@ -217,14 +217,18 @@ def _code_names(code, order):
         # else:
         #     return 'Code not int or str'
 
-def Plot_Fit(model: bvcopula.Pair_CopulaGP,
-            X: Tensor, Y: Tensor,
-            name_x: str, name_y: str, filename: str, 
-            device: torch.device, order = None):
+def Plot_Fit(model, X, Y,
+            name_x: str, name_y: str, device: torch.device, filename = None,
+            interval_ends = np.linspace(0,1,5), xscale = 1, order = None):
     '''
         The main plotting function that summarises the parameters if the model
         as well as compares simulated vs. real copula densities.
     '''
+    
+    assert (interval_ends[0] == 0) and (interval_ends[-1] == 1)
+    assert np.all(interval_ends>=0) and np.all(interval_ends<=1), "Interval_ends must be in [0,1]"
+    
+    
     # visualize the result
     fig = plt.figure(figsize=conf.figsize)
 
@@ -235,10 +239,9 @@ def Plot_Fit(model: bvcopula.Pair_CopulaGP,
                             fig.add_axes(conf.bottom_ax3)])
         
     for a in top_axes:
-        a.axvline(120, color='black', alpha=0.5)
-        a.axvline(140, color='black', alpha=0.5)
-        a.axvline(160, color='black', alpha=0.5)    
-
+        for b in interval_ends[1:-1]:
+            a.axvline(b, color='black', alpha=0.5)
+    
     # define test set (optionally on GPU)
     NSamp = X.shape[0] #by defauls generate as many samples as in training set
     testX = np.linspace(0,1,NSamp)
@@ -250,20 +253,22 @@ def Plot_Fit(model: bvcopula.Pair_CopulaGP,
     name_y = _code_names(name_y, order=order)
         
     Plot_MixModel_Param_MCMC(top_axes,model,
-        test_x,testX*160,#rho=_get_pearson(X,Y),
-        title=' for {} vs {}'.format(name_x,name_y))
+        test_x,testX*xscale,#rho=_get_pearson(X,Y),
+        title=f' for {name_x} vs {name_y}')
 
     bottom_axes[0].set_ylabel(name_y)
     bottom_axes[0].set_xlabel(name_x)
 
-    interval_ends = [0,60,120,140,160]
-    Plot_Copula_Density(bottom_axes, testX.squeeze()*160, Y_sim.squeeze(), interval_ends, shade=True)
-    Plot_Copula_Density(bottom_axes, X.squeeze()*160, Y, interval_ends, shade=False, color='#073763ff')
+    Plot_Copula_Density(bottom_axes, testX.squeeze()*xscale, Y_sim.squeeze(), interval_ends, shade=True)
+    Plot_Copula_Density(bottom_axes, X.squeeze()*xscale, Y, interval_ends, shade=False, color='#073763ff')
 
     plt.subplots_adjust(wspace=0.5)
 
-    fig.savefig(filename)
-    plt.close()
+    if filename is None:
+        return fig
+    else:
+        fig.savefig(filename)
+        plt.close()
 
 class LatentSpacePlot():
     '''
@@ -290,7 +295,7 @@ class LatentSpacePlot():
         for i_theta in range(num_thetas):     
             name = model.copulas[i_theta].__name__
             rotation = model.rotations[i_theta]
-            self.add_plot(x, model.theta[i_theta].cpu().numpy(), label = '{} {} param'.format(name,rotation))
+            self.add_plot(x, model.theta[i_theta].cpu().numpy(), label = f'{name} {rotation} param')
         if not no_legend:
             self.ax.legend()
         if colors is not None:
@@ -302,7 +307,7 @@ class LatentSpacePlot():
         for i_mix in range(num_mixes):     
             name = model.copulas[i_mix].__name__
             rotation = model.rotations[i_mix]
-            self.add_plot(x, model.mix[i_mix].cpu().numpy(), label = '{} {} mix'.format(name,rotation))
+            self.add_plot(x, model.mix[i_mix].cpu().numpy(), label = f'{name} {rotation} mix')
         if not no_legend:
             self.ax.legend()
         if colors is not None:

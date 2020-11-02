@@ -115,7 +115,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.2*f+1e-4).exp()
+        return (0.3*f+1e-4).exp()
         #maps (-inf, +inf) to [0,max]
 
     def normalize(self, theta: Tensor) -> Tensor:
@@ -135,7 +135,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.2*f+1e-4).exp() + 1.0
+        return (0.3*f+1e-4).exp() + 1.0
 
     def normalize(self, theta: Tensor) -> Tensor:
         if (self.rotation == '90°') | (self.rotation == '270°'):
@@ -228,9 +228,9 @@ class MixtureCopula_Likelihood(Likelihood):
             WAIC = 0
             for rep in range(waic_resamples):
                 WAIC += self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=True)/waic_resamples
-            return WAIC
+            return WAIC.cpu().item()
         else:
-            return self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=False)
+            return self.WAIC_(gp_distr=gp_distr, target=target, combine_terms=False).cpu().item()
 
     def get_copula(self, f):
         '''

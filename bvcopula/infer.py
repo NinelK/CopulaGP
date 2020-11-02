@@ -38,7 +38,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 		with torch.cuda.device(device):
 			torch.cuda.empty_cache()
 
-	logging.info('Trying {}'.format(get_copula_name_string(bvcopulas)))
+	logging.info(f'Trying {get_copula_name_string(bvcopulas)}')
 
 	# define the model (optionally on GPU)
 	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device,grid_size=grid_size)
@@ -85,18 +85,23 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	            means.append(model.gp_model.variational_strategy.base_variational_strategy._variational_distribution.variational_mean.detach().cpu().numpy())
 	            
 	            mean_p = p/conf.loss_av/2
-	            # print(f"{i}: {mean_p}")
+	            av_loss = loss_gpu[i-2*conf.loss_av:i].mean().abs().cpu()
+                # print(f"{i}: {mean_p}")
 
-	            if (0 < mean_p < conf.loss_tol2check_waic):
+	            if (mean_p < conf.loss_tol2check_waic):
 	                WAIC = model.likelihood.WAIC(model.gp_model(train_x),train_y)
 	                if (WAIC > conf.waic_tol):
 	                    logging.debug("Training does not look promissing!")
 	                    break	
 
-	            if (0 < mean_p < conf.loss_tol):
-	                logging.debug("Converged in {} steps!".format(i+1))
+	            if (mean_p < conf.a_loss_tol) or (mean_p/av_loss < conf.r_loss_tol):
+	                a = 'Absolute!' if (mean_p < conf.a_loss_tol) else 'Relative!'
+	                logging.debug(f"Converged in {i+1} steps! ({a})")
 	                break
 	            p = 0.
+
+	            for param_group in optimizer.param_groups:
+	            	param_group['lr'] = param_group['lr']*conf.decrease_lr
 
 	        # The actual optimization step
 	        loss.backward()
@@ -108,7 +113,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	            for n, par in model.gp_model.named_parameters():
 	                grad = par.grad.data
 	                if torch.any(grad!=grad):
-	                    # print('NaN grad in {}'.format(n))
+	                    # print(f'NaN grad in {n}')
 	                    nans_detected = 1
 	                # nans+=torch.sum(grad!=grad)
 	                if torch.any(grad.abs()==float('inf')):
@@ -135,7 +140,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 		WAIC = model.likelihood.WAIC(model.gp_model(train_x),train_y)
 
 	t2 = time.time()
-	logging.info('WAIC={:.4f}, took {} sec'.format(WAIC,int(t2-t1)))
+	logging.info(f'WAIC={WAIC:.4f}, took {int(t2-t1)} sec')
 
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):
@@ -147,7 +152,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 
 def load_model(filename, bvcopulas, device: torch.device):
 
-	logging.info('Loading {}'.format(get_copula_name_string(bvcopulas)))
+	logging.info(f'Loading {get_copula_name_string(bvcopulas)}')
 
 	# define the model (optionally on GPU)
 	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device)

@@ -257,6 +257,7 @@ class FrankCopula(SingleParamCopulaBase):
                 / (torch.expm1(-theta_)
                    + torch.expm1(-theta_ * samples[..., 0])
                    * torch.expm1(-theta_ * samples[..., 1])))[theta_!=0]
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value, safe=True):
@@ -325,16 +326,18 @@ class ClaytonCopula(SingleParamCopulaBase):
     def ccdf(self, samples):
         samples = self._SingleParamCopulaBase__rotate_input(samples)
         theta_ = self.theta.expand(samples.shape[:-1]) # prepend with sample dimensions
+        theta_ = torch.clamp(theta_,0.,conf.Clayton_Theta_Max)
         vals = samples[..., 0].clone()
-        vals[theta_!=0] = (samples[..., 1]**(-1 - theta_) 
-                                   * (samples[..., 0]**(-theta_) 
-                                      + samples[..., 1]**(-theta_) - 1) 
-                                   ** (-1 - 1 / theta_))[theta_!=0]
+        core = (samples[..., 0]**(-theta_) + samples[..., 1]**(-theta_) - 1) ** (-1 - 1 / theta_)
+        vals[theta_!=0] = (core * samples[..., 1]**(-1 - theta_))[theta_!=0]
         vals[vals<0] = 0
         vals[(theta_!=0) & (samples[...,0]==0)] = 0
         if (self.rotation == '180°') or (self.rotation == '270°'):
             vals = 1 - vals
         samples = self._SingleParamCopulaBase__rotate_input(samples)
+        if torch.any(vals!=vals):
+            print((core * samples[..., 1]**(-1 - theta_))[vals!=vals])
+        assert torch.all(vals==vals)
         return vals
 
     def log_prob(self, value, safe=True):

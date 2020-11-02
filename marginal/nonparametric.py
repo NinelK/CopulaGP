@@ -2,6 +2,10 @@ import numpy as np
 from fastkde import fastKDE
 import scipy.interpolate as intrp
 from sklearn.neighbors import KernelDensity
+import warnings
+
+def normalize_Y(Y_all,min,max):
+    return (Y_all - min)/(max-min)*0.998+0.001
 
 def interpolate2d_masked_array(masked_array2d):
     m = ~masked_array2d.mask.flatten()
@@ -68,7 +72,7 @@ def zero_level(Y,X,X_,resolution=64):
 
     return (1+np.exp(logprob)*len(x1)/len(x0))**(-1)
 
-def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20):
+def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20,old=False):
     '''
     Transforms the data Y with fast conditional KDE.
     :math:`Y' = CDF_{Y|X_}^{-1} (Y_)`
@@ -92,6 +96,7 @@ def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20):
         `Y'` (:class:`np.array`)
             Transformed values :math:`Y'`.
     '''
+    warnings.filterwarnings("ignore", category=FutureWarning)
     if Y_ is None:
         assert X_ is None, "If Y_ is None, why X_ is not?"
         X_ = X
@@ -106,23 +111,31 @@ def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20):
         
     f = interpolate2d_masked_array(cOfYGivenX)
 
-    #transform data points as CDF(x)
-    s_tr = np.zeros_like(Y)
-    for i, (x,y) in enumerate(zip(X,Y)):
-        s_tr[i] = f(*transform_coord(x,y,axes))
-    
-    # tr = np.clip(s_tr,0,1) # TODO: look into interpolation. For now, apply np.clip.
-    x = np.linspace(0,1,100)
-    emp_uncond_cdf = intrp.interp1d(x,[np.sum(s_tr<=i)/len(s_tr) for i in x])
-
-    if not np.all(Y==Y_):    
+    if old:
         #transform data points as CDF(x)
         s_tr = np.zeros_like(Y_)
         for i, (x,y) in enumerate(zip(X_,Y_)):
             s_tr[i] = f(*transform_coord(x,y,axes))
 
-    return emp_uncond_cdf(np.clip(s_tr,0,1))
+        return s_tr
 
+    else:
+        #transform data points as CDF(x)
+        s_tr = np.zeros_like(Y)
+        for i, (x,y) in enumerate(zip(X,Y)):
+            s_tr[i] = f(*transform_coord(x,y,axes))
+        
+        # tr = np.clip(s_tr,0,1) # TODO: look into interpolation. For now, apply np.clip.
+        x = np.linspace(0,1,100)
+        emp_uncond_cdf = intrp.interp1d(x,[np.sum(s_tr<=i)/len(s_tr) for i in x])
+
+        if not np.all(Y==Y_):    
+            #transform data points as CDF(x)
+            s_tr = np.zeros_like(Y_)
+            for i, (x,y) in enumerate(zip(X_,Y_)):
+                s_tr[i] = f(*transform_coord(x,y,axes))
+
+        return emp_uncond_cdf(np.clip(s_tr,0,1))
 
 
 def zeroinflated_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=50):

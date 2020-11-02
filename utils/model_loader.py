@@ -51,5 +51,5 @@ def get_model(weights_file,likelihoods,device):
 		model = load_model(weights_file, likelihoods, device)
 		return model
 	except FileNotFoundError:
-		print('Weights file {} not found.'.format(weights_file))
+		print(f'Weights file {weights_file} not found.')
 		return 0
