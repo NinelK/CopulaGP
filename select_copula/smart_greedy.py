@@ -50,10 +50,8 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 	for i, el in enumerate(available): #iterate over absolute indexes of available elements
 		likelihoods = [el]+simple_model
 		# make file names
-		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(likelihoods))
-		#plot_loss = '{}/loss_{}.png'.format(path_output,name)
-		#plot_res = '{}/res_{}.png'.format(path_output,name)
-		weights_filename = '{}/w_{}.pth'.format(path_output,name)
+		name = f'{exp_name}_{utils.get_copula_name_string(likelihoods)}'
+		weights_filename = f'{path_output}/w_{name}.pth'
 		#################
 		waic = float("Inf")
 		try:
@@ -63,7 +61,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 			files_created.append(weights_filename)
 			important = important_copulas(model)
 			if torch.any(important==False):
-				logging.info('Only {} were important'.format(utils.get_copula_name_string(reduce_model(likelihoods,important))))
+				logging.info(f'Only {utils.get_copula_name_string(reduce_model(likelihoods,important))} were important')
 		except ValueError as error:
 			logging.error(error)
 			logging.error(utils.get_copula_name_string(likelihoods),' failed')
@@ -73,8 +71,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 
 	best_i = np.argmin(waics)
 	best = available[best_i]
-	print("Best added copula: {} {} (WAIC = {:.4f})".format(best.name,utils.strrot(best.rotation),np.min(waics)))
-	logging.info("Best added copula: {} {} (WAIC = {:.4f})".format(best.name,utils.strrot(best.rotation),np.min(waics)))
+	logging.info(f"Best added copula: {best.name} {utils.strrot(best.rotation)} (WAIC = {np.min(waics):.4f})")
 
 	best_likelihoods = [best] + simple_model # order here is extrimely important!!!
 	waic = np.min(waics)
@@ -82,32 +79,32 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 	if reduce:
 		#try and reduce the best model
 		reduced_likelihoods = reduce_model(best_likelihoods,all_important_copulas[best_i]) 
-		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(reduced_likelihoods))
-		weights_filename = '{}/w_{}.pth'.format(path_output,name)
+		name = f'{exp_name}_{utils.get_copula_name_string(reduced_likelihoods)}'
+		weights_filename = f'{path_output}/w_{name}.pth'
 		if np.any(available_elements(reduced_likelihoods) != available_elements(best_likelihoods)) & \
 			np.any(available_elements(reduced_likelihoods) != available_elements(simple_model)):
 			logging.info("Model was reduced, getting new WAIC...")
 			waic, model = bvcopula.infer(reduced_likelihoods,train_x,train_y,device=device)
 			torch.save(model.gp_model.state_dict(),weights_filename)
-			print("Model reduced to {}".format(utils.get_copula_name_string(reduced_likelihoods)))
+			print(f"Model reduced to {utils.get_copula_name_string(reduced_likelihoods)}")
 			waic = waic.cpu().numpy()
 			best_likelihoods = reduced_likelihoods
 		else:
 			model = bvcopula.load_model(weights_filename, reduced_likelihoods, device)
 	else:
 		# load the best model to plot
-		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(best_likelihoods))
-		weights_filename = '{}/w_{}.pth'.format(path_output,name)
+		name = f'{exp_name}_{utils.get_copula_name_string(best_likelihoods)}'
+		weights_filename = f'{path_output}/w_{name}.pth'
 		model = bvcopula.load_model(weights_filename, best_likelihoods, device)
 
 	# plot the result
-	plot_res = '{}/res_{}.png'.format(path_output,name)
+	plot_res = f'{path_output}/res_{name}.png'
 	utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
 
 	# remove all weights for all models, except for the best one
 	for file in files_created:
 		if file!=weights_filename:
-			logging.debug('Removing {}'.format(file))
+			logging.debug(f'Removing {file}')
 			os.remove(file)
 
 	return (best_likelihoods,waic)
@@ -123,8 +120,8 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 	exp_pref: str, path_output: str, name_x: str, name_y: str,
 	train_x = None, train_y = None):
 
-	exp_name = '{}_{}-{}'.format(exp_pref,name_x,name_y)
-	log_name = '{}/log_{}_{}.txt'.format(path_output,device,exp_name)
+	exp_name = f'{exp_pref}_{name_x}-{name_y}'
+	log_name = f'{path_output}/log_{device}_{exp_name}.txt'
 	logging.getLogger("matplotlib").setLevel(logging.WARNING)
 	logging.basicConfig(filename=log_name, filemode='w', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
@@ -142,7 +139,7 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 		num_elements = len(likelihoods)
 		if _check_history(likelihoods,mixtures): #if nothing changed since last iteration
 			if (waic > conf.waic_threshold):
-				logging.info('The variables are independent (waic less than {:.4f}).'.format(conf.waic_threshold))	
+				logging.info(f'The variables are independent (waic less than {conf.waic_threshold:.4f}).')	
 				mixtures.append([bvcopula.IndependenceCopula_Likelihood()])
 				waics.append(0)
 				break
@@ -159,22 +156,15 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 			break
 
 	best_ind = np.argmin(waics)
-	print("The best model is {} with WAIC = {:.4f}".format(utils.get_copula_name_string(mixtures[best_ind]),waics[best_ind]))
-	logging.info("The best model is {} with WAIC = {:.4f}".format(utils.get_copula_name_string(mixtures[best_ind]),waics[best_ind]))
+	logging.info(f"The best model is {utils.get_copula_name_string(mixtures[best_ind])} with WAIC = {waics[best_ind]:.4f}")
 
-	# copy the very best model 
-	if (utils.get_copula_name_string(mixtures[best_ind])!='Independence'):
-		name = '{}_{}'.format(exp_name,utils.get_copula_name_string(mixtures[best_ind]))
-		source = '{}/w_{}.pth'.format(path_output,name)
-		target = '{}/model_{}.pth'.format(path_output,exp_name)
-		os.popen('cp {} {}'.format(source,target)) 
-		source = '{}/res_{}.png'.format(path_output,name)
-		target = '{}/best_{}.png'.format(path_output,exp_name)
-		os.popen('cp {} {}'.format(source,target))
+	# # copy the very best model 
+	# if (utils.get_copula_name_string(mixtures[best_ind])!='Independence'):
+	# 	....
 
 	print('History:')
 	for mix,waic in zip(mixtures[1:],waics[1:]):
-		print("{} with WAIC = {:.4f}".format(utils.get_copula_name_string(mix),waic))
+		print(f"{utils.get_copula_name_string(mix)} with WAIC = {waic:.4f}")
 
 	return (mixtures[best_ind],waics[best_ind])
 

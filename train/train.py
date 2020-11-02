@@ -1,6 +1,7 @@
 import sys
 import argparse
 import conf
+import time
 sys.path.insert(0, conf.path2code)
 from train import train_vine
 
@@ -21,8 +22,10 @@ if __name__ == "__main__":
 	path_final = f"{conf.path2data}/outputs/{args.exp}{g}_trained.pkl"
 
 	gpus = [0,1]
-	train_vine(args.exp, path_data, path_models, path_final,
+	start = time.time()
+	result = train_vine(args.exp, path_data, path_models, path_final,
 		layers_max=args.layers,start=args.start,gauss=args.gauss,
 		device_list=[f'cuda:{i}' for i in gpus])
+	end = time.time()
 
-	print("Done")
+	print(f"Done. Training {args.start}-{len(result['models'])} trees took {(end-start)//60} min")

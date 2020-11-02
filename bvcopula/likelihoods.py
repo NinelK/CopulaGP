@@ -115,7 +115,7 @@ class ClaytonCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.2*f+1e-4).exp()
+        return (0.3*f+1e-4).exp()
         #maps (-inf, +inf) to [0,max]
 
     def normalize(self, theta: Tensor) -> Tensor:
@@ -135,7 +135,7 @@ class GumbelCopula_Likelihood(Copula_Likelihood_Base):
 
     @staticmethod
     def gplink_function(f: Tensor) -> Tensor:
-        return (0.2*f+1e-4).exp() + 1.0
+        return (0.3*f+1e-4).exp() + 1.0
 
     def normalize(self, theta: Tensor) -> Tensor:
         if (self.rotation == '90°') | (self.rotation == '270°'):

@@ -93,6 +93,29 @@ class CVine():
             return copula_layers
         else:
             return cls(copula_layers,X,device) 
+            
+    @classmethod
+    def mean(cls,models_list,X,device=torch.device("cpu"),just_layers=False):
+        '''
+        This method takes a list of models (serialized),
+        sequentially initialises Pair Copula-GP
+        and takes the mean GP parameters
+        '''
+        # vine-type-indep
+        copula_layers = []
+        for layer in models_list:
+            copula_layer = []
+            for copula_mix in layer:
+                copulaGP = copula_mix.model_init(device)
+                with torch.no_grad():
+                    f = copulaGP.gp_model(X).mean
+                copula = copulaGP.likelihood.get_copula(f) 
+                copula_layer.append(copula)
+            copula_layers.append(copula_layer)
+        if just_layers:
+            return copula_layers
+        else:
+            return cls(copula_layers,X,device) 
 
     def create_subvine(self, input_idxs: torch.Tensor):
         '''

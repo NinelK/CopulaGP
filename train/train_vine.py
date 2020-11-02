@@ -3,6 +3,10 @@ from train import train_next_tree
 from train import save_checkpoint, load_checkpoint, save_final
 from typing import Callable
 
+import pickle as pkl
+from torch import tensor
+from vine import CVine
+
 def train_vine(exp: str, path_data: Callable[[int],str], 
 		path_models: Callable[[int],str], path_final: str,
 		layers_max=-1,start=0,gauss=False,device_list=['cpu']):
@@ -42,7 +46,18 @@ def train_vine(exp: str, path_data: Callable[[int],str],
 		Dictionary with keys={'models','waics'}
 	'''
 
-	X,Y = standard_loader(path_data(0))
+	# X,Y = standard_loader(path_data(0))
+
+	with open(path_data(0),"rb") as f:
+		data = pkl.load(f)
+	X,Y = data['X'], data['Y']
+	device='cpu' # can be cuda, but no need for this here
+	test_x = tensor(data['Xt'], device=device).float()
+	test_y = tensor(data['Yt'], device=device).float()
+
+	true = [1.7280809879302979, 3.257986068725586, 4.179661750793457, \
+	4.424014568328857, 5.006869316101074, 5.006869316101074, \
+	5.012329578399658, 5.067294120788574]
 
 	# figure out how many trees to train
 	layers = Y.shape[-1]-1 if layers_max == -1 else layers_max
@@ -59,8 +74,12 @@ def train_vine(exp: str, path_data: Callable[[int],str],
 		to_save['waics'].append(waic)
 		# save checkpoint
 		save_checkpoint(X,Y,to_save,path_data(layer+1),path_models(layer))
+		vine = CVine.mean(to_save['models'],test_x,device=device)
+		ll = vine.log_prob(test_y).mean().item()
+		print(f'Est.: {ll}, true: {true[layer]}')
 
-	save_final(path_data(0),path_models(layers-2),path_final)
+
+	save_final(path_data(0),path_models(layers-1),path_final)
 
 	return to_save
 

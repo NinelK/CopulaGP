@@ -40,7 +40,7 @@ def extreme_thetas_inference(X, bvc, true_thetas, atol=0., device=torch.device('
     total_time = t2-t1
     minutes = int(total_time/60)
     seconds = (int(total_time)%(60))
-    print("Took {} min {} s ({})".format(minutes,seconds,int(total_time)))
+    print(f"Took {minutes} min {seconds} s ({int(total_time)})")
 
     cpu_thetas = thetas.cpu().squeeze()
     #max_diff = np.abs((cpu_thetas-true_thetas).numpy()).max()
@@ -113,5 +113,5 @@ if __name__ == "__main__":
     hours = int(total_time/60/60)
     minutes = int(total_time/60)%60
     seconds = (int(total_time)%(60))
-    print("All tests took {} h {} min {} s ({})".format(hours,minutes,seconds,int(total_time)))
+    print(f"All tests took {hours} h {minutes} min {seconds} s ({int(total_time)})")
 

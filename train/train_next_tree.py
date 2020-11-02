@@ -4,7 +4,7 @@ import numpy as np
 import sys
 import multiprocessing
 import os
-from torch import device, tensor, load
+from torch import device, tensor, load, no_grad
 from . import conf
 sys.path.insert(0, conf.path2code)
 
@@ -54,7 +54,10 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 
 		if store.name_string!='Independence':
 			model.gp_model.eval()
-			copula = model.marginalize(train_x) # marginalize the GP
+			with no_grad():
+				f = model.gp_model(train_x).mean
+			copula = model.likelihood.get_copula(f) 
+			# copula = model.marginalize(train_x) # marginalize the GP
 			y = copula.ccdf(train_y).cpu().numpy()
 		else:
 			y = Y1

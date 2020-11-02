@@ -44,7 +44,7 @@ def standard_saver(path, x, y):
 def load_experimental_data(path,animal,day_name,n1,n2):
 	'''
 		Loads experimental data
-		TODO: squash parameters into "{}/{}_{}".format(path,animal,day_name)
+		TODO: squash parameters into f"{path}/{animal}_{day_name}"
 	'''
 	def data_from_n(n):
 		if n>=0:
@@ -86,9 +86,9 @@ def load_experimental_data(path,animal,day_name,n1,n2):
 	return X, Y
 
 def load_transformed_samples(path,exp_pref):
-    with open("{}/{}_signals.pkl".format(path,exp_pref),'rb') as f:
+    with open(f"{path}/{exp_pref}_signals.pkl",'rb') as f:
         signal_pkl = pkl.load(f)
-    with open("{}/{}_behaviour.pkl".format(path,exp_pref),'rb') as f:
+    with open(f"{path}/{exp_pref}_behaviour.pkl",'rb') as f:
         behaviour_pkl = pkl.load(f)
     for s in ['ROIsN','trialStart','maxTrialNum','trials']:
         assert(np.allclose(signal_pkl[s],behaviour_pkl[s]))
@@ -108,9 +108,9 @@ def load_transformed_samples(path,exp_pref):
     return samples
 
 def load_samples(path,exp_pref):
-    with open("{}/{}_signals.pkl".format(path,exp_pref),'rb') as f:
+    with open(f"{path}/{exp_pref}_signals.pkl",'rb') as f:
         signal_pkl = pkl.load(f)
-    with open("{}/{}_behaviour.pkl".format(path,exp_pref),'rb') as f:
+    with open(f"{path}/{exp_pref}_behaviour.pkl",'rb') as f:
         behaviour_pkl = pkl.load(f)
     for s in ['ROIsN','trialStart','maxTrialNum','trials']:
         assert(np.allclose(signal_pkl[s],behaviour_pkl[s]))
@@ -130,7 +130,7 @@ def load_samples(path,exp_pref):
     return samples
 
 def load_neurons_only(path,exp_pref):
-    with open("{}/{}_signals.pkl".format(path,exp_pref),'rb') as f:
+    with open(f"{path}/{exp_pref}_signals.pkl",'rb') as f:
         signal_pkl = pkl.load(f)
 
     return signal_pkl['signals_fissa'].T

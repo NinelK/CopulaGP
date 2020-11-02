@@ -55,6 +55,9 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
         (waic_claytons, model_claytons) = bvcopula.infer(conf.clayton_likelihoods,train_x,train_y,device=device)
         logging.info(get_copula_name_string(conf.clayton_likelihoods)+f" (WAIC = {waic_claytons:.4f})")
 
+        if waic_claytons>10:
+            print('Strange WAIC!')
+
         if waic_min >= waic_claytons:
             
             waic_min, best_likelihoods, best_model = checkNreduce(waic_claytons,model_claytons,conf.clayton_likelihoods,
@@ -75,7 +78,15 @@ def select_light(X: torch.Tensor, Y: torch.Tensor, device: torch.device,
                 best_likelihoods = [bvcopula.FrankCopula_Likelihood()]
                 waic_min = waic
                 best_model = model.serialize()
-                print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic:.4f})")
+                logging.info(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic:.4f})")
+
+        # if (best_likelihoods[0].name=='Independence') and (len(best_likelihoods)>1):
+        #     waic, model = bvcopula.infer(best_likelihoods[1:],train_x,train_y,device=device)
+        #     if waic<waic_min:
+        #         best_likelihoods = best_likelihoods[1:]
+        #         waic_min = waic
+        #         best_model = model.serialize()
+        #         print(get_copula_name_string(best_likelihoods)+f" (WAIC = {waic:.4f})")
 
         logging.info("Final model: "+get_copula_name_string(best_likelihoods))
 
