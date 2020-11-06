@@ -182,7 +182,7 @@ def zeroinflated_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=50):
     zeros = len(Y_[Y_==0])
     part_zero = zero_level(Y,X,X_)
 
-if np.any(Y!=0):
+    if np.any(Y!=0):
         nonzero_data = fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma)
         transformed[Y_!=0] = part_zero[Y_!=0] + (1-part_zero[Y_!=0])* nonzero_data
     else:
