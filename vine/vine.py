@@ -74,7 +74,7 @@ class CVine():
         self.device = device
 
     @classmethod
-    def marginalize(cls,models_list,X,device=torch.device("cpu"),just_layers=False):
+    def marginalize(cls,models_list,X,just_layers=False):
         '''
         This method takes a list of models (serialized),
         sequentially initialises Pair Copula-GP
@@ -85,14 +85,14 @@ class CVine():
         for layer in models_list:
             copula_layer = []
             for copula_mix in layer:
-                copulaGP = copula_mix.model_init(device)
+                copulaGP = copula_mix.model_init(X.device)
                 copula = copulaGP.marginalize(X)
                 copula_layer.append(copula)
             copula_layers.append(copula_layer)
         if just_layers:
             return copula_layers
         else:
-            return cls(copula_layers,X,device) 
+            return cls(copula_layers,X,X.device) 
             
     @classmethod
     def mean(cls,models_list,X,device=torch.device("cpu"),just_layers=False):
@@ -158,13 +158,7 @@ class CVine():
         N = self.inputs.numel()
         L = len(self.layers)
         assert (Ncut<=L) & (Ncut>=0)
-        indep = bvcopula.MixtureCopula(torch.empty(1,0,device=self.device),
-                        torch.ones(1,N,device=self.device),
-                        [bvcopula.IndependenceCopula])
         truncated_layers = [[model for model in layer] for layer in self.layers]
-        for i in range(1,Ncut+1):
-            for j in range(i):
-                truncated_layers[-i][j] = indep
         return CVine(truncated_layers,self.inputs,device=self.device)
         
     @staticmethod
@@ -191,7 +185,8 @@ class CVine():
         samples_shape = self.inputs.shape + sample_size + torch.Size([self.N])
         samples = torch.empty(size=samples_shape, device=self.device).uniform_(1e-4, 1. - 1e-4) #torch.rand(shape) torch.rand in (0,1]
         
-        transformed_samples = [samples[...,-1:]]
+        missing_layers = self.N - 1 - len(self.layers)
+        transformed_samples = [samples[...,-1-missing_layers:]]
         for copulas in self.layers[::-1]:
             upper = transformed_samples[-1]
             new_layer = self._layer_transform(upper,samples[...,self.N-upper.shape[-1]-1],copulas)

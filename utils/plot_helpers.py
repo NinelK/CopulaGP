@@ -219,15 +219,15 @@ def _code_names(code, order):
 
 def Plot_Fit(model, X, Y,
             name_x: str, name_y: str, device: torch.device, filename = None,
-            interval_ends = np.linspace(0,1,5), xscale = 1, order = None):
+            interval_ends = np.linspace(0,1,5), order = None):
     '''
         The main plotting function that summarises the parameters if the model
         as well as compares simulated vs. real copula densities.
     '''
     
-    assert (interval_ends[0] == 0) and (interval_ends[-1] == 1)
-    assert np.all(interval_ends>=0) and np.all(interval_ends<=1), "Interval_ends must be in [0,1]"
-    
+    assert (interval_ends[0] == 0)
+    assert np.all(interval_ends>=0)
+    xscale = interval_ends[-1]    
     
     # visualize the result
     fig = plt.figure(figsize=conf.figsize)

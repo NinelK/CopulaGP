@@ -732,20 +732,49 @@ class MixtureCopula(Distribution):
         assert torch.all(vals>=0)
         return vals.clamp(0.001,0.999)
 
-    def log_prob(self, value, safe=False):
+    def tail(self, value):
+        '''
+        Returns the probability for each sample
+        that it came from the Clayton copula
+        p(Clayton|Y) = p(Y|Clayton) * mix_clayton / p(Y)
 
-        # theta size: (num_copulas) x (some_batch_dims) x (gp_inputs)
-        # value size: (some_batch_dims) x (gp_inputs) x 2
-        # if values have more leading batch dimensions (like in entropy estimate)
-        # it is ok and will work fine.
-        # If thetas have more lead batch dims: let us expand value dimensions.
+        Parameters
+        ----------
+        value: Tensor
+            Samples Y
+
+        Returns
+        -------
+        p_Clayton: float
+            Probability in [0,1] that the sample came from 
+            Clayton copula elements of the mixture (of any)
+        '''
+        return (self.log_prob(value,clayton_only=True) - self.log_prob(value)).exp()
+
+    def log_prob(self, value, clayton_only=False, safe=False):
+        '''
+        theta size: (num_copulas) x (some_batch_dims) x (gp_inputs)
+        value size: (some_batch_dims) x (gp_inputs) x 2
+        if values have more leading batch dimensions (like in entropy estimate)
+        it is ok and will work fine.
+        If thetas have more lead batch dims: let us expand value dimensions.
+
+        Parameters
+        ----------
+        value: Tensor
+            Samples Y
+        Returns
+        -------
+        log p: float
+            Log likelihood
+        '''
         if self.theta.shape[1:]!=value.shape[:-1]:
             if self.theta.shape[-len(value.shape[:-1]):]==value.shape[:-1]:
                 value = value.expand(self.theta.shape[1:-len(value.shape[:-1])] + value.shape)
             elif self.theta.shape[1:] == value.shape[-len(self.theta.shape[1:])-1:-1]:
                 pass
             else:
-                if len(self.copulas)==1 and (self.copulas[0].num_thetas==0): #it is independent!
+                if len(self.copulas)==1 and (self.copulas[0].name=='Independence'):
                     return torch.zeros_like(value[...,0])
                 # otherwise raise error
                 raise ValueError(f"Thetas {self.theta.shape} and values {value.shape} GP input shapes do not match")
@@ -760,21 +789,24 @@ class MixtureCopula(Distribution):
         value_=(value.clone()).clamp(0.001,0.999)
        
         if len(self.copulas)>1:
-            probs = torch.zeros(torch.Size([len(self.copulas)])+value.shape[:-1],device=self.theta.device)
+            probs = torch.ones(torch.Size([len(self.copulas)])+value.shape[:-1],device=self.theta.device)*(-float("inf"))
             for i, c in enumerate(self.copulas):
-                if c.num_thetas == 0:
-                    add = c(self.theta[self.theta!=self.theta]).log_prob(value_)
+                if (c.__name__ == 'IndependenceCopula'):
+                    add = torch.zeros_like(value_[...,0]) # log 1 = 0
                 else:
-                    add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value_,safe=safe).clamp(-100,88)
+                    add = c(self.theta[i], rotation=self.rotations[i]).log_prob(value_,safe=safe).clamp(-float("inf"),88)
                 # print(self.mix[i].shape,add.shape,probs.shape)
-                probs[i] += torch.log(self.mix[i]) + add
+                if not clayton_only or c.__name__ == 'ClaytonCopula':
+                    probs[i] = torch.log(self.mix[i]) + add
             log_prob = probs.logsumexp(0)
         else:
             #if these is just 1 copula, no need to do log(exp(p))
-            if self.copulas[0].num_thetas == 0:
-                log_prob = self.copulas[0](self.theta[self.theta!=self.theta]).log_prob(value_)
+            if (self.copulas[0].__name__ == 'IndependenceCopula'):
+                log_prob = torch.zeros_like(value_[...,0])
+            elif ( clayton_only and (self.copulas[0].__name__ != 'ClaytonCopula') ):
+                log_prob = -float("inf")*torch.ones_like(value_[...,0]) # log 0 = -inf
             else:
-                log_prob = self.copulas[0](self.theta[0], rotation=self.rotations[0]).log_prob(value_,safe=safe).clamp(-100,88)
+                log_prob = self.copulas[0](self.theta[0], rotation=self.rotations[0]).log_prob(value_,safe=safe).clamp(-float("inf"),88)
 
 
         assert torch.all(log_prob==log_prob)

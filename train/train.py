@@ -17,9 +17,9 @@ if __name__ == "__main__":
 	args = parser.parse_args()
 
 	g = 'G' if args.gauss else ''
-	path_data = lambda layer: f"{conf.path2data}/outputs/{args.exp}{g}_layer{layer}.pkl"
-	path_models = lambda layer: f"{conf.path2data}/outputs/{args.exp}{g}_models_layer{layer}.pkl"
-	path_final = f"{conf.path2data}/outputs/{args.exp}{g}_trained.pkl"
+	path_data = lambda layer: f"{conf.path2data}/{args.exp}{g}_layer{layer}.pkl"
+	path_models = lambda layer: f"{conf.path2outputs}/{args.exp}{g}_models_layer{layer}.pkl"
+	path_final = f"{conf.path2outputs}/{args.exp}{g}_trained.pkl"
 
 	gpus = [0,1]
 	start = time.time()

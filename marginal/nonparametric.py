@@ -125,15 +125,22 @@ def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20,old=False):
         for i, (x,y) in enumerate(zip(X,Y)):
             s_tr[i] = f(*transform_coord(x,y,axes))
         
-        # tr = np.clip(s_tr,0,1) # TODO: look into interpolation. For now, apply np.clip.
-        x = np.linspace(0,1,100)
-        emp_uncond_cdf = intrp.interp1d(x,[np.sum(s_tr<=i)/len(s_tr) for i in x])
+        # x = np.linspace(0,1,100)
+        # emp_uncond_cdf = intrp.interp1d(x,[np.sum(s_tr<=i)/len(s_tr) for i in x])
+
+        x = np.linspace(0,1,101)
+        emp_uncond_cdf = intrp.interp1d(x+0.005,
+            [np.sum(s_tr<=(i+0.01))/len(s_tr) for i in x])
 
         if not np.all(Y==Y_):    
             #transform data points as CDF(x)
             s_tr = np.zeros_like(Y_)
             for i, (x,y) in enumerate(zip(X_,Y_)):
                 s_tr[i] = f(*transform_coord(x,y,axes))
+
+        # assert np.all(s_tr>=0) #essentially made above
+        # if np.any(s_tr>1):
+        #     print(s_tr.max(),s_tr.min())
 
         return emp_uncond_cdf(np.clip(s_tr,0,1))
 
@@ -175,19 +182,7 @@ def zeroinflated_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=50):
     zeros = len(Y_[Y_==0])
     part_zero = zero_level(Y,X,X_)
 
-    # # here we find unconditional CDF for the data after KDE transform
-    # # this fixes the artefacts at the edges (around 0 and 1)
-    # tr = np.clip(fast_signal2uniform(Y[Y!=0],X[Y!=0],numPointsPerSigma=numPointsPerSigma),0,1)
-    #     # TODO: look into interpolation. For now, apply np.clip.
-    # x = np.linspace(0,1,100)
-    # emp_uncond_cdf = intrp.interp1d(x,[np.sum(tr<=i)/len(tr) for i in x])
-
-    # if np.all(Y==Y_):
-    #     nonzero_data = emp_uncond_cdf(tr)
-    #     print('Y==Y_')
-    # else:    
-    #     nonzero_data = emp_uncond_cdf(fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma))
-    if np.any(Y!=0):
+if np.any(Y!=0):
         nonzero_data = fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma)
         transformed[Y_!=0] = part_zero[Y_!=0] + (1-part_zero[Y_!=0])* nonzero_data
     else:
