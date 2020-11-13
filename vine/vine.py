@@ -155,10 +155,9 @@ class CVine():
         truncated: CVine
             Truncated vine
         '''
-        N = self.inputs.numel()
         L = len(self.layers)
-        assert (Ncut<=L) & (Ncut>=0)
-        truncated_layers = [[model for model in layer] for layer in self.layers]
+        assert (Ncut<=L) & (Ncut>0)
+        truncated_layers = [[model for model in layer] for layer in self.layers[:Ncut]]
         return CVine(truncated_layers,self.inputs,device=self.device)
         
     @staticmethod

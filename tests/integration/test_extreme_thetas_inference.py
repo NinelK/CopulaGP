@@ -92,7 +92,7 @@ def test_clayton():
 
 def test_gauss():
     try_copula(bvcopula.GaussianCopula_Likelihood(),-1.,0.,1.,
-                1e-4, .15)
+                1e-3, .15)
 
 def test_frank():
     try_copula(bvcopula.FrankCopula_Likelihood(),-conf.Frank_Theta_Max,0.,conf.Frank_Theta_Max,

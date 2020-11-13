@@ -26,7 +26,7 @@ def train4entropy(x,y,likelihood,device=torch.device('cpu'),mc_size=2500,shuffle
             if shuffle:
                 x = x[torch.randperm(NSamp)]
             with torch.no_grad():
-                f = model(x).mean
+                f = model.gp_model(x).mean
                 copula = model.likelihood.get_copula(f)
                 copulas.append(copula)
                 layer.append(copula.ccdf(samples))
