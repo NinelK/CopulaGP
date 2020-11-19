@@ -6,6 +6,7 @@ import math
 from collections import OrderedDict
 from .likelihoods import MixtureCopula_Likelihood
 from . import conf
+from .infer import infer
 
 class MultitaskGPModel(gpytorch.models.ApproximateGP):
     def __init__(self, num_dim, grid_bounds=(0, 1), prior_rbf_length=0.5, grid_size=None):
@@ -123,6 +124,33 @@ class Pair_CopulaGP():
         state_dict = self.__gp_model.state_dict()
         cpu_state_dict = OrderedDict({k: state_dict[k].cpu() for k in state_dict})
         return Pair_CopulaGP_data(bvcopulas, cpu_state_dict)
+
+    def ablate(self,train_x,train_y):
+        '''
+        Ablates likelihood elements 1 by 1
+        and infers the model parameters.
+        Parameters
+        ----------
+        train_x: Tensor
+        train_y: Tensor
+        Returns
+        -------
+        waics:  list
+            list of model waics
+        models: list
+            list of corresponding serialized models
+        '''
+        device = train_x.device
+        assert train_y.device==device
+        likelihoods = self.__likelihood.likelihoods
+        N = len(likelihoods)
+        waics, models = [], []
+        for i in range(N):
+            lls = [likelihoods[j] for j in torch.arange(N)[torch.arange(N)!=i]]
+            w, m = infer(lls,train_x,train_y,device=device)
+            waics.append(w)
+            models.append(m.serialize())
+        return (waics,models)
 
 class Pair_CopulaGP_data():
     '''

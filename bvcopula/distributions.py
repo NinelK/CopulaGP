@@ -774,7 +774,7 @@ class MixtureCopula(Distribution):
             elif self.theta.shape[1:] == value.shape[-len(self.theta.shape[1:])-1:-1]:
                 pass
             else:
-                if len(self.copulas)==1 and (self.copulas[0].name=='Independence'):
+                if len(self.copulas)==1 and (self.copulas[0].__name__=='IndependenceCopula'):
                     return torch.zeros_like(value[...,0])
                 # otherwise raise error
                 raise ValueError(f"Thetas {self.theta.shape} and values {value.shape} GP input shapes do not match")
