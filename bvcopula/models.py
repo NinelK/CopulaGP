@@ -64,12 +64,12 @@ class MultitaskGPModel(gpytorch.models.ApproximateGP):
         return gpytorch.distributions.MultivariateNormal(mean, covar)
 
 class Pair_CopulaGP():
-    def __init__(self, copulas: list, device='cpu', grid_size=None):
+    def __init__(self, copulas: list, device='cpu', grid_size=None, prior_rbf_length=0.5):
 
         self.__likelihood = MixtureCopula_Likelihood(copulas).to(device=device).float()
 
         self.__gp_model = MultitaskGPModel(self.__likelihood.f_size, 
-            grid_bounds=(0, 1), prior_rbf_length=0.5, grid_size=grid_size).to(device=device).float()
+            grid_bounds=(0, 1), prior_rbf_length=prior_rbf_length, grid_size=grid_size).to(device=device).float()
 
         self.__device = device
         self.__particles = 50

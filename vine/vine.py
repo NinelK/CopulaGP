@@ -1,5 +1,6 @@
 import torch
 import bvcopula
+from math import sqrt
 
 class VineGP():
     '''
@@ -116,6 +117,21 @@ class CVine():
             return copula_layers
         else:
             return cls(copula_layers,X,device) 
+
+    @property
+    def effective_dims(self):
+        '''
+        Calculates the effective dimensionality of the data.
+        This method takes all non-independence elements in the vine,
+        and uses this number `m` to estimate `dim = sqrt(2*m)`.
+        '''
+        all_c,ind_c = 0,0
+        for tree in self.layers:
+            for c in tree:
+                if len(c.copulas) & (c.copulas[0].__name__=='IndependenceCopula'):
+                    ind_c += 1
+                all_c +=1
+        return sqrt(2*(all_c-ind_c))
 
     def create_subvine(self, input_idxs: torch.Tensor):
         '''

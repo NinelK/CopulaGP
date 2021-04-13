@@ -4,7 +4,6 @@ from gpytorch.settings import num_likelihood_samples
 import matplotlib.pyplot as plt
 import numpy as np
 
-import bvcopula
 from . import plot_conf as conf
 #all of these imports are for Plot_Fit only
 
@@ -21,7 +20,7 @@ def Plot_Copula_Density(axes, X, Y, interval_ends, shade=False, color='C0', mrg=
                     alpha=0.7, color=color, n_levels=6)
         ax.set(title=name, xlim=(-mrg,1+mrg), ylim=(-mrg,1+mrg))
 
-def Plot_MixModel_Param(ax: list, model: bvcopula.Pair_CopulaGP,
+def Plot_MixModel_Param(ax: list, model,
     test_x: Tensor, x : Tensor, rho=None,title=''):
     '''
         Plot Thetas and Mixing parameters of a trained GP-Copula model.
@@ -89,9 +88,9 @@ def Plot_MixModel_Param(ax: list, model: bvcopula.Pair_CopulaGP,
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
-def Plot_MixModel_Param_MCMC(ax: list, model: bvcopula.Pair_CopulaGP,
+def Plot_MixModel_Param_MCMC(ax: list, model,
     test_x: Tensor, x : Tensor,
-    rho=None,title='',particles=200):
+    rho=None,title='',particles=200, normalized_thetas=True):
     '''
         Plot Thetas and Mixing parameters of a trained GP-Copula model.
         MCMC_version
@@ -133,7 +132,7 @@ def Plot_MixModel_Param_MCMC(ax: list, model: bvcopula.Pair_CopulaGP,
     model.gp_model.eval()
     with no_grad():
         output = model.gp_model(test_x)
-    thetas, mixes = model.gplink(output.rsample(Size([particles])), normalized_thetas=True)
+    thetas, mixes = model.gplink(output.rsample(Size([particles])), normalized_thetas=normalized_thetas)
     #MC sampling is better here, at least for mixing, since gplink function is non-monotonic for them
 
     likelihoods = model.likelihood.likelihoods
@@ -157,7 +156,7 @@ def Plot_MixModel_Param_MCMC(ax: list, model: bvcopula.Pair_CopulaGP,
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
-def _generate_test_samples(model: bvcopula.Pair_CopulaGP, test_x: Tensor) -> Tensor:
+def _generate_test_samples(model, test_x: Tensor) -> Tensor:
     
     with torch.no_grad():
         output = model.gp_model(test_x)

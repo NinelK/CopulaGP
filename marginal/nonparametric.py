@@ -70,7 +70,7 @@ def zero_level(Y,X,X_,resolution=64):
     kde.fit(x0.reshape(-1,1))
     logprob -= kde.score_samples(X_.reshape(-1,1))
 
-    return (1+np.exp(logprob)*len(x1)/len(x0))**(-1)
+    return (1+np.exp(np.clip(logprob,-np.inf,100))*len(x1)/len(x0))**(-1)
 
 def fast_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=20,old=False):
     '''
@@ -183,7 +183,7 @@ def zeroinflated_signal2uniform(Y,X,Y_=None,X_=None,numPointsPerSigma=50):
     part_zero = zero_level(Y,X,X_)
 
     if np.any(Y!=0):
-        nonzero_data = fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma)
+        nonzero_data = fast_signal2uniform(Y[Y!=0],X[Y!=0],Y_[Y_!=0],X_[Y_!=0],numPointsPerSigma=numPointsPerSigma,old=True)
         transformed[Y_!=0] = part_zero[Y_!=0] + (1-part_zero[Y_!=0])* nonzero_data
     else:
         transformed[Y_!=0] = 1

@@ -32,7 +32,7 @@ def plot_loss(filename, losses, rbf, means):
 	plt.close()
 
 def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
-			output_loss=None, grid_size=None):
+			output_loss=None, grid_size=None, prior_rbf_length=0.5):
 
 	if device!=torch.device('cpu'):
 		with torch.cuda.device(device):
@@ -41,7 +41,7 @@ def infer(bvcopulas, train_x: Tensor, train_y: Tensor, device: torch.device,
 	logging.info(f'Trying {get_copula_name_string(bvcopulas)}')
 
 	# define the model (optionally on GPU)
-	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device,grid_size=grid_size)
+	model = bvcopula.Pair_CopulaGP(bvcopulas,device=device,grid_size=grid_size,prior_rbf_length=prior_rbf_length)
 
 	optimizer = torch.optim.Adam([
 	    {'params': model.gp_model.mean_module.parameters()},
