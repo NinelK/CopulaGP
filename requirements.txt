@@ -52,7 +52,7 @@ prompt-toolkit==3.0.5
 ptyprocess==0.6.0
 py==1.9.0
 pycparser==2.20
-Pygments==2.6.1
+Pygments==2.7.4
 pyparsing==2.4.7
 pyro-api==0.1.2
 pyro-ppl==1.5.1
