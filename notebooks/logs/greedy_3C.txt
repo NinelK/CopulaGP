@@ -1,0 +1,136 @@
+Sampling from GaussianClayton90°Gumbel0°
+Best added copula: Gumbel 0° (WAIC = -0.1399)
+Best added copula: Clayton 90° (WAIC = -0.2494)
+Best added copula: Clayton 0° (WAIC = -0.2519)
+Best added copula: Frank  (WAIC = -0.2518)
+The best model is Clayton0°Clayton90°Gumbel0° with WAIC = -0.2519
+Model reduced to Clayton90°Gumbel0°
+History:
+Gumbel0° with WAIC = -0.1399
+Clayton90°Gumbel0° with WAIC = -0.2494
+Clayton90°Gumbel0° with WAIC = -0.2494
+Took 44.0 min
+Correct WAIC: -0.2458, best WAIC -0.2494, diff: -0.0036
+Pass
+
+Sampling from FrankClayton90°Gumbel0°
+Best added copula: Frank  (WAIC = -0.0591)
+Best added copula: Clayton 90° (WAIC = -0.1460)
+Best added copula: Gumbel 0° (WAIC = -0.1730)
+Best added copula: Clayton 180° (WAIC = -0.1736)
+Best added copula: Independence  (WAIC = -0.1734)
+The best model is Clayton180°Gumbel0°Clayton90°Frank with WAIC = -0.1736
+Model reduced to Gumbel0°Clayton90°Frank
+History:
+Frank with WAIC = -0.0591
+Clayton90°Frank with WAIC = -0.1460
+Gumbel0°Clayton90°Frank with WAIC = -0.1730
+Gumbel0°Clayton90°Frank with WAIC = -0.1731
+Took 77.0 min
+Pass
+
+Sampling from FrankClayton180°Gumbel270°
+Best added copula: Frank  (WAIC = -0.0741)
+Best added copula: Clayton 180° (WAIC = -0.1513)
+Best added copula: Gumbel 270° (WAIC = -0.1707)
+Best added copula: Clayton 90° (WAIC = -0.1708)
+Best added copula: Gumbel 180° (WAIC = -0.1711)
+Best added copula: Clayton 0° (WAIC = -0.1710)
+The best model is Gumbel180°Clayton90°Gumbel270°Clayton180°Frank with WAIC = -0.1711
+Model reduced to Gumbel270°Clayton180°Frank
+History:
+Frank with WAIC = -0.0741
+Clayton180°Frank with WAIC = -0.1513
+Gumbel270°Clayton180°Frank with WAIC = -0.1707
+Clayton90°Gumbel270°Clayton180°Frank with WAIC = -0.1708
+Gumbel270°Clayton180°Frank with WAIC = -0.1703
+Took 87.0 min
+Pass
+
+Sampling from Gumbel0°Gumbel180°Clayton90°
+Best added copula: Gumbel 0° (WAIC = -0.1695)
+Best added copula: Clayton 90° (WAIC = -0.3040)
+Best added copula: Gumbel 180° (WAIC = -0.3234)
+Best added copula: Clayton 180° (WAIC = -0.3233)
+The best model is Gumbel180°Clayton90°Gumbel0° with WAIC = -0.3234
+History:
+Gumbel0° with WAIC = -0.1695
+Clayton90°Gumbel0° with WAIC = -0.3040
+Gumbel180°Clayton90°Gumbel0° with WAIC = -0.3234
+Took 47.0 min
+Pass
+
+Sampling from GaussianClayton90°Gumbel0°
+Best added copula: Frank  (WAIC = -0.0177)
+Best added copula: Gumbel 270° (WAIC = -0.1284)
+Best added copula: Gumbel 0° (WAIC = -0.1407)
+Best added copula: Clayton 0° (WAIC = -0.1423)
+Best added copula: Clayton 180° (WAIC = -0.1435)
+Best added copula: Independence  (WAIC = -0.1432)
+The best model is Clayton180°Clayton0°Gumbel0°Gumbel270°Frank with WAIC = -0.1435
+Model reduced to Gumbel0°Gumbel270°
+History:
+Frank with WAIC = -0.0177
+Gumbel270°Frank with WAIC = -0.1284
+Gumbel0°Gumbel270°Frank with WAIC = -0.1407
+Clayton0°Gumbel0°Gumbel270°Frank with WAIC = -0.1423
+Gumbel0°Gumbel270° with WAIC = -0.1451
+Took 66.0 min
+Correct WAIC: -0.1583, best WAIC -0.1451, diff: 0.0132
+Pass
+
+Sampling from FrankClayton90°Gumbel0°
+Best added copula: Frank  (WAIC = -0.0265)
+Best added copula: Gumbel 270° (WAIC = -0.1290)
+Best added copula: Gumbel 0° (WAIC = -0.1445)
+Best added copula: Clayton 180° (WAIC = -0.1450)
+Best added copula: Clayton 0° (WAIC = -0.1466)
+Best added copula: Independence  (WAIC = -0.1468)
+The best model is IndependenceClayton0°Clayton180°Gumbel0°Gumbel270°Frank with WAIC = -0.1468
+Model reduced to Gumbel0°Gumbel270°
+History:
+Frank with WAIC = -0.0265
+Gumbel270°Frank with WAIC = -0.1290
+Gumbel0°Gumbel270°Frank with WAIC = -0.1445
+Clayton180°Gumbel0°Gumbel270°Frank with WAIC = -0.1450
+Clayton0°Clayton180°Gumbel0°Gumbel270°Frank with WAIC = -0.1466
+Gumbel0°Gumbel270° with WAIC = -0.1451
+Took 71.0 min
+Correct WAIC: -0.1560, best WAIC -0.1451, diff: 0.0109
+Pass
+
+Sampling from FrankClayton180°Gumbel270°
+Best added copula: Frank  (WAIC = -0.0129)
+Best added copula: Gumbel 270° (WAIC = -0.1105)
+Best added copula: Gumbel 0° (WAIC = -0.1237)
+Best added copula: Clayton 180° (WAIC = -0.1254)
+Best added copula: Gumbel 180° (WAIC = -0.1248)
+The best model is Clayton180°Gumbel0°Gumbel270°Frank with WAIC = -0.1254
+Model reduced to Gumbel0°Gumbel270°Frank
+History:
+Frank with WAIC = -0.0129
+Gumbel270°Frank with WAIC = -0.1105
+Gumbel0°Gumbel270°Frank with WAIC = -0.1237
+Gumbel0°Gumbel270°Frank with WAIC = -0.1234
+Took 61.0 min
+Correct WAIC: -0.1328, best WAIC -0.1234, diff: 0.0094
+Pass
+
+Sampling from Gumbel0°Gumbel180°Clayton90°
+Best added copula: Gumbel 0° (WAIC = -0.0756)
+Best added copula: Clayton 90° (WAIC = -0.2380)
+Best added copula: Clayton 0° (WAIC = -0.2556)
+Best added copula: Gaussian  (WAIC = -0.2591)
+Best added copula: Clayton 270° (WAIC = -0.2590)
+The best model is GaussianClayton0°Clayton90°Gumbel0° with WAIC = -0.2591
+Model reduced to Clayton0°Clayton90°Gumbel0°
+History:
+Gumbel0° with WAIC = -0.0756
+Clayton90°Gumbel0° with WAIC = -0.2380
+Clayton0°Clayton90°Gumbel0° with WAIC = -0.2556
+Clayton0°Clayton90°Gumbel0° with WAIC = -0.2555
+Took 55.0 min
+Correct WAIC: -0.2581, best WAIC -0.2555, diff: 0.0026
+Pass
+
+All tests took 8 h 38 min 25 s (31105)

@@ -1,0 +1,168 @@
+Sampling from Gumbel90°Gaussian
+Best added copula: Gaussian  (WAIC = -0.1877)
+Best added copula: Gumbel 90° (WAIC = -0.2855)
+Best added copula: Clayton 270° (WAIC = -0.2855)
+Best added copula: Frank  (WAIC = -0.2856)
+Best added copula: Gumbel 270° (WAIC = -0.2856)
+Best added copula: Clayton 90° (WAIC = -0.2856)
+The best model is Clayton90°Gumbel270°FrankClayton270°Gumbel90°Gaussian with WAIC = -0.2856
+Model reduced to Gumbel90°Gaussian
+History:
+Gaussian with WAIC = -0.1877
+Gumbel90°Gaussian with WAIC = -0.2855
+Clayton270°Gumbel90°Gaussian with WAIC = -0.2855
+FrankClayton270°Gumbel90°Gaussian with WAIC = -0.2856
+Gumbel270°FrankClayton270°Gumbel90°Gaussian with WAIC = -0.2856
+Gumbel90°Gaussian with WAIC = -0.2854
+Took 101.0 min
+Pass
+
+Sampling from GaussianClayton270°
+Best added copula: Frank  (WAIC = -0.1635)
+Best added copula: Clayton 270° (WAIC = -0.2707)
+Best added copula: Gaussian  (WAIC = -0.2747)
+Best added copula: Gumbel 180° (WAIC = -0.2782)
+Best added copula: Clayton 90° (WAIC = -0.2781)
+The best model is Gumbel180°GaussianClayton270°Frank with WAIC = -0.2782
+Model reduced to GaussianClayton270°
+History:
+Frank with WAIC = -0.1635
+Clayton270°Frank with WAIC = -0.2707
+GaussianClayton270°Frank with WAIC = -0.2747
+GaussianClayton270° with WAIC = -0.2821
+Took 87.0 min
+Pass
+
+Sampling from Gumbel180°Frank
+Best added copula: Gumbel 180° (WAIC = -0.1681)
+Best added copula: Frank  (WAIC = -0.2099)
+Best added copula: Clayton 180° (WAIC = -0.2101)
+Best added copula: Clayton 90° (WAIC = -0.2105)
+Best added copula: Independence  (WAIC = -0.2106)
+Best added copula: Gumbel 270° (WAIC = -0.2099)
+The best model is IndependenceClayton90°Clayton180°FrankGumbel180° with WAIC = -0.2106
+Model reduced to FrankGumbel180°
+History:
+Gumbel180° with WAIC = -0.1681
+FrankGumbel180° with WAIC = -0.2099
+Clayton180°FrankGumbel180° with WAIC = -0.2101
+Clayton90°Clayton180°FrankGumbel180° with WAIC = -0.2105
+FrankGumbel180° with WAIC = -0.2099
+Took 99.0 min
+Pass
+
+Sampling from Clayton0°Clayton90°
+Best added copula: Frank  (WAIC = -0.1587)
+Best added copula: Clayton 0° (WAIC = -0.2600)
+Best added copula: Clayton 90° (WAIC = -0.3173)
+Best added copula: Gumbel 270° (WAIC = -0.3176)
+Best added copula: Independence  (WAIC = -0.3176)
+Best added copula: Clayton 270° (WAIC = -0.3175)
+The best model is IndependenceGumbel270°Clayton90°Clayton0°Frank with WAIC = -0.3176
+Model reduced to Clayton90°Clayton0°
+History:
+Frank with WAIC = -0.1587
+Clayton0°Frank with WAIC = -0.2600
+Clayton90°Clayton0°Frank with WAIC = -0.3173
+Gumbel270°Clayton90°Clayton0°Frank with WAIC = -0.3176
+Clayton90°Clayton0° with WAIC = -0.3190
+Took 92.0 min
+Pass
+
+Sampling from Clayton180°Gumbel270°
+Best added copula: Frank  (WAIC = -0.2204)
+Best added copula: Clayton 180° (WAIC = -0.3488)
+Best added copula: Gumbel 270° (WAIC = -0.3874)
+Best added copula: Clayton 90° (WAIC = -0.3877)
+Best added copula: Gaussian  (WAIC = -0.3878)
+Best added copula: Gumbel 90° (WAIC = -0.3878)
+The best model is Gumbel90°GaussianClayton90°Gumbel270°Clayton180°Frank with WAIC = -0.3878
+Model reduced to Gumbel270°Clayton180°
+History:
+Frank with WAIC = -0.2204
+Clayton180°Frank with WAIC = -0.3488
+Gumbel270°Clayton180°Frank with WAIC = -0.3874
+Clayton90°Gumbel270°Clayton180°Frank with WAIC = -0.3877
+GaussianClayton90°Gumbel270°Clayton180°Frank with WAIC = -0.3878
+Gumbel270°Clayton180° with WAIC = -0.3888
+Took 103.0 min
+Pass
+
+Sampling from Gumbel90°Gaussian
+Best added copula: Gumbel 90° (WAIC = -0.1419)
+Best added copula: Frank  (WAIC = -0.2022)
+Best added copula: Clayton 270° (WAIC = -0.2024)
+Best added copula: Gaussian  (WAIC = -0.2024)
+The best model is Clayton270°FrankGumbel90° with WAIC = -0.2024
+Model reduced to FrankGumbel90°
+History:
+Gumbel90° with WAIC = -0.1419
+FrankGumbel90° with WAIC = -0.2022
+FrankGumbel90° with WAIC = -0.2021
+Took 60.0 min
+Correct WAIC: -0.2008, best WAIC -0.2021, diff: -0.0013
+Pass
+
+Sampling from GaussianClayton270°
+Best added copula: Gumbel 90° (WAIC = -0.1495)
+Best added copula: Frank  (WAIC = -0.1894)
+Best added copula: Clayton 270° (WAIC = -0.1915)
+Best added copula: Independence  (WAIC = -0.1902)
+The best model is Clayton270°FrankGumbel90° with WAIC = -0.1915
+History:
+Gumbel90° with WAIC = -0.1495
+FrankGumbel90° with WAIC = -0.1894
+Clayton270°FrankGumbel90° with WAIC = -0.1915
+Took 56.0 min
+Correct WAIC: -0.1948, best WAIC -0.1915, diff: 0.0032
+Pass
+
+Sampling from Gumbel180°Frank
+Best added copula: Gumbel 180° (WAIC = -0.1600)
+Best added copula: Frank  (WAIC = -0.2191)
+Best added copula: Clayton 270° (WAIC = -0.2195)
+Best added copula: Clayton 0° (WAIC = -0.2190)
+The best model is Clayton270°FrankGumbel180° with WAIC = -0.2195
+Model reduced to FrankGumbel180°
+History:
+Gumbel180° with WAIC = -0.1600
+FrankGumbel180° with WAIC = -0.2191
+FrankGumbel180° with WAIC = -0.2190
+Took 58.0 min
+Pass
+
+Sampling from Clayton0°Clayton90°
+Best added copula: Gumbel 180° (WAIC = -0.0253)
+Best added copula: Clayton 90° (WAIC = -0.2383)
+Best added copula: Clayton 0° (WAIC = -0.2506)
+Best added copula: Independence  (WAIC = -0.2509)
+Best added copula: Frank  (WAIC = -0.2508)
+The best model is IndependenceClayton0°Clayton90°Gumbel180° with WAIC = -0.2509
+Model reduced to Clayton0°Clayton90°
+History:
+Gumbel180° with WAIC = -0.0253
+Clayton90°Gumbel180° with WAIC = -0.2383
+Clayton0°Clayton90°Gumbel180° with WAIC = -0.2506
+Clayton0°Clayton90° with WAIC = -0.2586
+Took 62.0 min
+Pass
+
+Sampling from Clayton180°Gumbel270°
+Best added copula: Gumbel 270° (WAIC = -0.0242)
+Best added copula: Clayton 180° (WAIC = -0.2499)
+Best added copula: Gumbel 180° (WAIC = -0.2517)
+Best added copula: Independence  (WAIC = -0.2518)
+Best added copula: Clayton 0° (WAIC = -0.2518)
+Best added copula: Frank  (WAIC = -0.2518)
+The best model is Clayton0°IndependenceGumbel180°Clayton180°Gumbel270° with WAIC = -0.2518
+Model reduced to Clayton180°Gumbel270°
+History:
+Gumbel270° with WAIC = -0.0242
+Clayton180°Gumbel270° with WAIC = -0.2499
+Gumbel180°Clayton180°Gumbel270° with WAIC = -0.2517
+IndependenceGumbel180°Clayton180°Gumbel270° with WAIC = -0.2518
+Clayton180°Gumbel270° with WAIC = -0.2500
+Took 69.0 min
+Pass
+
+All tests took 13 h 12 min 38 s (47558)

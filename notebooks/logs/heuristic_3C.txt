@@ -1,0 +1,112 @@
+Sampling from GaussianClayton90°Gumbel0°
+Gaussian (WAIC = -0.1252)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.2481)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2565)
+Re-running reduced model...
+GaussianClayton90°Clayton180° (WAIC = -0.2564)
+Final model: GaussianClayton90°Clayton180°
+Took 6.0 min
+Correct WAIC: -0.2579, best WAIC -0.2564, diff: 0.0014
+Pass
+
+Sampling from FrankClayton90°Gumbel0°
+Gaussian (WAIC = -0.0489)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1573)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1578)
+Re-running reduced model...
+GaussianClayton90°Clayton180° (WAIC = -0.1621)
+Final model: GaussianClayton90°Clayton180°
+Took 6.0 min
+Correct WAIC: -0.1680, best WAIC -0.1621, diff: 0.0059
+Pass
+
+Sampling from FrankClayton180°Gumbel270°
+Gaussian (WAIC = -0.0618)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1567)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1670)
+Swap Clayton90°->Gumbel270°
+Swap Clayton270°->Gumbel90°
+Re-running reduced model...
+IndependenceGumbel270°Clayton180° (WAIC = -0.1735)
+Frank is better than Gauss
+Final model: IndependenceGumbel270°Clayton180°
+Took 9.0 min
+Correct WAIC: -0.1724, best WAIC -0.1735, diff: -0.0011
+Pass
+
+Sampling from Gumbel0°Gumbel180°Clayton90°
+Gaussian (WAIC = -0.1477)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.2986)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.3033)
+Swap Clayton0°->Gumbel180°
+Swap Clayton180°->Gumbel0°
+Re-running reduced model...
+Gumbel180°Clayton90°Gumbel0° (WAIC = -0.3113)
+Final model: Gumbel180°Clayton90°Gumbel0°
+Took 11.0 min
+Pass
+
+Sampling from GaussianClayton90°Gumbel0°
+Gaussian (WAIC = -0.0142)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1291)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1289)
+Swap Gumbel180°->Clayton0°
+Swap Gumbel270°->Clayton90°
+Swap Gumbel0°->Clayton180°
+Nothing to reduce
+Trying to substitute 2 elements (0 and 1) with a Gauss...
+GaussianClayton90°Clayton180° (WAIC = -0.1313)
+Trying to substitute 2 elements (0 and 2) with a Gauss...
+Trying to substitute 2 elements (0 and 3) with a Gauss...
+Trying to substitute 2 elements (1 and 2) with a Gauss...
+Trying to substitute 2 elements (1 and 3) with a Gauss...
+Trying to substitute 2 elements (2 and 3) with a Gauss...
+Final model: GaussianClayton90°Clayton180°
+Took 13.0 min
+Correct WAIC: -0.1380, best WAIC -0.1313, diff: 0.0068
+Pass
+
+Sampling from FrankClayton90°Gumbel0°
+Gaussian (WAIC = -0.0192)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1411)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1429)
+Swap Clayton0°->Gumbel180°
+Swap Clayton180°->Gumbel0°
+Re-running reduced model...
+IndependenceClayton90°Gumbel0° (WAIC = -0.1477)
+Frank is better than Gauss
+Final model: IndependenceClayton90°Gumbel0°
+Took 9.0 min
+Correct WAIC: -0.1488, best WAIC -0.1478, diff: 0.0010
+Pass
+
+Sampling from FrankClayton180°Gumbel270°
+Gaussian (WAIC = -0.0185)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1309)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1326)
+Swap Clayton90°->Gumbel270°
+Swap Clayton180°->Gumbel0°
+Nothing to reduce
+Trying to substitute 2 elements (0 and 1) with a Gauss...
+Trying to substitute 2 elements (0 and 2) with a Gauss...
+Trying to substitute 2 elements (1 and 2) with a Gauss...
+Final model: IndependenceGumbel270°Gumbel0°
+Took 6.0 min
+Correct WAIC: -0.1414, best WAIC -0.1326, diff: 0.0088
+Pass
+
+Sampling from Gumbel0°Gumbel180°Clayton90°
+Gaussian (WAIC = -0.0454)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.2476)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2459)
+Swap Gumbel180°->Clayton0°
+Swap Gumbel270°->Clayton90°
+Re-running reduced model...
+Clayton0°Clayton90°Gumbel0° (WAIC = -0.2538)
+Frank is better than Gauss
+Final model: Clayton0°Clayton90°Gumbel0°
+Took 7.0 min
+Correct WAIC: -0.2544, best WAIC -0.2538, diff: 0.0006
+Pass
+
+All tests took 1 h 17 min 22 s (4642)

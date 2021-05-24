@@ -1,0 +1,114 @@
+Sampling from Gumbel90°Gaussian
+Gaussian (WAIC = -0.1922)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.3070)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2996)
+Swap Gumbel180°->Clayton0°
+Swap Gumbel0°->Clayton180°
+Re-running reduced model...
+GaussianGumbel90° (WAIC = -0.3091)
+Final model: GaussianGumbel90°
+Took 11.0 min
+Pass
+
+Sampling from GaussianClayton270°
+Gaussian (WAIC = -0.1600)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.2687)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2835)
+Re-running reduced model...
+GaussianClayton270° (WAIC = -0.2845)
+Final model: GaussianClayton270°
+Took 5.0 min
+Pass
+
+Sampling from Gumbel180°Frank
+Gaussian (WAIC = -0.1534)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1993)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1977)
+Re-running reduced model...
+IndependenceGaussianGumbel180° (WAIC = -0.2074)
+Frank is better than Gauss
+tensor([False,  True,  True], device='cuda:0')
+FrankGumbel180° (WAIC = -0.2104)
+Final model: FrankGumbel180°
+Took 8.0 min
+Pass
+
+Sampling from Clayton0°Clayton90°
+Gaussian (WAIC = -0.1652)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.3142)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.3430)
+Re-running reduced model...
+Clayton0°Clayton90° (WAIC = -0.3448)
+Trying to substitute 2 elements (0 and 1) with a Gauss...
+Final model: Clayton0°Clayton90°
+Took 5.0 min
+Pass
+
+Sampling from Clayton180°Gumbel270°
+Gaussian (WAIC = -0.1965)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.3591)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.3688)
+Swap Clayton90°->Gumbel270°
+Re-running reduced model...
+Gumbel270°Clayton180° (WAIC = -0.3772)
+Final model: Gumbel270°Clayton180°
+Took 7.0 min
+Pass
+
+Sampling from Gumbel90°Gaussian
+Gaussian (WAIC = -0.1538)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.2320)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2218)
+Swap Gumbel270°->Clayton90°
+Re-running reduced model...
+GaussianGumbel90° (WAIC = -0.2326)
+Final model: GaussianGumbel90°
+Took 10.0 min
+Pass
+
+Sampling from GaussianClayton270°
+Gaussian (WAIC = -0.1062)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1747)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1783)
+Swap Clayton180°->Gumbel0°
+Re-running reduced model...
+GaussianClayton270° (WAIC = -0.1801)
+Final model: GaussianClayton270°
+Took 7.0 min
+Pass
+
+Sampling from Gumbel180°Frank
+Gaussian (WAIC = -0.1331)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1944)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.1936)
+Swap Gumbel270°->Clayton90°
+Re-running reduced model...
+GaussianGumbel180° (WAIC = -0.1992)
+Final model: GaussianGumbel180°
+Took 8.0 min
+Correct WAIC: -0.1897, best WAIC -0.1992, diff: -0.0094
+Pass
+
+Sampling from Clayton0°Clayton90°
+Gaussian (WAIC = -0.0079)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.1904)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2330)
+Re-running reduced model...
+Clayton0°Clayton90° (WAIC = -0.2361)
+Trying to substitute 2 elements (0 and 1) with a Gauss...
+Final model: Clayton0°Clayton90°
+Took 5.0 min
+Pass
+
+Sampling from Clayton180°Gumbel270°
+Gaussian (WAIC = -0.0083)
+IndependenceGaussianGumbel180°Gumbel270°Gumbel0°Gumbel90° (WAIC = -0.2277)
+IndependenceGaussianClayton0°Clayton90°Clayton180°Clayton270° (WAIC = -0.2535)
+Re-running reduced model...
+GaussianClayton90°Clayton180° (WAIC = -0.2549)
+Final model: GaussianClayton90°Clayton180°
+Took 6.0 min
+Correct WAIC: -0.2451, best WAIC -0.2549, diff: -0.0098
+Pass
+
+All tests took 1 h 21 min 0 s (4860)
