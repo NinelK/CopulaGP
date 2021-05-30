@@ -779,8 +779,8 @@ class MixtureCopula(Distribution):
                 # otherwise raise error
                 raise ValueError(f"Thetas {self.theta.shape} and values {value.shape} GP input shapes do not match")
         
-        if self._validate_args:
-            self._validate_sample(value)
+        # if self._validate_args:
+        #     self._validate_sample(value)
         assert value.shape[-1] == 2 #check that the samples are pairs of variables
         prob = torch.zeros_like(value[...,0]) # by default
         

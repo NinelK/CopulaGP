@@ -2,7 +2,7 @@ from scipy.stats import kendalltau
 import numpy as np
 import pickle as pkl
 import sys
-sys.path.insert(0, '/home/nina/CopulaGP/')
+sys.path.insert(0, '../')
 from utils import load_samples
 
 def heuristic_element_order(samples):
@@ -44,8 +44,8 @@ if __name__ == "__main__":
     day_name = f"Day{dayN}"
     exp_pref = f"{animal}_{day_name}"
 
-    path = '/home/nina/VRData/Processing/pkls'
-    path_models = '/home/nina/models'
+    path = '../../VRData/Processing/pkls'
+    path_models = '../models'
 
     #samples = utils.load_neurons_only(path,exp_pref) #load only neurons
     samples = utils.load_samples(path,exp_pref)

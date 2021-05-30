@@ -3,7 +3,7 @@ import numpy as np
 
 import os
 import sys
-home = '/home/nina/CopulaGP/'
+home = '../'
 sys.path.insert(0, home)
 
 import torch

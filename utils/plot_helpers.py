@@ -79,12 +79,12 @@ def Plot_MixModel_Param(ax: list, model,
         ax[0].plot(rho[0],rho[1], '--', color='grey', label='Pearson\'s rho')
 
     ax[0].set_ylabel(r'$\theta$_normalized')
-    ax[0].set_title('Copula parameters'+title)
+    ax[0].set_title('Copula parameters')
     ax[1].set_ylabel('[c]')
-    ax[1].set_title('Mixing param'+title)
+    ax[1].set_title('Mixing param')
     
     for axis in ax:
-        axis.set_xlabel('Position, [cm]')
+        axis.set_xlabel('x')
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
@@ -147,12 +147,12 @@ def Plot_MixModel_Param_MCMC(ax: list, model,
         ax[0].plot(rho[0],rho[1], '--', color='grey', label='Pearson\'s rho')
 
     ax[0].set_ylabel(r'$\theta$_normalized')
-    ax[0].set_title('Copula parameters '+title)
+    ax[0].set_title('Copula parameters')
     ax[1].set_ylabel('[c]')
-    ax[1].set_title('Mixing param '+title)
+    ax[1].set_title('Mixing param')
     
     for axis in ax:
-        axis.set_xlabel('Position in VR, [cm]')
+        axis.set_xlabel('x')
         axis.set_xlim(x.min(),x.max())
         axis.legend()
 
@@ -218,7 +218,7 @@ def _code_names(code, order):
 
 def Plot_Fit(model, X, Y,
             name_x: str, name_y: str, device: torch.device, filename = None,
-            interval_ends = np.linspace(0,1,5), order = None):
+            interval_ends = np.array([0,0.4,0.6,1.0]), order = None):
     '''
         The main plotting function that summarises the parameters if the model
         as well as compares simulated vs. real copula densities.
@@ -234,8 +234,7 @@ def Plot_Fit(model, X, Y,
     top_axes = (fig.add_axes(conf.top_left_ax),fig.add_axes(conf.top_right_ax))
     bottom_axes = np.array([fig.add_axes(conf.bottom_ax0),
                             fig.add_axes(conf.bottom_ax1),
-                            fig.add_axes(conf.bottom_ax2),
-                            fig.add_axes(conf.bottom_ax3)])
+                            fig.add_axes(conf.bottom_ax2)])
         
     for a in top_axes:
         for b in interval_ends[1:-1]:
