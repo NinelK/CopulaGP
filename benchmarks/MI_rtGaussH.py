@@ -18,7 +18,7 @@ NSamp=10000
 
 device = torch.device('cuda:1')
 filename = "new_rtGaussH.pkl"
-Nvars = [5]
+Nvars = [10,9]
 mc_size = 1000
 
 x = torch.linspace(0.,1.,NSamp).numpy()
@@ -164,7 +164,7 @@ for Nvar in Nvars:
 		print(f"MI: {res['integrated']:.3f}, {res['estimated']:.3f} ({eU.std().item():.3f}), {res['BI-KSG']:.3f}, {res['KSG']:.3f}, {res['MINE100']:.3f}")
 		print(f"H:, {-eC.mean().item():.3f}, {-res['BI-KSG_H']:.3f}")
 
-		results_file = f"./benchmarks/{filename}"
+		results_file = f"{filename}"
 		if os.path.exists(results_file):
 			with open(results_file,'rb') as f:
 				results = pkl.load(f)  

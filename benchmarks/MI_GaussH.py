@@ -82,7 +82,7 @@ for Nvar in Nvars:
 		subvine = vine.create_subvine(torch.arange(0,NSamp,10))
 		a = True
 		while a:
-			CopulaGP = subvine.stimMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
+			CopulaGP = subvine.inputMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
 			a = CopulaGP[1].item()!=CopulaGP[1].item()
 		res['true_integral'] = CopulaGP[0].item()
 
@@ -138,7 +138,7 @@ for Nvar in Nvars:
 		print(f"MI: {res['integrated']:.3f}, {res['estimated']:.3f} ({eU.std().item():.3f}), {res['BI-KSG']:.3f}, {res['KSG']:.3f}, {res['MINE100']:.3f}")
 		print(f"H:, {-eT.mean().item():.3f}, {-eC.mean().item():.3f}, {-res['BI-KSG_H']:.3f}")
 
-		results_file = f"{home}/benchmarks/{filename}"
+		results_file = f"{filename}"
 		if os.path.exists(results_file):
 			with open(results_file,'rb') as f:
 				results = pkl.load(f)  

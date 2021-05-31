@@ -4,7 +4,6 @@ import numpy as np
 import multiprocessing
 import os
 from torch import device, tensor, load, no_grad
-from . import conf
 
 import copulagp.select_copula as select_copula
 import copulagp.bvcopula as bvcopula
@@ -36,7 +35,7 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False):
 			if light:
 				(store, waic) = select_copula.select_light(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
 			else:
-				(store, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
+				(store, waic) = select_copula.select_with_heuristics(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
 			model = store.model_init(device(device_str))
 			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
 		t_end = time.time()
@@ -96,7 +95,7 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	exp_pref = exp
 	if gauss:
 		exp_pref += '_g'
-	out_dir = f'{conf.path2outputs}/logs_{exp_pref}/layer{layer}'
+	out_dir = f'./out/logs_{exp_pref}/layer{layer}'
 
 	global device_list
 	device_list = devices
@@ -104,7 +103,7 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	if exp!='':
 		if layer==0:
 			try:
-				os.mkdir(f'{conf.path2outputs}/logs_{exp_pref}')
+				os.mkdir(f'./out/logs_{exp_pref}')
 			except FileExistsError as error:
 				print(f"Error:{error}")
 

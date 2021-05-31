@@ -1,4 +1,4 @@
-# Parametric Copulas (GPyTorch 1.2 version)
+# Parametric Copula-GP framework
 
 This is the GPyTorch-based package that infers copula parameters using a latent Gaussian Process model.
 The package contains 4 copula families (Gaussian, Frank, Clayton, Gumbel) + linear combinations of copulas from same or different families.
@@ -6,9 +6,7 @@ The models are constructed with the greedy or heuristic algorithm and the best m
 Both greedy and heuristic algorithms perform well on synthetic data (see tests/integration).
 The bivariate models can be then organised into a C-Vine.
 A number of methods for computing information measures (e.g. vine.entropy, vine.inputMI) are implemented.
-For a complete description of our method, see:
-
-To reproduce the results in the preprint exactly, use 'Figures' branch.
+For a complete description of our method, see our pre-print (link below).
 
 # Installing the package
 
@@ -23,13 +21,13 @@ Let us start with importing pytorch and loading some data (e.g. the synthetic ne
 ```
 import torch
 import pickle as pkl
-with open("../../examples/GLM_generated_data.pkl","rb") as f:
+with open("./notebooks/started/GLM_generated_data.pkl","rb") as f:
     data = pkl.load(f)
 ```
 
 Next, we use fastKDE to transform the marginals:
 ```
-import marginal as mg
+import copulagp.marginal as mg
 y = torch.zeros(data['Y'].shape)
 for i in range(2):
     y[i] = torch.tensor(mg.fast_signal2uniform(data['Y'][i],data['X']))
@@ -37,7 +35,7 @@ for i in range(2):
 
 Next, let us try a Clayton copula model on this data (optionally: on a GPU; should take around 30 seconds)
 ```
-import bvcopula
+import copulagp.bvcopula
 device='cuda:0'
 train_x = torch.tensor(data['X']).float().to(device=device)
 train_y = y.T.float().to(device=device)
@@ -49,7 +47,7 @@ print(f"WAIC: {waic}") # waic = -0.119
 
 Let us plot the results, using a plot helper Plot_Fit for this:
 ```
-from utils import Plot_Fit
+from copulagp.utils import Plot_Fit
 Plot_Fit(model, data['X'], y.numpy().T,'Excitatory', 'Inhibitory', device);
 ```
 ![Clayton copula fit](notebooks/started/clayton.png)
@@ -73,13 +71,13 @@ plt.fill_between(test_x.cpu().numpy(),entropies.mean(0)-entropies.std(0),entropi
 Note, that Clayton copula is not the best fitting model for this example. We can find the best one by using one of the model selection algorithms (e.g. heuristic):
 
 ```
-import select_copula
+import copulagp.select_copula
 (store, waic) = select_copula.select_with_heuristics(data['X'],y.numpy().T,device,'cond',\
                                             './','Excitatory','Inhibitory',train_x=train_x,train_y=train_y)
 print(f"Best model: {store.name_string}, WAIC: {waic}") # best_waic = -0.139
 ```
 
-The best copula found by the heuristic algorithm is a mixture of Frank and Clayton. We can visualize this model and calculate it's entropy using the same code as for the Clayton copula. For results, see notebooks/Getting_started.ipynb.
+The best copula found by the heuristic algorithm is a mixture of Frank and Clayton. We can visualize this model and calculate it's entropy using the same code as for the Clayton copula (see the results in notebooks/Getting_started.ipynb).
 
 More notebooks with examples and the code that generated the figures for our paper can be found in notebooks/.
 
