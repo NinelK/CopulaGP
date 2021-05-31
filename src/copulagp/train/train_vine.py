@@ -1,6 +1,6 @@
 from copulagp.utils import standard_loader
-from train import train_next_tree
-from train import save_checkpoint, load_checkpoint, save_final
+from copulagp.train import train_next_tree
+from copulagp.train import save_checkpoint, load_checkpoint, save_final
 from typing import Callable
 
 import pickle as pkl

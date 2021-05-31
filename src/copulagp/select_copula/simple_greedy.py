@@ -56,7 +56,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 
 	best_i = np.argmin(waics)
 	best = available[best_i]
-	logging.info(f"Best added copula: {best.name} {utils.strrot(best.rotation)} (WAIC = {np.min(waics):.4f})")
+	logging.info(f"Best added copula: {get_copula_name_string(best)} (WAIC = {np.min(waics):.4f})")
 
 	best_likelihoods = [best] + simple_model # order here is extrimely important!!!
 	waic = np.min(waics)

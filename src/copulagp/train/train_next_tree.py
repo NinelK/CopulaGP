@@ -6,11 +6,11 @@ import os
 from torch import device, tensor, load, no_grad
 from . import conf
 
-import copulagp.select_copula
-import copulagp.bvcopula
+import copulagp.select_copula as select_copula
+import copulagp.bvcopula as bvcopula
 from copulagp.select_copula import conf as conf_select
 
-def worker(X, Y0, Y1, idxs, layer, gauss=False):
+def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False):
 	# get unique gpu id for cpu id
 	cpu_name = multiprocessing.current_process().name
 	cpu_id = (int(cpu_name[cpu_name.find('-') + 1:]) - 1)%len(device_list) # ids will be 8 consequent numbers
@@ -33,8 +33,10 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 			else:
 				store = model.cpu().serialize()
 		else:
-			(store, waic) = select_copula.select_light(X,Y,device(device_str),
-							exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
+			if light:
+				(store, waic) = select_copula.select_light(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
+			else:
+				(store, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
 			model = store.model_init(device(device_str))
 			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
 		t_end = time.time()
@@ -59,7 +61,7 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False):
 		return (store, waic, y)
 
 def train_next_tree(X: np.ndarray, Y: np.ndarray, 
-	layer: int, devices: list, gauss=False, exp = ''):
+	layer: int, devices: list, gauss=False, light=False, exp = ''):
 	'''
 	Trains one vine copula tree
 
@@ -92,6 +94,8 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 
 	global exp_pref, out_dir
 	exp_pref = exp
+	if gauss:
+		exp_pref += '_g'
 	out_dir = f'{conf.path2outputs}/logs_{exp_pref}/layer{layer}'
 
 	global device_list
@@ -115,7 +119,7 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	pool = multiprocessing.Pool(len(device_list))
 
 	for i in np.arange(1,NN+1): 
-		results[i-1] = pool.apply_async(worker, (X, Y[:,0], Y[:,i], [0,i],  layer, gauss, ))
+		results[i-1] = pool.apply_async(worker, (X, Y[:,0], Y[:,i], [0,i],  layer, gauss, light, ))
 
 	pool.close()
 	pool.join()  # block at this line until all processes are done

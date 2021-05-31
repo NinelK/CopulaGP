@@ -1,12 +1,12 @@
 #learning rates
 grid_size = 60 # the size used for model selection
 # fine_grid_size = 120 # the size used for final model
-base_lr = 0.05 # 1e-2 for the paper results
-hyper_lr = 0.02 # 1e-3 for the paper results
-decrease_lr = 1. # 1. for the paper results
+base_lr = 0.05 
+hyper_lr = 0.02 
+decrease_lr = 1. 
 mix_lr_ratio = .5 # lr_mix / lr_thetas
 iter_print = 100
-max_num_iter = 1500 # 3000 for the paper results
+max_num_iter = 1500 
 a_loss_tol = 0.0001 		# the minimal change in loss that indicates convergence
 r_loss_tol = 0.001 			# or, the relative change in loss
 loss_tol2check_waic = 0.05
