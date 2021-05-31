@@ -1,3 +1,20 @@
+Metadata-Version: 2.1
+Name: copulagp
+Version: 0.0.1
+Summary: A Copula-GP (Gaussian Process) package
+Home-page: https://github.com/NinelK/CopulaGP
+Author: Nina Kudryashova
+Author-email: nkudryas@ed.ac.uk
+License: UNKNOWN
+Project-URL: Bug Tracker, https://github.com/NinelK/CopulaGP/issues
+Platform: UNKNOWN
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: GPL License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.6
+Description-Content-Type: text/markdown
+License-File: LICENSE
+
 # Parametric Copulas (GPyTorch 1.2 version)
 
 This is the GPyTorch-based package that infers copula parameters using a latent Gaussian Process model.
@@ -14,7 +31,8 @@ To reproduce the results in the preprint exactly, use 'Figures' branch.
 
 In a virtual environment, install all the dependencies and the package using the following commands:
 ```
-pip install .
+pip install -r requirements.txt
+python install .
 ```
 
 # Getting started
@@ -93,3 +111,4 @@ More notebooks with examples and the code that generated the figures for our pap
   year={2020}
 }
 ```
+

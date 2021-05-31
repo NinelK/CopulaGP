@@ -1,14 +1,13 @@
-import sys
-sys.path.append('/home/nina/CopulaGP/')
 import time
 import numpy as np
 import torch
-import utils
-import select_copula
-import bvcopula
-# from select_copula import select_copula_model as select_model
-# from select_copula import select_with_heuristics as select_model
-from select_copula import select_light as select_model
+import copulagp.utils as utils
+import copulagp.synthetic_data as sd
+import copulagp.select_copula as select_copula
+import copulagp.bvcopula as bvcopula
+# from copulagp.select_copula import select_copula_model as select_model
+from copulagp.select_copula import select_with_heuristics as select_model
+# from copulagp.select_copula import select_light as select_model
 
 import pytest
 torch.backends.cudnn.deterministic = True
@@ -26,7 +25,7 @@ def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
     if len(likelihoods)==1:
         assert mode=='thetas'
 
-    copula_model = utils.create_model(mode,likelihoods,X.shape[0])
+    copula_model = sd.create_model(mode,likelihoods,X.shape[0])
     exp_name = utils.get_copula_name_string(likelihoods)
 
     print('Try and guess ',exp_name)
@@ -44,7 +43,8 @@ def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
     print(f"Took {int(t2-t1)} sec")
 
     # assert
-    if ((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected))):
+    selected_copula = selected.model_init(device)
+    if ((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected_copula.likelihoods))):
         print('Pass')
     else:
         waic_correct, _ = bvcopula.infer(likelihoods,train_x,train_y,device=device)

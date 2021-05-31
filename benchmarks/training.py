@@ -1,11 +1,7 @@
-import sys
-home = '../'
-sys.path.insert(0, home)
-
 import torch
-from vine import CVine
-import bvcopula
-import utils
+from copulagp.vine import CVine
+import copulagp.bvcopula as bvcopula
+import copulagp.utils as utils
 import numpy as np
 from scipy.stats import norm
 

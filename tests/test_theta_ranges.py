@@ -3,8 +3,10 @@ import unittest
 import torch
 import numpy as np
 from numpy.testing import assert_array_less
-import bvcopula
-from bvcopula import conf
+import sys
+sys.path.insert(0, '../src')
+import copulagp.bvcopula as bvcopula
+from copulagp.bvcopula import conf
 
 torch.manual_seed(0) 
 

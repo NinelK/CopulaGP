@@ -1,13 +1,11 @@
-import sys
-sys.path.append('/home/nina/CopulaGP/')
 import time
 import numpy as np
 import torch
 import gpytorch
-import utils
-import bvcopula
+import copulagp.utils as utils
+import copulagp.bvcopula as bvcopula
 import pytest
-from bvcopula import conf
+from copulagp.bvcopula import conf
 from numpy.testing import assert_allclose
 
 torch.backends.cudnn.deterministic = True
@@ -15,16 +13,19 @@ torch.backends.cudnn.benchmark = False
 torch.manual_seed(0)
 np.random.seed(0)
 
-def extreme_thetas_inference(X, bvc, true_thetas, atol=0., device=torch.device('cpu')):
+def extreme_thetas_inference(X, bvc, true_thetas, atol=0., device=torch.device('cuda:1')):
 
     t1 = time.time()
 
     copula_model = bvc.copula(true_thetas) 
     Y = copula_model.sample().numpy().squeeze()
-    from bvcopula import conf
     #convert numpy data to tensors (optionally on GPU)
     train_x = torch.tensor(X).float().to(device=device)
     train_y = torch.tensor(Y).float().to(device=device)
+
+    # import pickle as pkl
+    # with open("dump.pkl","wb") as f:
+    #     pkl.dump([train_x,train_y,bvc],f)
     
     _, model = bvcopula.infer([bvc], train_x, train_y, device)
         

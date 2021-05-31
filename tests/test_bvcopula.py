@@ -3,7 +3,9 @@ import unittest
 import torch
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
-from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
+import sys
+sys.path.insert(0, '../src')
+from copulagp.bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
 
 torch.manual_seed(0) 
 

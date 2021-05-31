@@ -2,8 +2,10 @@ import unittest
 
 import torch
 import numpy as np
-from bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
-from bvcopula import conf
+import sys
+sys.path.insert(0, '../src')
+from copulagp.bvcopula.distributions import GaussianCopula, FrankCopula, ClaytonCopula, GumbelCopula, StudentTCopula
+from copulagp.bvcopula import conf
 
 torch.manual_seed(0) 
 
