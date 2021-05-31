@@ -2,26 +2,24 @@ import pickle as pkl
 import numpy as np
 
 import os
-import sys
-home = '/disk/scratch/nkudryas/CopulaGP/'
-sys.path.insert(0, home)
 
 import torch
-import utils
-import marginal as mg
+import copulagp.utils as utils
+import copulagp.marginal as mg
 import time
-import MI
+import copulagp.MI as MI
 from scipy.stats import t
-import bvcopula#select_copula
-from vine import CVine
+import copulagp.bvcopula as bvcopula
+from copulagp.vine import CVine
 from scipy.stats import sem as SEM
-from benchmarks import train4entropy
+from training import train4entropy
 
 NSamp=10000
 
-device = torch.device('cuda:7')
-filename = "rtGaussH_10.pkl"
-Nvars = [10]
+device = torch.device('cuda:1')
+filename = "new_rtGaussH.pkl"
+Nvars = [5]
+mc_size = 1000
 
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
@@ -60,9 +58,8 @@ likelihoodU =  [bvcopula.GaussianCopula_Likelihood(),
 # 				bvcopula.GaussianCopula_Likelihood(),
 #                 bvcopula.ClaytonCopula_Likelihood(rotation='180°')]
 
-mc_size = 2000
-sem_tol_base = 0.01
-Rps = 5
+sem_tol_base = 0.05
+Rps = 3
 
 for Nvar in Nvars:
 
@@ -89,7 +86,7 @@ for Nvar in Nvars:
 		subvine = vine.create_subvine(torch.arange(0,NSamp,10))
 		a = True
 		while a:
-			CopulaGP = subvine.stimMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
+			CopulaGP = subvine.inputMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
 			a = CopulaGP[1].item()!=CopulaGP[1].item()
 		res['true_integral'] = CopulaGP[0].item()
 
@@ -145,7 +142,7 @@ for Nvar in Nvars:
 		res['estimated'] = estimated
 		#integrate a conditional copula
 		subvine = vine.create_subvine(torch.arange(0,NSamp,10))
-		CopulaGP = subvine.stimMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
+		CopulaGP = subvine.inputMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
 		res['integrated'] = CopulaGP[0].item()
 
 		t3 = time.time()
@@ -167,7 +164,7 @@ for Nvar in Nvars:
 		print(f"MI: {res['integrated']:.3f}, {res['estimated']:.3f} ({eU.std().item():.3f}), {res['BI-KSG']:.3f}, {res['KSG']:.3f}, {res['MINE100']:.3f}")
 		print(f"H:, {-eC.mean().item():.3f}, {-res['BI-KSG_H']:.3f}")
 
-		results_file = f"{home}/benchmarks/{filename}"
+		results_file = f"./benchmarks/{filename}"
 		if os.path.exists(results_file):
 			with open(results_file,'rb') as f:
 				results = pkl.load(f)  

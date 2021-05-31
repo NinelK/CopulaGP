@@ -2,24 +2,25 @@ import pickle as pkl
 import numpy as np
 
 import os
-import sys
-home = '../'
-sys.path.insert(0, home)
 
 import torch
-import utils
-import marginal as mg
+import copulagp.utils as utils
+import copulagp.marginal as mg
 import time
-import MI
+import copulagp.MI as MI
 from scipy.stats import t
-from train import conf
-import bvcopula#select_copula
-from vine import CVine
+import copulagp.bvcopula as bvcopula
+from copulagp.vine import CVine
 from scipy.stats import sem as SEM
-from benchmarks import train4entropy, integrate_student
+from training import train4entropy, integrate_student
+
 
 NSamp=10000
-device = torch.device('cuda:0')
+device = torch.device('cuda:1')
+filename = "new_StudentH.pkl"
+Nvars = [5]
+mc_size = 1000
+
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
 
@@ -29,11 +30,8 @@ likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
 likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
 				bvcopula.GumbelCopula_Likelihood(rotation='0°'),
 				bvcopula.GaussianCopula_Likelihood()]
-
-filename = "StudentH_10.pkl"
-mc_size = 2000
-sem_tol=0.015
-Rps = 5
+sem_tol=0.02
+Rps = 3
 
 #define functions
 Frhos = lambda NN: np.ones(NN)*0.7
@@ -42,7 +40,7 @@ Fdfs = lambda NN: np.exp(5*np.linspace(0,1,NN))+1
 rhos = Frhos(NSamp)
 dfs = Fdfs(NSamp)
 
-for Nvar in [10]:
+for Nvar in Nvars:
 	HRgS = utils.student_H(rhos,dfs,Nvar)/np.log(2)
 
 	if Nvar<=5:

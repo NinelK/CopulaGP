@@ -2,23 +2,25 @@ import pickle as pkl
 import numpy as np
 
 import os
-import sys
-home = '../'
-sys.path.insert(0, home)
 
 import torch
-import utils
-import marginal as mg
+import copulagp.utils as utils
+import copulagp.marginal as mg
 import time
-import MI
+import copulagp.MI as MI
 from scipy.stats import t
-import bvcopula#select_copula
-from vine import CVine
+import copulagp.bvcopula as bvcopula
+from copulagp.vine import CVine
 from scipy.stats import sem as SEM
-from benchmarks import train4entropy
+from training import train4entropy
+
 
 NSamp=10000
 device = torch.device('cuda:1')
+filename = "new_GaussH.pkl"
+Nvars = [2,3,4,5,6,7,8,9,10]
+mc_size = 1000
+
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
 
@@ -51,12 +53,10 @@ likelihoodU = [bvcopula.IndependenceCopula_Likelihood(),
                 bvcopula.GumbelCopula_Likelihood(rotation='0°'),
                 bvcopula.GumbelCopula_Likelihood(rotation='180°')] # True unconditional
 
-filename = "GaussH.pkl"
-mc_size = 1000
 sem_tol_base = 0.05
 Rps = 3
 
-for Nvar in range(9,11):
+for Nvar in Nvars:
 
 	sem_tol = sem_tol_base #* Nvar
 
