@@ -4,13 +4,13 @@ from copulagp.train import save_checkpoint, load_checkpoint, save_final
 from typing import Callable
 
 import pickle as pkl
-from torch import tensor
+from torch import tensor, randperm
 from copulagp.vine import CVine
 
 def train_vine(exp: str, path_data: Callable[[int],str], 
 		path_models: Callable[[int],str], path_final: str,
 		layers_max=-1,start=0,gauss=False,light=False,
-		device_list=['cpu']):
+		shuffle=False, device_list=['cpu']):
 	'''
 	Trains a vine model layer by layer, saving
 	the checkpoints between the layers
@@ -37,6 +37,11 @@ def train_vine(exp: str, path_data: Callable[[int],str],
 	gauss : bool (Default = False)
 		A flag that turns off model selection
 		and only trains gaussian copula models
+	light : bool (Default = False)
+		A flag that switches to a simpler model selection
+		(without a Gumbel copula, which is often well approximated by a Gaussian+Clayton)
+	shuffle : bool (Default = False)
+		A flag that switches on the shuffling of X
 	device_list : List[str] (Default = ['cpu'])
 		A list of devices to be used for
 		training (in parallel)
@@ -58,8 +63,10 @@ def train_vine(exp: str, path_data: Callable[[int],str],
 	else:
 		X,Y,to_save = load_checkpoint(path_data(start),path_models(start-1))
 	for layer in range(start,layers):
+		if shuffle:
+			X = X[randperm(X.shape[0])]
 		print(f'Starting {exp} layer {layer}/{layers}')
-		model, waic, _ = train_next_tree(X,Y,layer,device_list,gauss=gauss,light=light,exp=exp)
+		model, waic, Y = train_next_tree(X,Y,layer,device_list,gauss=gauss,light=light,exp=exp)
 		to_save['models'].append(model)
 		to_save['waics'].append(waic)
 		# save checkpoint
@@ -70,7 +77,8 @@ def train_vine(exp: str, path_data: Callable[[int],str],
 
 	return to_save
 
-def train_vine_light(X,Y,layers_max=-1,gauss=False,device_list=['cpu']):
+def train_small_vine(X,Y,layers_max=-1,gauss=False,light=False,
+		shuffle=False,device_list=['cpu']):
 	'''
 	Same as train_vine, but does not
 	save any files. Takes (X,Y) as an input
@@ -89,6 +97,11 @@ def train_vine_light(X,Y,layers_max=-1,gauss=False,device_list=['cpu']):
 	gauss : bool (Default = False)
 		A flag that turns off model selection
 		and only trains gaussian copula models
+	light : bool (Default = False)
+		A flag that switches to a simpler model selection
+		(without a Gumbel copula, which is often well approximated by a Gaussian+Clayton)
+	shuffle : bool (Default = False)
+		A flag that switches on the shuffling of X
 	device_list : List[str] (Default = ['cpu'])
 		A list of devices to be used for
 		training (in parallel)
@@ -108,8 +121,10 @@ def train_vine_light(X,Y,layers_max=-1,gauss=False,device_list=['cpu']):
 	to_save['models'], to_save['waics'] = [],[]
 
 	for layer in range(layers):
+		if shuffle:
+			X = X[randperm(X.shape[0])]
 		print(f'Starting layer {layer}/{layers}')
-		model, waic, Y = train_next_tree(X,Y,layer,device_list,gauss=gauss,exp='')
+		model, waic, Y = train_next_tree(X,Y,layer,device_list,gauss=gauss,light=light,exp='')
 		to_save['models'].append(model)
 		to_save['waics'].append(waic)
 

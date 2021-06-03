@@ -28,7 +28,8 @@ if __name__ == "__main__":
 	parser.add_argument('-layers', default=-1, help='How many layers? (-1 = all possible)', type=int)
 	parser.add_argument('-start', default=0, help='Re-Start from a certain layer', type=int)
 	parser.add_argument('--gauss','-g', default=False, help='Train with only Gauss Copulas', action='store_true')
-	parser.add_argument('--light','-l', default=False, help='Light model selection, without Gumbel')
+	parser.add_argument('--light','-l', default=False, help='Light model selection, without Gumbel', action='store_true')
+	parser.add_argument('--shuffle','-s', default=False, help='Shuffle X', action='store_true')
 	# TODO paths to exps
 
 	args = parser.parse_args()
@@ -36,16 +37,18 @@ if __name__ == "__main__":
 	g = '_G' if args.gauss else ''
 	if args.light:
 		g += 'L'
+	if args.shuffle:
+		g += 'S'
 	print(g)
 	path_data = lambda layer: f"{conf.path2data}/{args.exp}{g}_layer{layer}.pkl"
 	path_models = lambda layer: f"{conf.path2outputs}/{args.exp}{g}_models_layer{layer}.pkl"
 	path_final = f"{conf.path2outputs}/{args.exp}{g}_trained.pkl"
 
-	gpus = range(0,2)
+	gpus = range(2,8)
 	start = time.time()
 	result = train_vine(args.exp, path_data, path_models, path_final,
 		layers_max=args.layers,start=args.start,gauss=args.gauss,
-		light=args.light,device_list=[f'cuda:{i}' for i in gpus])
+		light=args.light,shuffle=args.shuffle,device_list=[f'cuda:{i}' for i in gpus])
 	end = time.time()
 
 	print(f"Done. Training {args.start}-{len(result['models'])} trees took {(end-start)//60} min")

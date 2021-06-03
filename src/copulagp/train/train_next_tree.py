@@ -9,7 +9,7 @@ import copulagp.select_copula as select_copula
 import copulagp.bvcopula as bvcopula
 from copulagp.select_copula import conf as conf_select
 
-def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False):
+def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False, shuffle=False):
 	# get unique gpu id for cpu id
 	cpu_name = multiprocessing.current_process().name
 	cpu_id = (int(cpu_name[cpu_name.find('-') + 1:]) - 1)%len(device_list) # ids will be 8 consequent numbers
@@ -47,8 +47,9 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False):
 	finally:
 		print(f"{n0}-{n1} {store.name_string} {waic:.4} took {int((t_end-t_start)/60)} min")
 		# save textual info into model list
-		with open(out_dir+'_model_list.txt','a') as f:
-			f.write(f"{n0}-{n1} {store.name_string}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
+		if out_dir!=None:
+			with open(out_dir+'_model_list.txt','a') as f:
+				f.write(f"{n0}-{n1} {store.name_string}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
 
 		if store.name_string!='Independence':
 			model.gp_model.eval()
@@ -60,7 +61,8 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False):
 		return (store, waic, y)
 
 def train_next_tree(X: np.ndarray, Y: np.ndarray, 
-	layer: int, devices: list, gauss=False, light=False, exp = ''):
+	layer: int, devices: list, gauss=False, light=False, shuffle=False, 
+	exp = ''):
 	'''
 	Trains one vine copula tree
 
@@ -95,12 +97,12 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	exp_pref = exp
 	if gauss:
 		exp_pref += '_g'
-	out_dir = f'./out/logs_{exp_pref}/layer{layer}'
 
 	global device_list
 	device_list = devices
 
 	if exp!='':
+		out_dir = f'./out/logs_{exp_pref}/layer{layer}'
 		if layer==0:
 			try:
 				os.mkdir(f'./out/logs_{exp_pref}')
@@ -111,6 +113,8 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 			os.mkdir(out_dir)
 		except FileExistsError as error:
 			print(f"Error:{error}")
+	else:
+		out_dir = None
 
 	NN = Y.shape[-1]-1
 
@@ -118,7 +122,7 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	pool = multiprocessing.Pool(len(device_list))
 
 	for i in np.arange(1,NN+1): 
-		results[i-1] = pool.apply_async(worker, (X, Y[:,0], Y[:,i], [0,i],  layer, gauss, light, ))
+		results[i-1] = pool.apply_async(worker, (X, Y[:,0], Y[:,i], [0,i],  layer, gauss, light, shuffle))
 
 	pool.close()
 	pool.join()  # block at this line until all processes are done

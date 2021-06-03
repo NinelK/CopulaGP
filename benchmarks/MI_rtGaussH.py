@@ -16,10 +16,10 @@ from training import train4entropy
 
 NSamp=10000
 
-device = torch.device('cuda:1')
-filename = "new_rtGaussH.pkl"
-Nvars = [10,9]
-mc_size = 1000
+device = torch.device('cuda:0')
+filename = "redo_rtGaussH.pkl"
+Nvars = [10,9,8,7,6,5,4,3,2]
+mc_size = 1500
 
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
@@ -38,11 +38,6 @@ def const_rho_layers(rho,Nvar):
 
 rho0 = torch.linspace(-0.1,.999,NSamp,device=device).unsqueeze(0)
 
-likelihoodTC = [bvcopula.GaussianCopula_Likelihood()] #True conditional (known)
-likelihoodTU = [bvcopula.IndependenceCopula_Likelihood(),
-                bvcopula.GaussianCopula_Likelihood(),
-                bvcopula.GumbelCopula_Likelihood(rotation='0°'),
-                bvcopula.GumbelCopula_Likelihood(rotation='180°')] # True unconditional
 #rt
 likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
                 bvcopula.GumbelCopula_Likelihood(rotation='180°'),
@@ -50,13 +45,6 @@ likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
 likelihoodU =  [bvcopula.GaussianCopula_Likelihood(),
                 bvcopula.GumbelCopula_Likelihood(rotation='180°'),
                 bvcopula.GumbelCopula_Likelihood(rotation='0°')] 
-# #full
-# likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
-# 				bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
-#                 bvcopula.GumbelCopula_Likelihood(rotation='0°')]
-# likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
-# 				bvcopula.GaussianCopula_Likelihood(),
-#                 bvcopula.ClaytonCopula_Likelihood(rotation='180°')]
 
 sem_tol_base = 0.05
 Rps = 3
@@ -86,7 +74,7 @@ for Nvar in Nvars:
 		subvine = vine.create_subvine(torch.arange(0,NSamp,10))
 		a = True
 		while a:
-			CopulaGP = subvine.inputMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
+			CopulaGP = subvine.inputMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol/5, v=v)
 			a = CopulaGP[1].item()!=CopulaGP[1].item()
 		res['true_integral'] = CopulaGP[0].item()
 
@@ -102,15 +90,8 @@ for Nvar in Nvars:
 		res['new_y'] = new_y
 		res['transformed_y'] = transformed_y
 
-		#now estimate
-		# train conditional & unconditional CopulaGP 
-		_, eC = train4entropy(train_x,y,likelihoodTC,
-			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v)
-		_, eU = train4entropy(train_x,y,likelihoodTU,
-			mc_size=mc_size,device=device,sem_tol=sem_tol,v=v,shuffle=True)
+		# true entropy
 		eT = vine.entropy(sem_tol=sem_tol, mc_size=mc_size, v=v)
-		res['gauss_eC'] = eC.cpu().numpy()
-		res['gauss_eU'] = eU.cpu().numpy()
 		res['gauss_eT'] = eT.cpu().numpy()
 
 		t1 = time.time()
@@ -124,8 +105,8 @@ for Nvar in Nvars:
 		res['BI-KSG'], res['BI-KSG_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),transformed_y,)
 		res['KSG'], res['KSG_H'] = MI.Mixed_KSG(x,transformed_y)
 
-		print(f"{res['true_integral']:.3f}, {(eU-eT).mean().item():.3f} ({eU.std().item():.3f}), \
-{(eU-eC).mean().item():.3f} ({eU.std().item():.3f}), {res['gauss_BI-KSG']:.3f}, {res['gauss_KSG']:.3f}")
+		# print(f"{res['true_integral']:.3f}, {(eU-eT).mean().item():.3f} ({eU.std().item():.3f}), \
+# {(eU-eC).mean().item():.3f} ({eU.std().item():.3f}), {res['gauss_BI-KSG']:.3f}, {res['gauss_KSG']:.3f}")
 
 		t2 = time.time()
 
@@ -161,8 +142,8 @@ for Nvar in Nvars:
 		t4 = time.time()
 		print(f"Took: {(t4-t0)//60} min")
 
-		print(f"MI: {res['integrated']:.3f}, {res['estimated']:.3f} ({eU.std().item():.3f}), {res['BI-KSG']:.3f}, {res['KSG']:.3f}, {res['MINE100']:.3f}")
-		print(f"H:, {-eC.mean().item():.3f}, {-res['BI-KSG_H']:.3f}")
+		# print(f"MI: {res['integrated']:.3f}, {res['estimated']:.3f} ({eU.std().item():.3f}), {res['BI-KSG']:.3f}, {res['KSG']:.3f}, {res['MINE100']:.3f}")
+		# print(f"H:, {-eC.mean().item():.3f}, {-res['BI-KSG_H']:.3f}")
 
 		results_file = f"{filename}"
 		if os.path.exists(results_file):

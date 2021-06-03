@@ -16,20 +16,20 @@ from training import train4entropy, integrate_student
 
 
 NSamp=10000
-device = torch.device('cuda:0')
-filename = "new_StudentH.pkl"
-Nvars = [5]
-mc_size = 1000
+device = torch.device('cuda:1')
+filename = "redo_StudentH.pkl"
+Nvars = [10,9,8,7,6,5,4,3,2]
+mc_size = 1500
 
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
 
 likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
-                # bvcopula.GumbelCopula_Likelihood(rotation='0°'),
+                bvcopula.GumbelCopula_Likelihood(rotation='0°'),
                 bvcopula.GumbelCopula_Likelihood(rotation='180°')] 
-likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='0°'),
-				bvcopula.GumbelCopula_Likelihood(rotation='0°'),
-				bvcopula.GaussianCopula_Likelihood()]
+likelihoodU =  [bvcopula.GaussianCopula_Likelihood(),
+                bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+                bvcopula.GumbelCopula_Likelihood(rotation='0°')]
 sem_tol=0.02
 Rps = 3
 
@@ -74,17 +74,17 @@ for Nvar in Nvars:
 		res['y0'] = y0
 
 		# run classic estimators
-		# res['BI-KSG_N'], res['BI-KSG_N_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),y,)
-		# res['KSG_N'], res['KSG_N_H'] = MI.Mixed_KSG(x,y)
-		# res['BI-KSG'], res['BI-KSG_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),y0,)
-		# res['KSG'], res['KSG_H'] = MI.Mixed_KSG(x,y0)
+		res['BI-KSG_N'], res['BI-KSG_N_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),y,)
+		res['KSG_N'], res['KSG_N_H'] = MI.Mixed_KSG(x,y)
+		res['BI-KSG'], res['BI-KSG_H'] = MI.BI_KSG(x.reshape((*x.shape,1)),y0,)
+		res['KSG'], res['KSG_H'] = MI.Mixed_KSG(x,y0)
 
 		# run neural network estimators
-		# for H in [100,200,500]: #H=1000 100% overfits
-		# 	mi = np.nan
-		# 	while mi!=mi:
-		# 		mi = MI.train_MINE(y0,H=H,lr=0.01,device=device).item()/np.log(2)
-		# 	res[f'MINE{H}'] = mi
+		for H in [100,200,500]: #H=1000 100% overfits
+			mi = np.nan
+			while mi!=mi:
+				mi = MI.train_MINE(y0,H=H,lr=0.01,device=device).item()/np.log(2)
+			res[f'MINE{H}'] = mi
 
 		#now estimate
 		# train conditional & unconditional CopulaGP 
@@ -98,7 +98,7 @@ for Nvar in Nvars:
 		#estimate Hr - Hrs
 		res['estimated'] = (eU-eC).mean().item()
 		#integrate a conditional copula
-		subvine = vine.create_subvine(torch.arange(0,NSamp,50))
+		subvine = vine.create_subvine(torch.arange(0,NSamp,10))
 		CopulaGP = subvine.inputMI(s_mc_size=50, r_mc_size=20, sem_tol=sem_tol, v=v)
 		res['integrated'] = CopulaGP[0].item()
 
