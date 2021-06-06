@@ -17,19 +17,19 @@ from training import train4entropy, integrate_student
 
 NSamp=10000
 device = torch.device('cuda:1')
-filename = "redo_StudentH.pkl"
+filename = "after_model_check2_StudentH.pkl"
 Nvars = [10,9,8,7,6,5,4,3,2]
 mc_size = 1500
 
 x = torch.linspace(0.,1.,NSamp).numpy()
 train_x = torch.tensor(x).float().to(device=device)
 
-likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
-                bvcopula.GumbelCopula_Likelihood(rotation='0°'),
-                bvcopula.GumbelCopula_Likelihood(rotation='180°')] 
-likelihoodU =  [bvcopula.GaussianCopula_Likelihood(),
-                bvcopula.GumbelCopula_Likelihood(rotation='180°'),
-                bvcopula.GumbelCopula_Likelihood(rotation='0°')]
+likelihoodC =  [bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+                bvcopula.GaussianCopula_Likelihood(),
+                ] 
+likelihoodU =  [bvcopula.ClaytonCopula_Likelihood(rotation='180°'),
+				bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+				bvcopula.GaussianCopula_Likelihood()]
 sem_tol=0.02
 Rps = 3
 

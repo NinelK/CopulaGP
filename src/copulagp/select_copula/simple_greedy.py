@@ -56,7 +56,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 
 	best_i = np.argmin(waics)
 	best = available[best_i]
-	logging.info(f"Best added copula: {get_copula_name_string(best)} (WAIC = {np.min(waics):.4f})")
+	logging.info(f"Best added copula: {utils.get_copula_name_string([best])} (WAIC = {np.min(waics):.4f})")
 
 	best_likelihoods = [best] + simple_model # order here is extrimely important!!!
 	waic = np.min(waics)
@@ -68,7 +68,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 
 	# plot the result
 	plot_res = f'{path_output}/res_{name}.png'
-	utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
+	utils.Plot_Fit(model, X, Y, name_x, name_y, device, filename=plot_res)
 
 	# remove all weights for all models, except for the best one
 	for file in files_created[1:]: # never delete independence
@@ -128,11 +128,11 @@ def select_copula_model(X: Tensor, Y: Tensor, device: torch.device,
 		weights_filename = f'{path_output}/w_{name}.pth'
 		torch.save(model.gp_model.state_dict(),weights_filename)
 		print(f"Model reduced to {utils.get_copula_name_string(reduced_likelihoods)}")
-		waics[best_ind] = waic.cpu().numpy()
+		waics[best_ind] = waic
 		mixtures[best_ind] = reduced_likelihoods
 		# plot the result
 		plot_res = f'{path_output}/res_{name}.png'
-		utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
+		utils.Plot_Fit(model, X, Y, name_x, name_y, device, filename=plot_res)
 
 	# copy the very best model 
 	# if True: #(utils.get_copula_name_string(mixtures[best_ind])!='Independence'):

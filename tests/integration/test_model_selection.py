@@ -15,7 +15,7 @@ torch.backends.cudnn.benchmark = False
 torch.manual_seed(0)
 np.random.seed(0)
 
-def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
+def model_selection(mode, likelihoods, device=torch.device('cuda:1')):
 
     NSamp=5000
     X = np.linspace(0.,1.,NSamp)
@@ -44,7 +44,7 @@ def model_selection(mode, likelihoods, device=torch.device('cuda:0')):
 
     # assert
     selected_copula = selected.model_init(device)
-    if ((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected_copula.likelihoods))):
+    if ((select_copula.available_elements(likelihoods) == select_copula.available_elements(selected_copula.likelihood.likelihoods))):
         print('Pass')
     else:
         waic_correct, _ = bvcopula.infer(likelihoods,train_x,train_y,device=device)

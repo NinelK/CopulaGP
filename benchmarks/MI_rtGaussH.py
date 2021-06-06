@@ -17,7 +17,7 @@ from training import train4entropy
 NSamp=10000
 
 device = torch.device('cuda:0')
-filename = "redo_rtGaussH.pkl"
+filename = "rtGaussH_GG.pkl"
 Nvars = [10,9,8,7,6,5,4,3,2]
 mc_size = 1500
 
@@ -39,11 +39,9 @@ def const_rho_layers(rho,Nvar):
 rho0 = torch.linspace(-0.1,.999,NSamp,device=device).unsqueeze(0)
 
 #rt
-likelihoodC =  [bvcopula.GaussianCopula_Likelihood(),
-                bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+likelihoodC =  [bvcopula.GumbelCopula_Likelihood(rotation='180°'),
                 bvcopula.GumbelCopula_Likelihood(rotation='0°')]
-likelihoodU =  [bvcopula.GaussianCopula_Likelihood(),
-                bvcopula.GumbelCopula_Likelihood(rotation='180°'),
+likelihoodU =  [bvcopula.GumbelCopula_Likelihood(rotation='180°'),
                 bvcopula.GumbelCopula_Likelihood(rotation='0°')] 
 
 sem_tol_base = 0.05

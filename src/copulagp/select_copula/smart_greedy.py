@@ -71,7 +71,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 
 	best_i = np.argmin(waics)
 	best = available[best_i]
-	logging.info(f"Best added copula: {get_copula_name_string(best)} (WAIC = {np.min(waics):.4f})")
+	logging.info(f"Best added copula: {utils.get_copula_name_string([best])} (WAIC = {np.min(waics):.4f})")
 
 	best_likelihoods = [best] + simple_model # order here is extrimely important!!!
 	waic = np.min(waics)
@@ -87,7 +87,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 			waic, model = bvcopula.infer(reduced_likelihoods,train_x,train_y,device=device)
 			torch.save(model.gp_model.state_dict(),weights_filename)
 			print(f"Model reduced to {utils.get_copula_name_string(reduced_likelihoods)}")
-			waic = waic.cpu().numpy()
+			waic = waic
 			best_likelihoods = reduced_likelihoods
 		else:
 			model = bvcopula.load_model(weights_filename, reduced_likelihoods, device)
@@ -99,7 +99,7 @@ def add_copula(X: Tensor, Y: Tensor, train_x: Tensor, train_y: Tensor, device: t
 
 	# plot the result
 	plot_res = f'{path_output}/res_{name}.png'
-	utils.Plot_Fit(model, X, Y, name_x, name_y, plot_res, device=device)
+	utils.Plot_Fit(model, X, Y, name_x, name_y, device, filename=plot_res)
 
 	# remove all weights for all models, except for the best one
 	for file in files_created:
