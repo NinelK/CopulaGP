@@ -148,7 +148,7 @@ class GaussianCopula(SingleParamCopulaBase):
     '''
     This class represents a copula from the Gaussian family.
     '''
-    arg_constraints = {"theta": constraints.interval(-10,10)}
+    arg_constraints = {"theta": constraints.interval(-1.,1.)}
     support = constraints.interval(0,1) # [0,1]
     
     def ppcf(self, samples):
@@ -167,15 +167,15 @@ class GaussianCopula(SingleParamCopulaBase):
         vals = torch.ones_like(samples[...,0])*1/2 #for samples on the edge cdf=1/2
         theta_ = self.theta.expand(vals.shape)
         # Avoid subtraction of infinities
-        neqz = torch.any(samples > 0.0, dim=-1) & torch.any(samples < 1.0, dim=-1)
+        neqz = torch.any(samples > 0.0, dim=-1) & torch.any(samples < 1.0, dim=-1) & (theta_!=1.) & (theta_!=-1.)
         
         nrvs = normal.Normal(torch.zeros(1, device=self.theta.device),
             torch.ones(1, device=self.theta.device)).icdf(samples)
+        v = ((nrvs[..., 0] - theta_ * nrvs[..., 1]) / torch.sqrt(1 - theta_**2))[neqz]
         vals[neqz] = normal.Normal(torch.zeros(1, device=self.theta.device),
-            torch.ones(1, device=self.theta.device)).cdf( \
-            (nrvs[..., 0] - theta_ * nrvs[..., 1]) / torch.sqrt(1 - theta_**2))[neqz]
+            torch.ones(1, device=self.theta.device)).cdf(v)
     
-        identical = (self.theta==1) & (nrvs[..., 0]==self.theta.sign()*nrvs[..., 1])
+        identical = (self.theta.abs()==1) & (nrvs[..., 0]==self.theta.sign()*nrvs[..., 1])
         if torch.any(identical):
             size = torch.Size([identical[identical].numel()])
             vals[identical] = torch.empty(size=size,device=self.theta.device).uniform_(0., 1.)
