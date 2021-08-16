@@ -33,11 +33,11 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False, shuffle=False):
 				store = model.cpu().serialize()
 		else:
 			if light:
-				(store, waic) = select_copula.select_light(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
+				(store, waic) = select_copula.select_light(X,Y,device(device_str),exp_pref,log_dir,n0,n1,train_x=train_x,train_y=train_y)
 			else:
-				(store, waic) = select_copula.select_with_heuristics(X,Y,device(device_str),exp_pref,out_dir,n0,n1,train_x=train_x,train_y=train_y)
+				(store, waic) = select_copula.select_with_heuristics(X,Y,device(device_str),exp_pref,log_dir,n0,n1,train_x=train_x,train_y=train_y)
 			model = store.model_init(device(device_str))
-			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,out_dir,layer,n+layer)
+			# (likelihoods, waic) = select_copula.select_copula_model(X,Y,device(device_str),exp_pref,log_dir,layer,n+layer)
 		t_end = time.time()
 		# print(f'Selection took {int((t_end-t_start)/60)} min')
 	except RuntimeError as error:
@@ -47,8 +47,8 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False, shuffle=False):
 	finally:
 		print(f"{n0}-{n1} {store.name_string} {waic:.4} took {int((t_end-t_start)/60)} min")
 		# save textual info into model list
-		if out_dir!=None:
-			with open(out_dir+'_model_list.txt','a') as f:
+		if log_dir!=None:
+			with open(log_dir+'_model_list.txt','a') as f:
 				f.write(f"{n0}-{n1} {store.name_string}\t{waic:.4f}\t{int(t_end-t_start)} sec\n")
 
 		if store.name_string!='Independence':
@@ -61,7 +61,7 @@ def worker(X, Y0, Y1, idxs, layer, gauss=False, light=False, shuffle=False):
 		return (store, waic, y)
 
 def train_next_tree(X: np.ndarray, Y: np.ndarray, 
-	layer: int, devices: list, gauss=False, light=False, shuffle=False, 
+		    layer: int, devices: list, gauss=False, light=False, shuffle=False, path_logs=lambda x,y: None,
 	exp = ''):
 	'''
 	Trains one vine copula tree
@@ -93,7 +93,7 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	for dev in devices:
 		assert (dev=='cpu') or (dev[:-2]=='cuda')
 
-	global exp_pref, out_dir
+	global exp_pref, log_dir
 	exp_pref = exp
 	if gauss:
 		exp_pref += '_g'
@@ -102,19 +102,14 @@ def train_next_tree(X: np.ndarray, Y: np.ndarray,
 	device_list = devices
 
 	if exp!='':
-		out_dir = f'./out/logs_{exp_pref}/layer{layer}'
-		if layer==0:
+		log_dir = path_logs(exp_pref, layer)
+		if(log_dir is not None):
 			try:
-				os.mkdir(f'./out/logs_{exp_pref}')
+				os.makedirs(log_dir)
 			except FileExistsError as error:
 				print(f"Error:{error}")
-
-		try:
-			os.mkdir(out_dir)
-		except FileExistsError as error:
-			print(f"Error:{error}")
 	else:
-		out_dir = None
+		log_dir = None
 
 	NN = Y.shape[-1]-1
 
