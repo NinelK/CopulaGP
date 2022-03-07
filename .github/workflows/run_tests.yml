@@ -21,10 +21,7 @@ jobs:
       run: git lfs pull
     - name: Install dependencies
       run: |
-        pip3 install virtualenv
-        mkvirtualenv copulagp
         pip3 install --upgrade -r ./requirements.txt
-    - name: Test with pytest
+    - name: Run tests
       run: |
-        activate copulagp
         sh run_test.sh
