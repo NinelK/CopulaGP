@@ -6,12 +6,19 @@ The models are constructed with the greedy or heuristic algorithm and the best m
 Both greedy and heuristic algorithms perform well on synthetic data (see tests/integration).
 The bivariate models can be then organised into a C-Vine.
 A number of methods for computing information measures (e.g. vine.entropy, vine.inputMI) are implemented.
-For a complete description of our method, see our pre-print (link below).
+For a complete description of our method, see our paper (link below).
 
-# Installing the package
+# Installing the package from PyPI
 
-In a virtual environment, install all the dependencies and the package using the following commands:
 ```
+pip install copulagp
+```
+
+# Installing the package from Github repo
+
+In a virtual environment (e.g. [virtualenv](https://pypi.org/project/virtualenv/)), install all the dependencies and the package using the following commands:
+```
+pip install -r requirements.txt
 pip install .
 ```
 
@@ -81,13 +88,19 @@ The best copula found by the heuristic algorithm is a mixture of Frank and Clayt
 
 More notebooks with examples and the code that generated the figures for our paper can be found in notebooks/.
 
-# Pre-print
+# Citation
+
+If you find our Copula-GP package useful, please consider citing our work:
 
 ```
-@article{kudryashova2020parametric,
+@article{kudryashova2022parametric,
   title={Parametric Copula-GP model for analyzing multidimensional neuronal and behavioral relationships},
   author={Kudryashova, Nina and Amvrosiadis, Theoklitos and Dupuy, Nathalie and Rochefort, Nathalie and Onken, Arno},
-  journal={arXiv preprint arXiv:2008.01007},
-  year={2020}
+  journal={PLoS computational biology},
+  volume={18},
+  number={1},
+  pages={e1009799},
+  year={2022},
+  publisher={Public Library of Science San Francisco, CA USA}
 }
 ```
