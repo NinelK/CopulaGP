@@ -26,4 +26,4 @@ jobs:
         pip3 install .
     - name: Run tests
       run: |
-        sh run_tests.sh
+        python3 -m unittest discover
