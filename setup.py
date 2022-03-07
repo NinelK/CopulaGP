@@ -1,3 +1,8 @@
 import setuptools
 
-setuptools.setup()
+requirements = []
+with open('requirements.txt', 'r') as fh:
+    for line in fh:
+        requirements.append(line.strip())
+
+setuptools.setup(install_requires = requirements)
