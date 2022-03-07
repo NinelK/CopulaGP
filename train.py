@@ -43,12 +43,16 @@ if __name__ == "__main__":
 	path_data = lambda layer: f"{conf.path2data}/{args.exp}{g}_layer{layer}.pkl"
 	path_models = lambda layer: f"{conf.path2outputs}/{args.exp}{g}_models_layer{layer}.pkl"
 	path_final = f"{conf.path2outputs}/{args.exp}{g}_trained.pkl"
+	path_logs = lambda exp_pref, layer: f'{conf.path2outputs}/logs_{exp_pref}/layer{layer}'
 
 	gpus = range(2,8)
 	start = time.time()
 	result = train_vine(args.exp, path_data, path_models, path_final,
 		layers_max=args.layers,start=args.start,gauss=args.gauss,
-		light=args.light,shuffle=args.shuffle,device_list=[f'cuda:{i}' for i in gpus])
+		light=args.light,
+		shuffle=args.shuffle,
+		path_logs=path_logs,
+		device_list=[f'cuda:{i}' for i in gpus])
 	end = time.time()
 
 	print(f"Done. Training {args.start}-{len(result['models'])} trees took {(end-start)//60} min")

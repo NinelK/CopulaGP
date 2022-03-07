@@ -8,7 +8,7 @@ from torch import tensor, randperm
 from copulagp.vine import CVine
 
 def train_vine(exp: str, path_data: Callable[[int],str], 
-		path_models: Callable[[int],str], path_final: str,
+		path_models: Callable[[int],str], path_final: str, path_logs: Callable[[str,int],str],
 		layers_max=-1,start=0,gauss=False,light=False,
 		shuffle=False, device_list=['cpu']):
 	'''
@@ -66,7 +66,7 @@ def train_vine(exp: str, path_data: Callable[[int],str],
 		if shuffle:
 			X = X[randperm(X.shape[0])]
 		print(f'Starting {exp} layer {layer}/{layers}')
-		model, waic, Y = train_next_tree(X,Y,layer,device_list,gauss=gauss,light=light,exp=exp)
+		model, waic, Y = train_next_tree(X,Y,layer,device_list,gauss=gauss,light=light,exp=exp,path_logs=path_logs)
 		to_save['models'].append(model)
 		to_save['waics'].append(waic)
 		# save checkpoint
