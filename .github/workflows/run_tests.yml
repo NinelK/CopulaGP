@@ -1,0 +1,30 @@
+name: Python Tests
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    name: 'Run Tests'
+    runs-on: ubuntu-latest
+    env:
+      OS: ubuntu-latest
+      PYTHON: '3.9'
+      CPU_ONLY: 'TRUE'
+    steps:
+    - uses: actions/checkout@master
+    - name: Setup Python
+      uses: actions/setup-python@master
+      with:
+        python-version: 3.9
+        lfs: true
+    - name: Pull LFS objects
+      run: git lfs pull
+    - name: Install dependencies
+      run: |
+        pip3 intall virtualenv
+        mkvirtualenv copulagp
+        pip3 install --upgrade -r ./requirements.txt
+    - name: Test with pytest
+      run: |
+        activate copulagp
+        sh run_test.sh
