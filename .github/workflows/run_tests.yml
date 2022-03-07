@@ -24,4 +24,4 @@ jobs:
         pip3 install --upgrade -r ./requirements.txt
     - name: Run tests
       run: |
-        sh run_test.sh
+        sh run_tests.sh
