@@ -11,9 +11,9 @@ jobs:
       PYTHON: '3.9'
       CPU_ONLY: 'TRUE'
     steps:
-    - uses: actions/checkout@master
+    - uses: actions/checkout@main
     - name: Setup Python
-      uses: actions/setup-python@master
+      uses: actions/setup-python@main
       with:
         python-version: 3.9
         lfs: true
