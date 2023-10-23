@@ -1,4 +1,4 @@
-fastkde>=1.0.14
+fastkde==1.0.30
 gpytorch>=1.2.0
 matplotlib>=3.3.1
 numpy>=1.19.1
